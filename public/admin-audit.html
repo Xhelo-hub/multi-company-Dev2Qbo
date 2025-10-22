@@ -234,7 +234,9 @@
     </div>
 
     <script>
-        const API_BASE = '/multi-company-Dev2Qbo/public';
+        const isLocal = window.location.hostname === 'localhost' && window.location.pathname.includes('multi-company-Dev2Qbo');
+        const API_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '';
+        const PAGE_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
 
         async function init() {
             try {
@@ -243,7 +245,7 @@
                 });
 
                 if (!userResponse.ok) {
-                    window.location.href = `${API_BASE}/login.html`;
+                    window.location.href = `${PAGE_BASE}/login.html`;
                     return;
                 }
 
@@ -251,7 +253,7 @@
                 
                 if (user.role !== 'admin') {
                     alert('Access denied. Admin only.');
-                    window.location.href = `${API_BASE}/app.html`;
+                    window.location.href = `${PAGE_BASE}/app.html`;
                     return;
                 }
 
@@ -267,7 +269,7 @@
 
             } catch (error) {
                 console.error('Initialization error:', error);
-                window.location.href = `${API_BASE}/login.html`;
+                window.location.href = `${PAGE_BASE}/login.html`;
             }
         }
 

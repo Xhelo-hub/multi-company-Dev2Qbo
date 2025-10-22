@@ -658,7 +658,9 @@
 
     <script>
         // API Base Path
-        const API_BASE = '/multi-company-Dev2Qbo/public';
+        const isLocal = window.location.hostname === 'localhost' && window.location.pathname.includes('multi-company-Dev2Qbo');
+        const API_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '';
+        const PAGE_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
         
         let currentUser = null;
         let currentCompany = null;
@@ -672,7 +674,7 @@
                 });
 
                 if (!userResponse.ok) {
-                    window.location.href = `${API_BASE}/login.html`;
+                    window.location.href = `${PAGE_BASE}/login.html`;
                     return;
                 }
 
@@ -701,7 +703,7 @@
             } catch (error) {
                 console.error('Initialization error:', error);
                 showAlert('Failed to initialize dashboard. Please try logging in again.', 'error');
-                setTimeout(() => window.location.href = '/login.html', 2000);
+                setTimeout(() => window.location.href = `${PAGE_BASE}/login.html`, 2000);
             }
         }
 
@@ -973,15 +975,15 @@
 
         // Admin functions
         function openUserManagement() {
-            window.location.href = `${API_BASE}/admin-users.html`;
+            window.location.href = `${PAGE_BASE}/admin-users.html`;
         }
 
         function openCompanyManagement() {
-            window.location.href = `${API_BASE}/admin-companies.html`;
+            window.location.href = `${PAGE_BASE}/admin-companies.html`;
         }
 
         function viewAuditLog() {
-            window.location.href = `${API_BASE}/admin-audit.html`;
+            window.location.href = `${PAGE_BASE}/admin-audit.html`;
         }
 
         function openScheduleManager() {
@@ -1284,7 +1286,7 @@
                     credentials: 'include'
                 });
             } finally {
-                window.location.href = `${API_BASE}/login.html`;
+                window.location.href = `${PAGE_BASE}/login.html`;
             }
         }
 

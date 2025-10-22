@@ -241,7 +241,11 @@
     </div>
 
     <script>
-        const API_BASE = '/multi-company-Dev2Qbo/public';
+        // Detect environment: if running on localhost with multi-company-Dev2Qbo, use that path
+        const isLocal = window.location.hostname === 'localhost' && window.location.pathname.includes('multi-company-Dev2Qbo');
+        const API_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '';
+        const PAGE_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
+        
         const form = document.getElementById('loginForm');
         const errorAlert = document.getElementById('errorAlert');
         const loading = document.getElementById('loading');
@@ -278,7 +282,7 @@
                 // No need to manually set it here
 
                 // Redirect to dashboard
-                window.location.href = `${API_BASE}/app.html`;
+                window.location.href = `${PAGE_BASE}/app.html`;
 
             } catch (error) {
                 errorAlert.textContent = error.message;

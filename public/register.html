@@ -186,7 +186,9 @@
     </div>
 
     <script>
-        const API_BASE = '/multi-company-Dev2Qbo/public';
+        const isLocal = window.location.hostname === 'localhost' && window.location.pathname.includes('multi-company-Dev2Qbo');
+        const API_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '';
+        const PAGE_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
 
         function showAlert(message, type = 'info') {
             const alert = document.getElementById('alert');
@@ -251,7 +253,7 @@
                     
                     // Redirect to login after 3 seconds
                     setTimeout(() => {
-                        window.location.href = `${API_BASE}/login.html`;
+                        window.location.href = `${PAGE_BASE}/login.html`;
                     }, 3000);
                 } else {
                     showAlert(result.message || 'Registration failed', 'error');
