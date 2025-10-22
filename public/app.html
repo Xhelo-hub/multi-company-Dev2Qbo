@@ -399,6 +399,16 @@
             </div>
         </div>
 
+        <!-- Quick Actions -->
+        <div class="card" style="margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <a href="/multi-company-Dev2Qbo/public/transactions.html" class="btn btn-primary" style="text-decoration: none;">
+                    📊 View All Synced Transactions
+                </a>
+                <button class="btn btn-primary" onclick="openScheduleManager()">⏰ Schedule Management</button>
+            </div>
+        </div>
+
         <!-- Alert Container -->
         <div id="alertContainer"></div>
 
@@ -813,15 +823,15 @@
 
         // Admin functions
         function openUserManagement() {
-            showAlert('User management page coming soon!', 'info');
+            window.location.href = `${API_BASE}/admin-users.html`;
         }
 
         function openCompanyManagement() {
-            showAlert('Company management page coming soon!', 'info');
+            window.location.href = `${API_BASE}/admin-companies.html`;
         }
 
         function viewAuditLog() {
-            showAlert('Audit log page coming soon!', 'info');
+            window.location.href = `${API_BASE}/admin-audit.html`;
         }
 
         function openScheduleManager() {

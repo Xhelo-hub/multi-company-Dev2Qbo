@@ -124,6 +124,189 @@ $app->post('/api/companies/{id}/sync', function (Request $request, Response $res
     return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 
+// Create new company (admin only)
+$app->post('/api/companies', function (Request $request, Response $response) use ($pdo) {
+    $user = $request->getAttribute('user');
+    
+    if ($user['role'] !== 'admin') {
+        $response->getBody()->write(json_encode(['error' => 'Admin access required']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+    
+    $data = $request->getParsedBody();
+    $companyCode = strtoupper(trim($data['company_code'] ?? ''));
+    $companyName = trim($data['company_name'] ?? '');
+    $nipt = trim($data['nipt'] ?? '');
+    $isActive = (int)($data['is_active'] ?? 1);
+    $notes = trim($data['notes'] ?? '');
+    
+    if (empty($companyCode) || empty($companyName)) {
+        $response->getBody()->write(json_encode(['error' => 'Company code and name are required']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+    
+    // Check if company code already exists
+    $stmt = $pdo->prepare("SELECT id FROM companies WHERE company_code = ?");
+    $stmt->execute([$companyCode]);
+    if ($stmt->fetch()) {
+        $response->getBody()->write(json_encode(['error' => 'Company code already exists']));
+        return $response->withStatus(409)->withHeader('Content-Type', 'application/json');
+    }
+    
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO companies (company_code, company_name, nipt, is_active, notes, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+        ");
+        $stmt->execute([$companyCode, $companyName, $nipt, $isActive, $notes]);
+        $companyId = $pdo->lastInsertId();
+        
+        // Log audit
+        $auditStmt = $pdo->prepare("
+            INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address, created_at)
+            VALUES (?, 'company.create', 'company', ?, ?, ?, NOW())
+        ");
+        $auditStmt->execute([
+            $user['id'],
+            $companyId,
+            json_encode(['company_code' => $companyCode, 'company_name' => $companyName]),
+            $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
+        ]);
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'company_id' => $companyId,
+            'message' => 'Company created successfully'
+        ]));
+    } catch (\Exception $e) {
+        $response->getBody()->write(json_encode(['error' => 'Failed to create company: ' . $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+    
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
+// Update company (admin only)
+$app->patch('/api/companies/{id}', function (Request $request, Response $response, array $args) use ($pdo) {
+    $user = $request->getAttribute('user');
+    
+    if ($user['role'] !== 'admin') {
+        $response->getBody()->write(json_encode(['error' => 'Admin access required']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+    
+    $companyId = (int)$args['id'];
+    $data = $request->getParsedBody();
+    
+    // Get current company data
+    $stmt = $pdo->prepare("SELECT * FROM companies WHERE id = ?");
+    $stmt->execute([$companyId]);
+    $company = $stmt->fetch();
+    
+    if (!$company) {
+        $response->getBody()->write(json_encode(['error' => 'Company not found']));
+        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+    }
+    
+    // Build update query dynamically
+    $updates = [];
+    $params = [];
+    $changes = [];
+    
+    if (isset($data['company_name'])) {
+        $updates[] = 'company_name = ?';
+        $params[] = trim($data['company_name']);
+        $changes['company_name'] = ['from' => $company['company_name'], 'to' => trim($data['company_name'])];
+    }
+    
+    if (isset($data['nipt'])) {
+        $updates[] = 'nipt = ?';
+        $params[] = trim($data['nipt']);
+        $changes['nipt'] = ['from' => $company['nipt'], 'to' => trim($data['nipt'])];
+    }
+    
+    if (isset($data['is_active'])) {
+        $updates[] = 'is_active = ?';
+        $params[] = (int)$data['is_active'];
+        $changes['is_active'] = ['from' => $company['is_active'], 'to' => (int)$data['is_active']];
+    }
+    
+    if (isset($data['notes'])) {
+        $updates[] = 'notes = ?';
+        $params[] = trim($data['notes']);
+        $changes['notes'] = ['from' => $company['notes'], 'to' => trim($data['notes'])];
+    }
+    
+    if (empty($updates)) {
+        $response->getBody()->write(json_encode(['error' => 'No fields to update']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+    
+    $updates[] = 'updated_at = NOW()';
+    $params[] = $companyId;
+    
+    try {
+        $stmt = $pdo->prepare("UPDATE companies SET " . implode(', ', $updates) . " WHERE id = ?");
+        $stmt->execute($params);
+        
+        // Log audit
+        $auditStmt = $pdo->prepare("
+            INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address, created_at)
+            VALUES (?, 'company.update', 'company', ?, ?, ?, NOW())
+        ");
+        $auditStmt->execute([
+            $user['id'],
+            $companyId,
+            json_encode($changes),
+            $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
+        ]);
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'Company updated successfully'
+        ]));
+    } catch (\Exception $e) {
+        $response->getBody()->write(json_encode(['error' => 'Failed to update company: ' . $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+    
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
+// Get company users (admin only)
+$app->get('/api/companies/{id}/users', function (Request $request, Response $response, array $args) use ($pdo) {
+    $user = $request->getAttribute('user');
+    
+    if ($user['role'] !== 'admin') {
+        $response->getBody()->write(json_encode(['error' => 'Admin access required']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+    
+    $companyId = (int)$args['id'];
+    
+    $stmt = $pdo->prepare("
+        SELECT 
+            u.id,
+            u.email,
+            u.full_name,
+            u.role,
+            uca.can_view_sync,
+            uca.can_run_sync,
+            uca.can_edit_credentials,
+            uca.can_manage_schedules,
+            uca.assigned_at
+        FROM users u
+        INNER JOIN user_company_access uca ON u.id = uca.user_id
+        WHERE uca.company_id = ?
+        ORDER BY u.full_name
+    ");
+    $stmt->execute([$companyId]);
+    $users = $stmt->fetchAll();
+    
+    $response->getBody()->write(json_encode($users));
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
 // ============================================================================
 // CREDENTIALS ENDPOINTS
 // ============================================================================
@@ -325,12 +508,23 @@ $app->post('/api/sync/{companyId}/{type}', function (Request $request, Response 
     $stmt->execute([$companyId, $type, $fromDate, $toDate]);
     $jobId = $pdo->lastInsertId();
     
-    // Return job info (actual sync would run in background)
-    $response->getBody()->write(json_encode([
-        'success' => true,
-        'job_id' => $jobId,
-        'message' => 'Sync job created. Processing will begin shortly.'
-    ]));
+    // Execute job immediately (for now - should be queued in production)
+    try {
+        $executor = new \App\Services\SyncExecutor($pdo);
+        $executor->executeJob((int)$jobId);
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'job_id' => $jobId,
+            'message' => 'Sync job completed successfully!'
+        ]));
+    } catch (\Exception $e) {
+        $response->getBody()->write(json_encode([
+            'success' => false,
+            'job_id' => $jobId,
+            'message' => 'Sync job failed: ' . $e->getMessage()
+        ]));
+    }
     
     return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
@@ -359,6 +553,126 @@ $app->get('/api/sync/{companyId}/jobs', function (Request $request, Response $re
     $jobs = $stmt->fetchAll();
     
     $response->getBody()->write(json_encode($jobs));
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
+// Get synced transactions for company
+$app->get('/api/sync/{companyId}/transactions', function (Request $request, Response $response, array $args) use ($pdo) {
+    $companyId = (int)$args['companyId'];
+    $params = $request->getQueryParams();
+    $limit = (int)($params['limit'] ?? 100);
+    $offset = (int)($params['offset'] ?? 0);
+    $type = $params['type'] ?? 'all'; // all, invoice, purchase, bill
+    
+    // Build WHERE clause based on type
+    $whereClause = 'WHERE im.company_id = ?';
+    $queryParams = [$companyId];
+    
+    if ($type !== 'all') {
+        $whereClause .= ' AND im.transaction_type = ?';
+        $queryParams[] = $type;
+    }
+    
+    // Get total count
+    $countStmt = $pdo->prepare("
+        SELECT COUNT(*) 
+        FROM invoice_mappings im
+        $whereClause
+    ");
+    $countStmt->execute($queryParams);
+    $totalCount = (int)$countStmt->fetchColumn();
+    
+    // Get transactions
+    $stmt = $pdo->prepare("
+        SELECT 
+            im.id,
+            im.devpos_eic,
+            im.devpos_document_number,
+            im.transaction_type,
+            im.qbo_invoice_id,
+            im.qbo_doc_number,
+            im.amount,
+            im.customer_name,
+            im.synced_at,
+            im.last_synced_at
+        FROM invoice_mappings im
+        $whereClause
+        ORDER BY im.synced_at DESC
+        LIMIT ? OFFSET ?
+    ");
+    $queryParams[] = $limit;
+    $queryParams[] = $offset;
+    $stmt->execute($queryParams);
+    $transactions = $stmt->fetchAll();
+    
+    $response->getBody()->write(json_encode([
+        'transactions' => $transactions,
+        'total' => $totalCount,
+        'limit' => $limit,
+        'offset' => $offset,
+        'has_more' => ($offset + $limit) < $totalCount
+    ]));
+    
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
+// Get sync statistics for company
+$app->get('/api/sync/{companyId}/stats', function (Request $request, Response $response, array $args) use ($pdo) {
+    $companyId = (int)$args['companyId'];
+    
+    // Get counts by transaction type
+    $stmt = $pdo->prepare("
+        SELECT 
+            transaction_type,
+            COUNT(*) as count,
+            SUM(amount) as total_amount,
+            MAX(synced_at) as last_synced
+        FROM invoice_mappings
+        WHERE company_id = ?
+        GROUP BY transaction_type
+    ");
+    $stmt->execute([$companyId]);
+    $stats = $stmt->fetchAll();
+    
+    // Get recent sync jobs summary
+    $jobsStmt = $pdo->prepare("
+        SELECT 
+            status,
+            COUNT(*) as count
+        FROM sync_jobs
+        WHERE company_id = ?
+        GROUP BY status
+    ");
+    $jobsStmt->execute([$companyId]);
+    $jobStats = $jobsStmt->fetchAll();
+    
+    // Format response
+    $statsByType = [];
+    $totalTransactions = 0;
+    $totalAmount = 0;
+    
+    foreach ($stats as $stat) {
+        $statsByType[$stat['transaction_type']] = [
+            'count' => (int)$stat['count'],
+            'total_amount' => (float)$stat['total_amount'],
+            'last_synced' => $stat['last_synced']
+        ];
+        $totalTransactions += (int)$stat['count'];
+        $totalAmount += (float)$stat['total_amount'];
+    }
+    
+    $jobStatusCounts = [];
+    foreach ($jobStats as $js) {
+        $jobStatusCounts[$js['status']] = (int)$js['count'];
+    }
+    
+    $response->getBody()->write(json_encode([
+        'total_transactions' => $totalTransactions,
+        'total_amount' => $totalAmount,
+        'by_type' => $statsByType,
+        'job_stats' => $jobStatusCounts
+    ]));
+    
     return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 
@@ -562,8 +876,153 @@ $app->get('/dashboard', function (Request $request, Response $response) {
     }
     
     $response->getBody()->write($html);
-    return $response->withHeader('Content-Type', 'text/html');
+    return $response->withHeader('Content-Type', 'application/json');
 });
+
+// ============================================================================
+// AUDIT LOG ENDPOINTS
+// ============================================================================
+
+// Get audit logs (admin only)
+$app->get('/api/audit/logs', function (Request $request, Response $response) use ($pdo) {
+    $user = $request->getAttribute('user');
+    
+    if ($user['role'] !== 'admin') {
+        $response->getBody()->write(json_encode(['error' => 'Admin access required']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+    
+    $params = $request->getQueryParams();
+    $limit = (int)($params['limit'] ?? 100);
+    $offset = (int)($params['offset'] ?? 0);
+    $action = $params['action'] ?? null;
+    $userId = $params['user_id'] ?? null;
+    $companyId = $params['company_id'] ?? null;
+    $dateFrom = $params['date_from'] ?? null;
+    $dateTo = $params['date_to'] ?? null;
+    
+    // Build WHERE clause
+    $where = [];
+    $queryParams = [];
+    
+    if ($action && $action !== 'all') {
+        $where[] = 'al.action LIKE ?';
+        $queryParams[] = $action . '%';
+    }
+    
+    if ($userId) {
+        $where[] = 'al.user_id = ?';
+        $queryParams[] = (int)$userId;
+    }
+    
+    if ($companyId && $companyId !== 'all') {
+        $where[] = 'al.entity_type = "company" AND al.entity_id = ?';
+        $queryParams[] = (int)$companyId;
+    }
+    
+    if ($dateFrom) {
+        $where[] = 'al.created_at >= ?';
+        $queryParams[] = $dateFrom . ' 00:00:00';
+    }
+    
+    if ($dateTo) {
+        $where[] = 'al.created_at <= ?';
+        $queryParams[] = $dateTo . ' 23:59:59';
+    }
+    
+    $whereClause = empty($where) ? '' : 'WHERE ' . implode(' AND ', $where);
+    
+    // Get total count
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM audit_logs al $whereClause");
+    $countStmt->execute($queryParams);
+    $totalCount = (int)$countStmt->fetchColumn();
+    
+    // Get logs
+    $queryParams[] = $limit;
+    $queryParams[] = $offset;
+    
+    $stmt = $pdo->prepare("
+        SELECT 
+            al.id,
+            al.action,
+            al.entity_type,
+            al.entity_id,
+            al.details,
+            al.ip_address,
+            al.created_at,
+            u.email as user_email,
+            u.full_name as user_name
+        FROM audit_logs al
+        LEFT JOIN users u ON al.user_id = u.id
+        $whereClause
+        ORDER BY al.created_at DESC
+        LIMIT ? OFFSET ?
+    ");
+    $stmt->execute($queryParams);
+    $logs = $stmt->fetchAll();
+    
+    // Parse details JSON
+    foreach ($logs as &$log) {
+        $log['details'] = json_decode($log['details'], true);
+    }
+    
+    $response->getBody()->write(json_encode([
+        'logs' => $logs,
+        'total' => $totalCount,
+        'limit' => $limit,
+        'offset' => $offset,
+        'has_more' => ($offset + $limit) < $totalCount
+    ]));
+    
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
+// Get recent activity summary (for audit log page)
+$app->get('/api/admin/recent-activity', function (Request $request, Response $response) use ($pdo) {
+    $user = $request->getAttribute('user');
+    
+    if ($user['role'] !== 'admin') {
+        $response->getBody()->write(json_encode(['error' => 'Admin access required']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+    
+    // Get sync jobs with company info
+    $stmt = $pdo->query("
+        SELECT 
+            sj.*,
+            c.company_code,
+            c.company_name,
+            u.email as triggered_by_email
+        FROM sync_jobs sj
+        INNER JOIN companies c ON sj.company_id = c.id
+        LEFT JOIN user_sessions us ON us.created_at <= sj.created_at 
+            AND (us.expires_at >= sj.created_at OR us.expires_at IS NULL)
+        LEFT JOIN users u ON us.user_id = u.id
+        ORDER BY sj.created_at DESC
+        LIMIT 50
+    ");
+    $syncJobs = $stmt->fetchAll();
+    
+    // Get audit logs
+    $stmt = $pdo->query("
+        SELECT 
+            al.*,
+            u.email as user_email,
+            u.full_name as user_name
+        FROM audit_logs al
+        LEFT JOIN users u ON al.user_id = u.id
+        ORDER BY al.created_at DESC
+        LIMIT 50
+    ");
+    $auditLogs = $stmt->fetchAll();
+    
+    $response->getBody()->write(json_encode([
+        'sync_jobs' => $syncJobs,
+        'audit_logs' => $auditLogs
+    ]));
+    
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
 
 // Health check
 $app->get('/health', function (Request $request, Response $response) {

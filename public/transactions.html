@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synced Transactions - Multi-Company Sync</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-card .subtext {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filters select {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .transactions-table {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .type-invoice {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .type-purchase {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .type-bill {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .type-sales_receipt {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .amount {
+            font-weight: 600;
+            color: #2ca01c;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .pagination button:hover {
+            background: #f5f5f5;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Synced Transactions</h1>
+            <div class="header-actions">
+                <select id="companySelector" class="btn">
+                    <option>Loading companies...</option>
+                </select>
+                <a href="/multi-company-Dev2Qbo/public/app.html" class="btn btn-primary">← Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Transactions</h3>
+                <div class="value" id="totalCount">-</div>
+                <div class="subtext">All synced records</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Amount</h3>
+                <div class="value" id="totalAmount">-</div>
+                <div class="subtext">Combined value</div>
+            </div>
+            <div class="stat-card">
+                <h3>Invoices</h3>
+                <div class="value" id="invoiceCount">-</div>
+                <div class="subtext" id="invoiceAmount">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Purchases</h3>
+                <div class="value" id="purchaseCount">-</div>
+                <div class="subtext" id="purchaseAmount">-</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <label>Filter by Type:</label>
+            <select id="typeFilter">
+                <option value="all">All Types</option>
+                <option value="invoice">Invoices</option>
+                <option value="purchase">Purchases</option>
+                <option value="bill">Bills</option>
+                <option value="sales_receipt">Sales Receipts</option>
+            </select>
+            <label>Show:</label>
+            <select id="limitFilter">
+                <option value="50">50 records</option>
+                <option value="100" selected>100 records</option>
+                <option value="250">250 records</option>
+                <option value="500">500 records</option>
+            </select>
+        </div>
+
+        <div class="transactions-table">
+            <div id="loadingIndicator" class="loading">Loading transactions...</div>
+            <table id="transactionsTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>DevPos EIC</th>
+                        <th>DevPos Doc #</th>
+                        <th>QBO Doc #</th>
+                        <th>Customer/Vendor</th>
+                        <th>Amount</th>
+                        <th>Synced At</th>
+                        <th>Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionsBody">
+                </tbody>
+            </table>
+            <div class="pagination" id="pagination" style="display: none;">
+                <button id="prevPage">← Previous</button>
+                <span id="pageInfo"></span>
+                <button id="nextPage">Next →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/multi-company-Dev2Qbo/public';
+        let currentCompany = null;
+        let currentPage = 0;
+        let currentLimit = 100;
+        let currentType = 'all';
+
+        // Initialize
+        async function init() {
+            try {
+                // Check auth
+                const userResponse = await fetch(`${API_BASE}/api/auth/me`, {
+                    credentials: 'include'
+                });
+
+                if (!userResponse.ok) {
+                    window.location.href = `${API_BASE}/login.html`;
+                    return;
+                }
+
+                const { user } = await userResponse.json();
+                
+                // Load companies
+                await loadCompanies();
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                window.location.href = `${API_BASE}/login.html`;
+            }
+        }
+
+        async function loadCompanies() {
+            const response = await fetch(`${API_BASE}/api/companies`, {
+                credentials: 'include'
+            });
+
+            const companies = await response.json();
+            const selector = document.getElementById('companySelector');
+            
+            selector.innerHTML = '';
+            companies.forEach(company => {
+                const option = document.createElement('option');
+                option.value = company.company_id;
+                option.textContent = `${company.company_code} - ${company.company_name}`;
+                selector.appendChild(option);
+            });
+
+            if (companies.length > 0) {
+                currentCompany = companies[0].company_id;
+                selector.value = currentCompany;
+                await loadData();
+            }
+
+            selector.addEventListener('change', async (e) => {
+                currentCompany = e.target.value;
+                currentPage = 0;
+                await loadData();
+            });
+        }
+
+        async function loadData() {
+            if (!currentCompany) return;
+
+            await Promise.all([
+                loadStats(),
+                loadTransactions()
+            ]);
+        }
+
+        async function loadStats() {
+            const response = await fetch(`${API_BASE}/api/sync/${currentCompany}/stats`, {
+                credentials: 'include'
+            });
+
+            const stats = await response.json();
+            
+            document.getElementById('totalCount').textContent = stats.total_transactions.toLocaleString();
+            document.getElementById('totalAmount').textContent = '$' + stats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            
+            const invoiceStats = stats.by_type.invoice || {count: 0, total_amount: 0};
+            document.getElementById('invoiceCount').textContent = invoiceStats.count.toLocaleString();
+            document.getElementById('invoiceAmount').textContent = '$' + invoiceStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            
+            const purchaseStats = stats.by_type.purchase || {count: 0, total_amount: 0};
+            document.getElementById('purchaseCount').textContent = purchaseStats.count.toLocaleString();
+            document.getElementById('purchaseAmount').textContent = '$' + purchaseStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        async function loadTransactions() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('transactionsTable').style.display = 'none';
+            document.getElementById('pagination').style.display = 'none';
+
+            const offset = currentPage * currentLimit;
+            const response = await fetch(`${API_BASE}/api/sync/${currentCompany}/transactions?limit=${currentLimit}&offset=${offset}&type=${currentType}`, {
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+            
+            const tbody = document.getElementById('transactionsBody');
+            tbody.innerHTML = '';
+
+            if (data.transactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">No transactions synced yet</td></tr>';
+            } else {
+                data.transactions.forEach(tx => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><span class="type-badge type-${tx.transaction_type}">${tx.transaction_type.replace('_', ' ').toUpperCase()}</span></td>
+                        <td>${tx.devpos_eic || '-'}</td>
+                        <td>${tx.devpos_document_number || '-'}</td>
+                        <td>${tx.qbo_doc_number || '-'}</td>
+                        <td>${tx.customer_name || '-'}</td>
+                        <td class="amount">$${parseFloat(tx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td>${new Date(tx.synced_at).toLocaleString()}</td>
+                        <td>${tx.last_synced_at ? new Date(tx.last_synced_at).toLocaleString() : '-'}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('transactionsTable').style.display = 'table';
+            document.getElementById('pagination').style.display = 'flex';
+
+            // Update pagination
+            const totalPages = Math.ceil(data.total / currentLimit);
+            document.getElementById('pageInfo').textContent = `Page ${currentPage + 1} of ${totalPages} (${data.total} total)`;
+            document.getElementById('prevPage').disabled = currentPage === 0;
+            document.getElementById('nextPage').disabled = !data.has_more;
+        }
+
+        // Event listeners
+        document.getElementById('typeFilter').addEventListener('change', async (e) => {
+            currentType = e.target.value;
+            currentPage = 0;
+            await loadTransactions();
+        });
+
+        document.getElementById('limitFilter').addEventListener('change', async (e) => {
+            currentLimit = parseInt(e.target.value);
+            currentPage = 0;
+            await loadTransactions();
+        });
+
+        document.getElementById('prevPage').addEventListener('click', async () => {
+            if (currentPage > 0) {
+                currentPage--;
+                await loadTransactions();
+            }
+        });
+
+        document.getElementById('nextPage').addEventListener('click', async () => {
+            currentPage++;
+            await loadTransactions();
+        });
+
+        // Initialize on page load
+        init();
+    </script>
+</body>
+</html>

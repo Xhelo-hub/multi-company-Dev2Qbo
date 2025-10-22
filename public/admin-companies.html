@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Management - Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-success {
+            background: #2ca01c;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status-inactive {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 Company Management</h1>
+            <a href="/multi-company-Dev2Qbo/public/app.html" class="btn btn-primary">← Back to Dashboard</a>
+        </div>
+
+        <div class="card">
+            <h2>➕ Create New Company</h2>
+            <form id="createCompanyForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Company Code *</label>
+                        <input type="text" id="companyCode" placeholder="e.g., AEM" required maxlength="20">
+                        <small style="color: #666;">Unique identifier (2-20 characters)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Company Name *</label>
+                        <input type="text" id="companyName" placeholder="e.g., Albanian Engineering & Management" required>
+                    </div>
+                    <div class="form-group">
+                        <label>NIPT (Tax ID)</label>
+                        <input type="text" id="companyNIPT" placeholder="Company tax identification number">
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="companyStatus">
+                            <option value="1">Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label>Notes</label>
+                    <textarea id="companyNotes" rows="3" placeholder="Optional notes about this company"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Create Company</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>📋 All Companies</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Code</th>
+                        <th>Company Name</th>
+                        <th>NIPT</th>
+                        <th>Status</th>
+                        <th>DevPos</th>
+                        <th>QuickBooks</th>
+                        <th>Users</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="companiesTable">
+                    <tr><td colspan="10" style="text-align: center;">Loading companies...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/multi-company-Dev2Qbo/public';
+
+        async function init() {
+            try {
+                const userResponse = await fetch(`${API_BASE}/api/auth/me`, {
+                    credentials: 'include'
+                });
+
+                if (!userResponse.ok) {
+                    window.location.href = `${API_BASE}/login.html`;
+                    return;
+                }
+
+                const user = await userResponse.json(); // Changed from { user }
+                
+                if (user.role !== 'admin') {
+                    alert('Access denied. Admin only.');
+                    window.location.href = `${API_BASE}/app.html`;
+                    return;
+                }
+
+                await loadCompanies();
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                window.location.href = `${API_BASE}/login.html`;
+            }
+        }
+
+        async function loadCompanies() {
+            const response = await fetch(`${API_BASE}/api/companies`, {
+                credentials: 'include'
+            });
+
+            const companies = await response.json();
+            
+            // Get additional info for each company
+            const companiesWithDetails = await Promise.all(companies.map(async (company) => {
+                const [devpos, qbo, users] = await Promise.all([
+                    fetch(`${API_BASE}/api/companies/${company.company_id}/credentials/devpos`, {credentials: 'include'}).then(r => r.json()),
+                    fetch(`${API_BASE}/api/companies/${company.company_id}/credentials/qbo`, {credentials: 'include'}).then(r => r.json()),
+                    fetch(`${API_BASE}/api/companies/${company.company_id}/users`, {credentials: 'include'}).then(r => r.ok ? r.json() : [])
+                ]);
+                
+                return {
+                    ...company,
+                    hasDevPos: !!(devpos.tenant && devpos.username),
+                    hasQBO: !!qbo.realm_id,
+                    userCount: Array.isArray(users) ? users.length : 0
+                };
+            }));
+
+            const tbody = document.getElementById('companiesTable');
+            tbody.innerHTML = '';
+
+            companiesWithDetails.forEach(company => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${company.company_id}</td>
+                    <td><strong>${company.company_code}</strong></td>
+                    <td>${company.company_name}</td>
+                    <td>${company.nipt || '-'}</td>
+                    <td><span class="status-badge ${company.is_active ? 'status-active' : 'status-inactive'}">${company.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td>${company.hasDevPos ? '✅ Configured' : '❌ Not set'}</td>
+                    <td>${company.hasQBO ? '✅ Connected' : '❌ Not connected'}</td>
+                    <td>${company.userCount} users</td>
+                    <td>${company.created_at ? new Date(company.created_at).toLocaleDateString() : '-'}</td>
+                    <td class="actions">
+                        <button class="btn btn-primary" onclick="viewCompany(${company.company_id})">View</button>
+                        <button class="btn ${company.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleCompanyStatus(${company.company_id}, ${company.is_active ? 0 : 1})">${company.is_active ? 'Deactivate' : 'Activate'}</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        document.getElementById('createCompanyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                company_code: document.getElementById('companyCode').value.trim().toUpperCase(),
+                company_name: document.getElementById('companyName').value.trim(),
+                nipt: document.getElementById('companyNIPT').value.trim(),
+                is_active: parseInt(document.getElementById('companyStatus').value),
+                notes: document.getElementById('companyNotes').value.trim()
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('✅ Company created successfully!');
+                    document.getElementById('createCompanyForm').reset();
+                    await loadCompanies();
+                } else {
+                    const error = await response.json();
+                    alert('❌ Error: ' + error.message);
+                }
+            } catch (error) {
+                alert('❌ Error creating company');
+                console.error(error);
+            }
+        });
+
+        async function toggleCompanyStatus(companyId, isActive) {
+            if (!confirm(`Are you sure you want to ${isActive ? 'activate' : 'deactivate'} this company?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ is_active: isActive })
+                });
+
+                if (response.ok) {
+                    alert('✅ Company status updated!');
+                    await loadCompanies();
+                } else {
+                    alert('❌ Error updating company status');
+                }
+            } catch (error) {
+                alert('❌ Error updating company');
+            }
+        }
+
+        function viewCompany(companyId) {
+            window.location.href = `${API_BASE}/app.html`;
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - Multi-Company Sync</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        input[readonly] {
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .verification-code {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .verification-code input {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👤 My Profile</h1>
+            <a href="/multi-company-Dev2Qbo/public/app.html" class="btn btn-primary">← Back to Dashboard</a>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <!-- Profile Information -->
+        <div class="card">
+            <h2>Profile Information</h2>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="current_email" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="full_name">Full Name</label>
+                    <input type="text" id="full_name" name="full_name" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Account Status</label>
+                    <input type="text" id="status" readonly>
+                </div>
+
+                <button type="submit" class="btn btn-success">Update Profile</button>
+            </form>
+        </div>
+
+        <!-- Change Email -->
+        <div class="card">
+            <h2>Change Email Address</h2>
+            <p style="color: #666; margin-bottom: 15px;">A verification code will be sent to your new email address</p>
+            <form id="emailForm">
+                <div class="form-group">
+                    <label for="new_email">New Email Address</label>
+                    <input type="email" id="new_email" name="new_email" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Request Email Change</button>
+            </form>
+        </div>
+
+        <!-- Change Password -->
+        <div class="card">
+            <h2>Change Password</h2>
+            <form id="passwordForm">
+                <div class="form-group">
+                    <label for="current_password">Current Password</label>
+                    <input type="password" id="current_password" name="current_password" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="new_password">New Password</label>
+                    <input type="password" id="new_password" name="new_password" required minlength="8">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirm New Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required>
+                </div>
+
+                <button type="submit" class="btn btn-success">Change Password</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Email Verification Modal -->
+    <div id="verificationModal" class="modal">
+        <div class="modal-content">
+            <h3>📧 Verify Your Email</h3>
+            <p>Enter the 4-digit code sent to your new email address:</p>
+            
+            <div class="verification-code">
+                <input type="text" maxlength="1" class="code-input" data-index="0">
+                <input type="text" maxlength="1" class="code-input" data-index="1">
+                <input type="text" maxlength="1" class="code-input" data-index="2">
+                <input type="text" maxlength="1" class="code-input" data-index="3">
+            </div>
+
+            <button onclick="verifyEmailCode()" class="btn btn-success" style="width: 100%;">Verify</button>
+            <button onclick="closeModal()" class="btn btn-danger" style="width: 100%; margin-top: 10px;">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/multi-company-Dev2Qbo/public';
+        let currentUser = null;
+
+        async function init() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    window.location.href = `${API_BASE}/login.html`;
+                    return;
+                }
+
+                currentUser = await response.json();
+                
+                document.getElementById('current_email').value = currentUser.email;
+                document.getElementById('full_name').value = currentUser.full_name;
+                document.getElementById('status').value = currentUser.status || 'active';
+
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                window.location.href = `${API_BASE}/login.html`;
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert ${type}`;
+            alert.style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        // Update Profile
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const full_name = document.getElementById('full_name').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/profile`, {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ full_name })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('✅ Profile updated successfully!', 'success');
+                } else {
+                    showAlert(result.message || 'Failed to update profile', 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred', 'error');
+            }
+        });
+
+        // Request Email Change
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const new_email = document.getElementById('new_email').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/request-email-change`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_email })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('✅ Verification code sent to your new email!', 'success');
+                    document.getElementById('verificationModal').style.display = 'flex';
+                } else {
+                    showAlert(result.message || 'Failed to send verification code', 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred', 'error');
+            }
+        });
+
+        // Change Password
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const current_password = document.getElementById('current_password').value;
+            const new_password = document.getElementById('new_password').value;
+            const confirm_password = document.getElementById('confirm_password').value;
+
+            if (new_password !== confirm_password) {
+                showAlert('New passwords do not match', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/change-password`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_password, new_password })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('✅ Password changed successfully!', 'success');
+                    document.getElementById('passwordForm').reset();
+                } else {
+                    showAlert(result.message || 'Failed to change password', 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred', 'error');
+            }
+        });
+
+        // Verification code input handling
+        document.querySelectorAll('.code-input').forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length === 1 && index < 3) {
+                    document.querySelector(`[data-index="${index + 1}"]`).focus();
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+                    document.querySelector(`[data-index="${index - 1}"]`).focus();
+                }
+            });
+        });
+
+        async function verifyEmailCode() {
+            const codes = Array.from(document.querySelectorAll('.code-input')).map(input => input.value);
+            const code = codes.join('');
+
+            if (code.length !== 4) {
+                showAlert('Please enter the complete 4-digit code', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/verify-email-change`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('✅ Email changed successfully!', 'success');
+                    closeModal();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAlert(result.message || 'Invalid or expired code', 'error');
+                }
+            } catch (error) {
+                showAlert('An error occurred', 'error');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('verificationModal').style.display = 'none';
+            document.querySelectorAll('.code-input').forEach(input => input.value = '');
+        }
+
+        init();
+    </script>
+</body>
+</html>

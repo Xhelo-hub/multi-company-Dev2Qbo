@@ -27,7 +27,8 @@ class AuthService
     {
         // Find user
         $stmt = $this->pdo->prepare("
-            SELECT id, email, password_hash, full_name, role, is_active
+            SELECT id, email, password_hash, full_name, role, is_active, status, 
+                   password_reset_token, password_reset_expires
             FROM users
             WHERE email = ?
         ");
@@ -42,9 +43,28 @@ class AuthService
             throw new RuntimeException('Account is inactive');
         }
 
+        // Check if account is pending approval
+        if ($user['status'] === 'pending') {
+            throw new RuntimeException('Your account is pending admin approval. Please wait for approval before logging in.');
+        }
+
+        // Check if account is suspended
+        if ($user['status'] === 'suspended') {
+            throw new RuntimeException('Your account has been suspended. Please contact an administrator.');
+        }
+
         // Verify password
         if (!password_verify($password, $user['password_hash'])) {
             throw new RuntimeException('Invalid email or password');
+        }
+
+        // Check if user is using a temporary password
+        $requiresPasswordChange = false;
+        if ($user['password_reset_token'] && $user['password_reset_expires']) {
+            $expiresAt = strtotime($user['password_reset_expires']);
+            if ($expiresAt > time()) {
+                $requiresPasswordChange = true;
+            }
         }
 
         // Create session token
@@ -67,10 +87,23 @@ class AuthService
         $stmt = $this->pdo->prepare("UPDATE users SET last_login_at = NOW() WHERE id = ?");
         $stmt->execute([$user['id']]);
 
+        // Log audit
+        $stmt = $this->pdo->prepare("
+            INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address, user_agent, created_at)
+            VALUES (?, 'user.login', 'user', ?, ?, ?, ?, NOW())
+        ");
+        $stmt->execute([
+            $user['id'],
+            $user['id'],
+            json_encode(['email' => $email, 'requires_password_change' => $requiresPasswordChange]),
+            $ipAddress,
+            $userAgent
+        ]);
+
         // Get user's companies
         $companies = $this->getUserCompanies($user['id']);
 
-        return [
+        $result = [
             'session_token' => $sessionToken,
             'expires_at' => $expiresAt,
             'user' => [
@@ -82,6 +115,13 @@ class AuthService
                 'companies' => $companies
             ]
         ];
+
+        // Add flag if password change is required
+        if ($requiresPasswordChange) {
+            $result['requires_password_change'] = true;
+        }
+
+        return $result;
     }
 
     /**
@@ -89,9 +129,30 @@ class AuthService
      */
     public function logout(string $sessionToken): bool
     {
+        // Get user_id before deleting session
+        $stmt = $this->pdo->prepare("SELECT user_id FROM user_sessions WHERE session_token = ?");
+        $stmt->execute([$sessionToken]);
+        $session = $stmt->fetch();
+        
         $stmt = $this->pdo->prepare("DELETE FROM user_sessions WHERE session_token = ?");
         $stmt->execute([$sessionToken]);
-        return $stmt->rowCount() > 0;
+        $deleted = $stmt->rowCount() > 0;
+        
+        // Log audit if session was found
+        if ($deleted && $session) {
+            $stmt = $this->pdo->prepare("
+                INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address, created_at)
+                VALUES (?, 'user.logout', 'user', ?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $session['user_id'],
+                $session['user_id'],
+                json_encode(['session_token' => substr($sessionToken, 0, 10) . '...']),
+                $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
+            ]);
+        }
+        
+        return $deleted;
     }
 
     /**
@@ -178,7 +239,12 @@ class AuthService
         ");
         $stmt->execute([$email, $passwordHash, $fullName, $role]);
 
-        return (int)$this->pdo->lastInsertId();
+        $userId = (int)$this->pdo->lastInsertId();
+        
+        // Log audit - we don't have the admin user ID here, so skip or pass it from controller
+        // The controller should log this action
+        
+        return $userId;
     }
 
     /**
@@ -212,6 +278,29 @@ class AuthService
             $canManageSchedules ? 1 : 0,
             $assignedBy
         ]);
+        
+        // Log audit
+        if ($assignedBy) {
+            $stmt = $this->pdo->prepare("
+                INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address, created_at)
+                VALUES (?, 'user.assign_company', 'user_company_access', ?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $assignedBy,
+                $userId,
+                json_encode([
+                    'user_id' => $userId,
+                    'company_id' => $companyId,
+                    'permissions' => [
+                        'can_view_sync' => $canViewSync,
+                        'can_run_sync' => $canRunSync,
+                        'can_edit_credentials' => $canEditCredentials,
+                        'can_manage_schedules' => $canManageSchedules
+                    ]
+                ]),
+                $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
+            ]);
+        }
     }
 
     /**
