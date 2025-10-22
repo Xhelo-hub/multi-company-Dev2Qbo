@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Company Sync - Authenticated Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .company-selector {
+            padding: 10px 15px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+            min-width: 200px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-role {
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        /* Admin Panel */
+        .admin-nav {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .admin-nav h3 {
+            color: #ef4444;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Main Content */
+        .content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        @media (max-width: 1100px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Connection Status */
+        .connection-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .connection-status span {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-connected {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+
+        .status-disconnected {
+            background: #ef4444;
+        }
+
+        /* Forms */
+        .credentials-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .form-group input, .form-group select {
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: #667eea;
+        }
+
+        /* Sync Controls */
+        .date-range {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .sync-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .sync-button {
+            padding: 15px;
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .sync-button:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        /* Sync History */
+        .sync-history {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .sync-job {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sync-job:last-child {
+            border-bottom: none;
+        }
+
+        .job-info h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .job-info p {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .job-status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-completed {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .status-running {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .status-failed {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #059669;
+            border: 1px solid #059669;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #dc2626;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #2563eb;
+            border: 1px solid #2563eb;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        hr {
+            margin: 25px 0;
+            border: none;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>🚀 Multi-Company Sync Dashboard</h1>
+            </div>
+            <div class="user-menu">
+                <select id="companySelector" class="company-selector">
+                    <option value="">Loading companies...</option>
+                </select>
+                <div class="user-info">
+                    <span id="userEmail"></span>
+                    <span id="userRole" class="user-role"></span>
+                    <button class="btn btn-danger" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="admin-nav hidden">
+            <h3>⚡ Admin Controls</h3>
+            <div class="admin-buttons">
+                <button class="btn btn-primary" onclick="openUserManagement()">👥 Manage Users</button>
+                <button class="btn btn-primary" onclick="openCompanyManagement()">🏢 Manage Companies</button>
+                <button class="btn btn-primary" onclick="viewAuditLog()">📋 Audit Log</button>
+            </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alertContainer"></div>
+
+        <!-- Main Content -->
+        <div class="content">
+            <!-- Credentials Card -->
+            <div class="card">
+                <h2>🔐 Credentials Management</h2>
+                
+                <!-- DevPos Credentials -->
+                <div class="connection-status">
+                    <span>
+                        <span class="status-indicator" id="devposStatus"></span>
+                        DevPos Connection
+                    </span>
+                    <button class="btn btn-primary" onclick="testDevposConnection()">Test</button>
+                </div>
+
+                <form class="credentials-form" onsubmit="saveDevposCredentials(event)">
+                    <div class="form-group">
+                        <label>DevPos Tenant ID</label>
+                        <input type="text" id="devposTenant" placeholder="e.g., M01419018I" required>
+                    </div>
+                    <div class="form-group">
+                        <label>DevPos Username</label>
+                        <input type="text" id="devposUsername" placeholder="Username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>DevPos Password</label>
+                        <input type="password" id="devposPassword" placeholder="Password (leave blank to keep current)">
+                    </div>
+                    <button type="submit" class="btn btn-success">💾 Save DevPos Credentials</button>
+                </form>
+
+                <hr>
+
+                <!-- QuickBooks Connection -->
+                <div class="connection-status">
+                    <span>
+                        <span class="status-indicator" id="qboStatus"></span>
+                        QuickBooks Online
+                    </span>
+                    <span id="qboRealmId" style="font-size: 12px; color: #666;"></span>
+                </div>
+
+                <button class="btn btn-primary" onclick="connectQuickBooks()" style="width: 100%;">
+                    🔗 Connect to QuickBooks Online
+                </button>
+            </div>
+
+            <!-- Sync Controls Card -->
+            <div class="card">
+                <h2>⚡ Sync Operations</h2>
+                
+                <div class="date-range">
+                    <div class="form-group">
+                        <label>From Date</label>
+                        <input type="date" id="fromDate">
+                    </div>
+                    <div class="form-group">
+                        <label>To Date</label>
+                        <input type="date" id="toDate">
+                    </div>
+                </div>
+
+                <div class="sync-grid">
+                    <div class="sync-button" onclick="runSync('sales')">
+                        📄 Sync Sales Invoices
+                    </div>
+                    <div class="sync-button" onclick="runSync('purchases')">
+                        🛒 Sync Purchase Invoices
+                    </div>
+                    <div class="sync-button" onclick="runSync('bills')">
+                        💰 Sync Bills
+                    </div>
+                    <div class="sync-button" onclick="runSync('full')">
+                        🔄 Full Sync (All)
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="openScheduleManager()" style="width: 100%;">
+                        ⏰ Manage Sync Schedules
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sync History Card -->
+        <div class="card" style="margin-top: 20px;">
+            <h2>📊 Recent Sync Jobs</h2>
+            <div id="syncHistory" class="sync-history">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Base Path
+        const API_BASE = '/multi-company-Dev2Qbo/public';
+        
+        let currentUser = null;
+        let currentCompany = null;
+
+        // Initialize dashboard
+        async function init() {
+            try {
+                // Get current user
+                const userResponse = await fetch(`${API_BASE}/api/auth/me`, {
+                    credentials: 'include'
+                });
+
+                if (!userResponse.ok) {
+                    window.location.href = `${API_BASE}/login.html`;
+                    return;
+                }
+
+                currentUser = await userResponse.json();
+                
+                // Display user info
+                document.getElementById('userEmail').textContent = currentUser.email;
+                document.getElementById('userRole').textContent = currentUser.role;
+
+                // Show admin panel if admin
+                if (currentUser.role === 'admin') {
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                }
+
+                // Load companies
+                await loadCompanies();
+
+                // Set default dates (last 30 days)
+                const today = new Date();
+                const thirtyDaysAgo = new Date(today);
+                thirtyDaysAgo.setDate(today.getDate() - 30);
+                
+                document.getElementById('toDate').valueAsDate = today;
+                document.getElementById('fromDate').valueAsDate = thirtyDaysAgo;
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showAlert('Failed to initialize dashboard. Please try logging in again.', 'error');
+                setTimeout(() => window.location.href = '/login.html', 2000);
+            }
+        }
+
+        // Show alert message
+        function showAlert(message, type = 'info') {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        // Load companies
+        async function loadCompanies() {
+            const response = await fetch(`${API_BASE}/api/companies`, {
+                credentials: 'include'
+            });
+
+            const companies = await response.json();
+            const selector = document.getElementById('companySelector');
+            
+            selector.innerHTML = '';
+            companies.forEach(company => {
+                const option = document.createElement('option');
+                option.value = company.company_id;
+                option.textContent = `${company.company_code} - ${company.company_name}`;
+                selector.appendChild(option);
+            });
+
+            // Select first company by default
+            if (companies.length > 0) {
+                selector.value = companies[0].company_id;
+                await selectCompany(companies[0].company_id);
+            }
+
+            // Add change listener
+            selector.addEventListener('change', (e) => {
+                selectCompany(e.target.value);
+            });
+        }
+
+        // Select company and load its data
+        async function selectCompany(companyId) {
+            currentCompany = companyId;
+            await loadCompanyCredentials(companyId);
+            await loadSyncHistory(companyId);
+        }
+
+        // Load company credentials
+        async function loadCompanyCredentials(companyId) {
+            try {
+                // Load DevPos credentials
+                const devposResponse = await fetch(`${API_BASE}/api/companies/${companyId}/credentials/devpos`, {
+                    credentials: 'include'
+                });
+
+                if (devposResponse.ok) {
+                    const devpos = await devposResponse.json();
+                    document.getElementById('devposTenant').value = devpos.tenant || '';
+                    document.getElementById('devposUsername').value = devpos.username || '';
+                    document.getElementById('devposPassword').value = '';
+                    document.getElementById('devposStatus').className = 'status-indicator status-connected';
+                } else {
+                    document.getElementById('devposStatus').className = 'status-indicator status-disconnected';
+                }
+
+                // Load QuickBooks status
+                const qboResponse = await fetch(`${API_BASE}/api/companies/${companyId}/credentials/qbo`, {
+                    credentials: 'include'
+                });
+
+                if (qboResponse.ok) {
+                    const qbo = await qboResponse.json();
+                    if (qbo.realm_id) {
+                        document.getElementById('qboStatus').className = 'status-indicator status-connected';
+                        document.getElementById('qboRealmId').textContent = `Realm: ${qbo.realm_id}`;
+                    } else {
+                        document.getElementById('qboStatus').className = 'status-indicator status-disconnected';
+                        document.getElementById('qboRealmId').textContent = 'Not connected';
+                    }
+                } else {
+                    document.getElementById('qboStatus').className = 'status-indicator status-disconnected';
+                    document.getElementById('qboRealmId').textContent = 'Not connected';
+                }
+
+            } catch (error) {
+                console.error('Error loading credentials:', error);
+            }
+        }
+
+        // Save DevPos credentials
+        async function saveDevposCredentials(event) {
+            event.preventDefault();
+
+            if (!currentCompany) {
+                showAlert('Please select a company first', 'error');
+                return;
+            }
+
+            const data = {
+                tenant: document.getElementById('devposTenant').value,
+                username: document.getElementById('devposUsername').value,
+                password: document.getElementById('devposPassword').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/credentials/devpos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('✅ DevPos credentials saved successfully!', 'success');
+                    document.getElementById('devposStatus').className = 'status-indicator status-connected';
+                } else {
+                    const error = await response.json();
+                    showAlert('❌ Failed to save credentials: ' + error.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving credentials:', error);
+                showAlert('❌ Failed to save credentials', 'error');
+            }
+        }
+
+        // Test DevPos connection
+        async function testDevposConnection() {
+            if (!currentCompany) {
+                showAlert('Please select a company first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/credentials/devpos/test`, {
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showAlert('✅ DevPos connection successful!', 'success');
+                    document.getElementById('devposStatus').className = 'status-indicator status-connected';
+                } else {
+                    showAlert('❌ DevPos connection failed: ' + result.message, 'error');
+                    document.getElementById('devposStatus').className = 'status-indicator status-disconnected';
+                }
+            } catch (error) {
+                showAlert('❌ Connection test failed', 'error');
+            }
+        }
+
+        // Connect to QuickBooks
+        async function connectQuickBooks() {
+            if (!currentCompany) {
+                showAlert('Please select a company first', 'error');
+                return;
+            }
+
+            try {
+                // Get OAuth URL
+                const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/qbo/auth-url`, {
+                    credentials: 'include'
+                });
+
+                const { auth_url } = await response.json();
+
+                // Open popup
+                const width = 800;
+                const height = 600;
+                const left = (screen.width - width) / 2;
+                const top = (screen.height - height) / 2;
+                
+                const popup = window.open(
+                    auth_url,
+                    'qbo-auth',
+                    `width=${width},height=${height},left=${left},top=${top}`
+                );
+
+                // Listen for callback
+                window.addEventListener('message', async (event) => {
+                    if (event.data.type === 'qbo-connected') {
+                        popup.close();
+                        showAlert('✅ QuickBooks connected successfully!', 'success');
+                        await loadCompanyCredentials(currentCompany);
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error connecting to QuickBooks:', error);
+                showAlert('❌ Failed to connect to QuickBooks', 'error');
+            }
+        }
+
+        // Run sync
+        async function runSync(type) {
+            if (!currentCompany) {
+                showAlert('Please select a company first', 'error');
+                return;
+            }
+
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+
+            if (!fromDate || !toDate) {
+                showAlert('Please select date range', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/sync/${currentCompany}/${type}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ fromDate, toDate })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showAlert(`✅ Sync job started! Job ID: ${result.job_id}`, 'success');
+                    setTimeout(() => loadSyncHistory(currentCompany), 1000);
+                } else {
+                    const error = await response.json();
+                    showAlert('❌ Failed to start sync: ' + error.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error starting sync:', error);
+                showAlert('❌ Failed to start sync', 'error');
+            }
+        }
+
+        // Load sync history
+        async function loadSyncHistory(companyId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/sync/${companyId}/jobs`, {
+                    credentials: 'include'
+                });
+
+                const jobs = await response.json();
+                const container = document.getElementById('syncHistory');
+                
+                if (jobs.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No sync jobs yet</p>';
+                    return;
+                }
+
+                container.innerHTML = jobs.map(job => {
+                    const dateRange = `${job.from_date} to ${job.to_date}`;
+                    const startedAt = job.started_at ? new Date(job.started_at).toLocaleString() : new Date(job.created_at).toLocaleString();
+                    
+                    return `
+                        <div class="sync-job">
+                            <div class="job-info">
+                                <h4>${job.job_type.toUpperCase()} - ${dateRange}</h4>
+                                <p>Started: ${startedAt}</p>
+                                ${job.completed_at ? `<p>Completed: ${new Date(job.completed_at).toLocaleString()}</p>` : ''}
+                                ${job.error_message ? `<p style="color: #ef4444;">Error: ${job.error_message}</p>` : ''}
+                            </div>
+                            <span class="job-status status-${job.status}">${job.status}</span>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading sync history:', error);
+            }
+        }
+
+        // Admin functions
+        function openUserManagement() {
+            showAlert('User management page coming soon!', 'info');
+        }
+
+        function openCompanyManagement() {
+            showAlert('Company management page coming soon!', 'info');
+        }
+
+        function viewAuditLog() {
+            showAlert('Audit log page coming soon!', 'info');
+        }
+
+        function openScheduleManager() {
+            showAlert('Schedule manager coming soon!', 'info');
+        }
+
+        // Logout
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/api/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } finally {
+                window.location.href = `${API_BASE}/login.html`;
+            }
+        }
+
+        // Initialize on page load
+        init();
+
+        // Auto-refresh sync history every 10 seconds
+        setInterval(() => {
+            if (currentCompany) {
+                loadSyncHistory(currentCompany);
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
