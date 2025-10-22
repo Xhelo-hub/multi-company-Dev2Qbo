@@ -43,7 +43,7 @@ $app->get('/api/companies', function (Request $request, Response $response) use 
     
     // If admin, return all companies; otherwise return only user's companies
     if ($user['role'] === 'admin') {
-        $stmt = $pdo->query("SELECT id as company_id, company_code, company_name, is_active FROM companies WHERE is_active = 1");
+        $stmt = $pdo->query("SELECT id as company_id, company_code, company_name, is_active FROM companies ORDER BY created_at DESC");
         $companies = $stmt->fetchAll();
     } else {
         $companies = $user['companies'] ?? [];
@@ -136,9 +136,7 @@ $app->post('/api/companies', function (Request $request, Response $response) use
     $data = $request->getParsedBody();
     $companyCode = strtoupper(trim($data['company_code'] ?? ''));
     $companyName = trim($data['company_name'] ?? '');
-    $nipt = trim($data['nipt'] ?? '');
     $isActive = (int)($data['is_active'] ?? 1);
-    $notes = trim($data['notes'] ?? '');
     
     if (empty($companyCode) || empty($companyName)) {
         $response->getBody()->write(json_encode(['error' => 'Company code and name are required']));
@@ -155,10 +153,10 @@ $app->post('/api/companies', function (Request $request, Response $response) use
     
     try {
         $stmt = $pdo->prepare("
-            INSERT INTO companies (company_code, company_name, nipt, is_active, notes, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+            INSERT INTO companies (company_code, company_name, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, NOW(), NOW())
         ");
-        $stmt->execute([$companyCode, $companyName, $nipt, $isActive, $notes]);
+        $stmt->execute([$companyCode, $companyName, $isActive]);
         $companyId = $pdo->lastInsertId();
         
         // Log audit
@@ -217,12 +215,6 @@ $app->patch('/api/companies/{id}', function (Request $request, Response $respons
         $updates[] = 'company_name = ?';
         $params[] = trim($data['company_name']);
         $changes['company_name'] = ['from' => $company['company_name'], 'to' => trim($data['company_name'])];
-    }
-    
-    if (isset($data['nipt'])) {
-        $updates[] = 'nipt = ?';
-        $params[] = trim($data['nipt']);
-        $changes['nipt'] = ['from' => $company['nipt'], 'to' => trim($data['nipt'])];
     }
     
     if (isset($data['is_active'])) {
@@ -314,19 +306,33 @@ $app->get('/api/companies/{id}/users', function (Request $request, Response $res
 // Get DevPos credentials
 $app->get('/api/companies/{companyId}/credentials/devpos', function (Request $request, Response $response, array $args) use ($pdo) {
     $companyId = (int)$args['companyId'];
+    $user = $request->getAttribute('user');
+    $userId = $user['id'];
     
+    // First, try to get user-specific credentials
     $stmt = $pdo->prepare("
-        SELECT tenant, username 
-        FROM company_credentials_devpos 
-        WHERE company_id = ?
+        SELECT tenant, username, 'user' as credential_type
+        FROM user_devpos_credentials 
+        WHERE company_id = ? AND user_id = ?
     ");
-    $stmt->execute([$companyId]);
+    $stmt->execute([$companyId, $userId]);
     $creds = $stmt->fetch();
+    
+    // If no user-specific credentials, fallback to company-level credentials
+    if (!$creds) {
+        $stmt = $pdo->prepare("
+            SELECT tenant, username, 'company' as credential_type
+            FROM company_credentials_devpos 
+            WHERE company_id = ?
+        ");
+        $stmt->execute([$companyId]);
+        $creds = $stmt->fetch();
+    }
     
     if ($creds) {
         $response->getBody()->write(json_encode($creds));
     } else {
-        $response->getBody()->write(json_encode(['tenant' => '', 'username' => '']));
+        $response->getBody()->write(json_encode(['tenant' => '', 'username' => '', 'credential_type' => 'none']));
     }
     
     return $response->withHeader('Content-Type', 'application/json');
@@ -335,48 +341,23 @@ $app->get('/api/companies/{companyId}/credentials/devpos', function (Request $re
 // Save DevPos credentials
 $app->post('/api/companies/{companyId}/credentials/devpos', function (Request $request, Response $response, array $args) use ($pdo) {
     $companyId = (int)$args['companyId'];
+    $user = $request->getAttribute('user');
+    $userId = $user['id'];
     $data = $request->getParsedBody();
     
     $tenant = $data['tenant'] ?? '';
     $username = $data['username'] ?? '';
     $password = $data['password'] ?? '';
+    $scope = $data['scope'] ?? 'user'; // 'user' or 'company'
     
     if (empty($tenant) || empty($username)) {
         $response->getBody()->write(json_encode(['error' => 'Tenant and username are required']));
         return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
     }
     
-    // Check if credentials exist
-    $stmt = $pdo->prepare("SELECT id FROM company_credentials_devpos WHERE company_id = ?");
-    $stmt->execute([$companyId]);
-    $existing = $stmt->fetch();
-    
-    if ($existing) {
-        // Update
-        if (!empty($password)) {
-            $encryptedPassword = openssl_encrypt(
-                $password,
-                'AES-256-CBC',
-                $_ENV['ENCRYPTION_KEY'] ?? 'default-key',
-                0,
-                substr(hash('sha256', $_ENV['ENCRYPTION_KEY'] ?? 'default-key'), 0, 16)
-            );
-            $stmt = $pdo->prepare("
-                UPDATE company_credentials_devpos 
-                SET tenant = ?, username = ?, password_encrypted = ?, updated_at = NOW()
-                WHERE company_id = ?
-            ");
-            $stmt->execute([$tenant, $username, $encryptedPassword, $companyId]);
-        } else {
-            $stmt = $pdo->prepare("
-                UPDATE company_credentials_devpos 
-                SET tenant = ?, username = ?, updated_at = NOW()
-                WHERE company_id = ?
-            ");
-            $stmt->execute([$tenant, $username, $companyId]);
-        }
-    } else {
-        // Insert
+    // Encrypt password if provided
+    $encryptedPassword = null;
+    if (!empty($password)) {
         $encryptedPassword = openssl_encrypt(
             $password,
             'AES-256-CBC',
@@ -384,25 +365,110 @@ $app->post('/api/companies/{companyId}/credentials/devpos', function (Request $r
             0,
             substr(hash('sha256', $_ENV['ENCRYPTION_KEY'] ?? 'default-key'), 0, 16)
         );
-        $stmt = $pdo->prepare("
-            INSERT INTO company_credentials_devpos (company_id, tenant, username, password_encrypted)
-            VALUES (?, ?, ?, ?)
-        ");
-        $stmt->execute([$companyId, $tenant, $username, $encryptedPassword]);
     }
     
-    $response->getBody()->write(json_encode(['success' => true]));
+    // Save based on scope (user-specific or company-wide)
+    if ($scope === 'company' && $user['role'] === 'admin') {
+        // Admin can set company-level credentials
+        $stmt = $pdo->prepare("SELECT id FROM company_credentials_devpos WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        $existing = $stmt->fetch();
+        
+        if ($existing) {
+            // Update
+            if (!empty($password)) {
+                $stmt = $pdo->prepare("
+                    UPDATE company_credentials_devpos 
+                    SET tenant = ?, username = ?, password_encrypted = ?, updated_at = NOW()
+                    WHERE company_id = ?
+                ");
+                $stmt->execute([$tenant, $username, $encryptedPassword, $companyId]);
+            } else {
+                $stmt = $pdo->prepare("
+                    UPDATE company_credentials_devpos 
+                    SET tenant = ?, username = ?, updated_at = NOW()
+                    WHERE company_id = ?
+                ");
+                $stmt->execute([$tenant, $username, $companyId]);
+            }
+        } else {
+            // Insert
+            if (empty($password)) {
+                $response->getBody()->write(json_encode(['error' => 'Password is required for new credentials']));
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+            }
+            $stmt = $pdo->prepare("
+                INSERT INTO company_credentials_devpos (company_id, tenant, username, password_encrypted)
+                VALUES (?, ?, ?, ?)
+            ");
+            $stmt->execute([$companyId, $tenant, $username, $encryptedPassword]);
+        }
+    } else {
+        // Save user-specific credentials
+        $stmt = $pdo->prepare("SELECT id FROM user_devpos_credentials WHERE company_id = ? AND user_id = ?");
+        $stmt->execute([$companyId, $userId]);
+        $existing = $stmt->fetch();
+        
+        if ($existing) {
+            // Update
+            if (!empty($password)) {
+                $stmt = $pdo->prepare("
+                    UPDATE user_devpos_credentials 
+                    SET tenant = ?, username = ?, password_encrypted = ?, updated_at = NOW()
+                    WHERE company_id = ? AND user_id = ?
+                ");
+                $stmt->execute([$tenant, $username, $encryptedPassword, $companyId, $userId]);
+            } else {
+                $stmt = $pdo->prepare("
+                    UPDATE user_devpos_credentials 
+                    SET tenant = ?, username = ?, updated_at = NOW()
+                    WHERE company_id = ? AND user_id = ?
+                ");
+                $stmt->execute([$tenant, $username, $companyId, $userId]);
+            }
+        } else {
+            // Insert
+            if (empty($password)) {
+                $response->getBody()->write(json_encode(['error' => 'Password is required for new credentials']));
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+            }
+            $stmt = $pdo->prepare("
+                INSERT INTO user_devpos_credentials (company_id, user_id, tenant, username, password_encrypted)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([$companyId, $userId, $tenant, $username, $encryptedPassword]);
+        }
+    }
+    
+    $response->getBody()->write(json_encode(['success' => true, 'scope' => $scope]));
     return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 
 // Test DevPos connection
 $app->get('/api/companies/{companyId}/credentials/devpos/test', function (Request $request, Response $response, array $args) use ($pdo) {
     $companyId = (int)$args['companyId'];
+    $user = $request->getAttribute('user');
+    $userId = $user['id'];
     
-    // Get credentials
-    $stmt = $pdo->prepare("SELECT tenant, username, password_encrypted FROM company_credentials_devpos WHERE company_id = ?");
-    $stmt->execute([$companyId]);
+    // First, try to get user-specific credentials
+    $stmt = $pdo->prepare("
+        SELECT tenant, username, password_encrypted, 'user' as credential_type
+        FROM user_devpos_credentials 
+        WHERE company_id = ? AND user_id = ?
+    ");
+    $stmt->execute([$companyId, $userId]);
     $creds = $stmt->fetch();
+    
+    // If no user-specific credentials, fallback to company-level credentials
+    if (!$creds) {
+        $stmt = $pdo->prepare("
+            SELECT tenant, username, password_encrypted, 'company' as credential_type
+            FROM company_credentials_devpos 
+            WHERE company_id = ?
+        ");
+        $stmt->execute([$companyId]);
+        $creds = $stmt->fetch();
+    }
     
     if (!$creds) {
         $response->getBody()->write(json_encode(['success' => false, 'message' => 'No credentials configured']));
@@ -1021,6 +1087,149 @@ $app->get('/api/admin/recent-activity', function (Request $request, Response $re
         'audit_logs' => $auditLogs
     ]));
     
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
+// =============================================================================
+// SYNC SCHEDULE MANAGEMENT
+// =============================================================================
+
+// Get all schedules for a company
+$app->get('/api/companies/{companyId}/schedules', function (Request $request, Response $response, array $args) use ($pdo) {
+    $companyId = (int)$args['companyId'];
+    
+    $stmt = $pdo->prepare("
+        SELECT 
+            id,
+            company_id,
+            schedule_name,
+            job_type,
+            frequency,
+            cron_expression,
+            time_of_day,
+            day_of_week,
+            day_of_month,
+            is_active,
+            last_run_at,
+            next_run_at,
+            created_at,
+            updated_at
+        FROM sync_schedules
+        WHERE company_id = ?
+        ORDER BY created_at DESC
+    ");
+    $stmt->execute([$companyId]);
+    $schedules = $stmt->fetchAll();
+    
+    $response->getBody()->write(json_encode($schedules));
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
+// Create a new schedule
+$app->post('/api/companies/{companyId}/schedules', function (Request $request, Response $response, array $args) use ($pdo) {
+    $companyId = (int)$args['companyId'];
+    $data = $request->getParsedBody();
+    
+    $scheduleName = $data['schedule_name'] ?? '';
+    $jobType = $data['job_type'] ?? 'full';
+    $frequency = $data['frequency'] ?? 'daily';
+    $timeOfDay = $data['time_of_day'] ?? '02:00:00';
+    $dayOfWeek = $data['day_of_week'] ?? null;
+    $dayOfMonth = $data['day_of_month'] ?? null;
+    $cronExpression = $data['cron_expression'] ?? null;
+    
+    if (empty($scheduleName)) {
+        $response->getBody()->write(json_encode(['error' => 'Schedule name is required']));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+    
+    // Calculate next_run_at based on frequency
+    $nextRunAt = null;
+    switch ($frequency) {
+        case 'hourly':
+            $nextRunAt = date('Y-m-d H:00:00', strtotime('+1 hour'));
+            break;
+        case 'daily':
+            $nextRunAt = date('Y-m-d ' . $timeOfDay, strtotime('tomorrow'));
+            break;
+        case 'weekly':
+            // Calculate next occurrence of day_of_week
+            $targetDay = $dayOfWeek ?? 1; // Default Monday
+            $daysUntil = ($targetDay - date('N') + 7) % 7;
+            if ($daysUntil == 0) $daysUntil = 7; // Next week if today
+            $nextRunAt = date('Y-m-d ' . $timeOfDay, strtotime("+{$daysUntil} days"));
+            break;
+        case 'monthly':
+            // Calculate next occurrence of day_of_month
+            $targetDay = $dayOfMonth ?? 1;
+            $nextMonth = date('Y-m-01', strtotime('first day of next month'));
+            $nextRunAt = date('Y-m-' . str_pad($targetDay, 2, '0', STR_PAD_LEFT) . ' ' . $timeOfDay, strtotime($nextMonth));
+            break;
+        case 'custom':
+            // For custom cron, set to next hour for now (proper cron parser would be better)
+            $nextRunAt = date('Y-m-d H:00:00', strtotime('+1 hour'));
+            break;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO sync_schedules 
+            (company_id, schedule_name, job_type, frequency, cron_expression, time_of_day, day_of_week, day_of_month, next_run_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $companyId,
+            $scheduleName,
+            $jobType,
+            $frequency,
+            $cronExpression,
+            $timeOfDay,
+            $dayOfWeek,
+            $dayOfMonth,
+            $nextRunAt
+        ]);
+        
+        $scheduleId = (int)$pdo->lastInsertId();
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'schedule_id' => $scheduleId,
+            'next_run_at' => $nextRunAt
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+    } catch (\PDOException $e) {
+        $response->getBody()->write(json_encode(['error' => 'Failed to create schedule: ' . $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// Update schedule
+$app->put('/api/companies/{companyId}/schedules/{scheduleId}', function (Request $request, Response $response, array $args) use ($pdo) {
+    $scheduleId = (int)$args['scheduleId'];
+    $data = $request->getParsedBody();
+    
+    $isActive = isset($data['is_active']) ? (int)$data['is_active'] : null;
+    
+    if ($isActive !== null) {
+        $stmt = $pdo->prepare("UPDATE sync_schedules SET is_active = ? WHERE id = ?");
+        $stmt->execute([$isActive, $scheduleId]);
+        
+        $response->getBody()->write(json_encode(['success' => true]));
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+    
+    $response->getBody()->write(json_encode(['error' => 'No valid update data provided']));
+    return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
+// Delete schedule
+$app->delete('/api/companies/{companyId}/schedules/{scheduleId}', function (Request $request, Response $response, array $args) use ($pdo) {
+    $scheduleId = (int)$args['scheduleId'];
+    
+    $stmt = $pdo->prepare("DELETE FROM sync_schedules WHERE id = ?");
+    $stmt->execute([$scheduleId]);
+    
+    $response->getBody()->write(json_encode(['success' => true]));
     return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 

@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Company Management - Admin</title>
+    <title>Company Management - DEV-QBO SYNC</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS for Excel support -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -15,7 +19,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
         }
 
         .container {
@@ -32,11 +36,29 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
         .header h1 {
             color: #667eea;
             font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon-circle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #33cc66;
+            color: white;
+            font-size: 16px;
+            flex-shrink: 0;
         }
 
         .btn {
@@ -48,7 +70,10 @@
             transition: all 0.3s;
             font-weight: 600;
             text-decoration: none;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
         }
 
         .btn-primary {
@@ -56,9 +81,19 @@
             color: white;
         }
 
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
         .btn-success {
-            background: #2ca01c;
+            background: #33cc66;
             color: white;
+        }
+
+        .btn-success:hover {
+            background: #2ab359;
+            transform: translateY(-1px);
         }
 
         .btn-danger {
@@ -66,17 +101,26 @@
             color: white;
         }
 
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
         .card {
             background: white;
             border-radius: 10px;
-            padding: 30px;
+            padding: 25px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
 
         .card h2 {
-            color: #667eea;
+            color: #333;
             margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .form-grid {
@@ -92,95 +136,273 @@
         }
 
         .form-group label {
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             font-weight: 600;
             color: #333;
+            font-size: 14px;
         }
 
         .form-group input,
         .form-group select,
         .form-group textarea {
-            padding: 10px;
-            border: 2px solid #e0e0e0;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
             border-radius: 5px;
             font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #33cc66;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 800px;
         }
 
         th {
-            background: #f5f5f5;
-            padding: 12px;
-            text-align: left;
+            background: #e6f7ed;
+            padding: 14px 12px;
+            color: #059669;
             font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #e0e0e0;
+            text-align: left;
+            border-bottom: 2px solid #33cc66;
+            font-size: 14px;
         }
 
         td {
             padding: 12px;
             border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            color: #333;
         }
 
         tr:hover {
-            background: #f9f9f9;
+            background: #f9fafb;
         }
 
         .status-badge {
             display: inline-block;
-            padding: 4px 12px;
+            padding: 5px 12px;
             border-radius: 12px;
             font-size: 12px;
             font-weight: 600;
         }
 
         .status-active {
-            background: #e8f5e9;
-            color: #388e3c;
+            background: #e6f7ed;
+            color: #059669;
         }
 
         .status-inactive {
-            background: #ffebee;
-            color: #c62828;
+            background: #fee2e2;
+            color: #dc2626;
         }
 
         .actions {
             display: flex;
-            gap: 5px;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
         .actions button {
-            padding: 5px 10px;
+            padding: 6px 12px;
             font-size: 12px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 15px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #importResults {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e5e7eb;
+        }
+
+        #importResults h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        #importResults ul {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        #importResults li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .icon-circle {
+                width: 30px;
+                height: 30px;
+                font-size: 14px;
+            }
+
+            .btn {
+                padding: 8px 15px;
+                font-size: 13px;
+            }
+
+            .card {
+                padding: 20px 15px;
+            }
+
+            .card h2 {
+                font-size: 18px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .modal-content {
+                padding: 20px 15px;
+            }
+
+            .actions {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .actions button {
+                width: 100%;
+            }
+
+            table {
+                font-size: 13px;
+            }
+
+            th, td {
+                padding: 10px 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .btn {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+
+            .icon-circle {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+
+            .card h2 {
+                font-size: 16px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px 6px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏢 Company Management</h1>
-            <a href="/multi-company-Dev2Qbo/public/app.html" class="btn btn-primary">← Back to Dashboard</a>
+            <h1>
+                <span class="icon-circle"><i class="fas fa-building"></i></span>
+                Company Management
+            </h1>
+            <a href="app.html" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
         </div>
 
         <div class="card">
-            <h2>➕ Create New Company</h2>
+            <h2>
+                <span class="icon-circle"><i class="fas fa-plus"></i></span>
+                Create New Company
+            </h2>
             <form id="createCompanyForm">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Company Code *</label>
-                        <input type="text" id="companyCode" placeholder="e.g., AEM" required maxlength="20">
-                        <small style="color: #666;">Unique identifier (2-20 characters)</small>
+                        <label>NIPT (Company Tax ID) *</label>
+                        <input type="text" id="companyCode" placeholder="e.g., K43128625A" required maxlength="20">
+                        <small style="color: #666;">This is used as the company identifier and DevPos Tenant ID</small>
                     </div>
                     <div class="form-group">
                         <label>Company Name *</label>
                         <input type="text" id="companyName" placeholder="e.g., Albanian Engineering & Management" required>
-                    </div>
-                    <div class="form-group">
-                        <label>NIPT (Tax ID)</label>
-                        <input type="text" id="companyNIPT" placeholder="Company tax identification number">
                     </div>
                     <div class="form-group">
                         <label>Status</label>
@@ -194,19 +416,100 @@
                     <label>Notes</label>
                     <textarea id="companyNotes" rows="3" placeholder="Optional notes about this company"></textarea>
                 </div>
-                <button type="submit" class="btn btn-success">Create Company</button>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Create Company
+                </button>
             </form>
         </div>
 
         <div class="card">
-            <h2>📋 All Companies</h2>
+            <h2>
+                <span class="icon-circle"><i class="fas fa-file-upload"></i></span>
+                Bulk Import Companies
+            </h2>
+            <p style="margin-bottom: 15px; color: #666;">
+                Import multiple companies from CSV or Excel file. Companies will be created as <strong>inactive</strong> by default.
+            </p>
+            <div style="margin-bottom: 15px;">
+                <button onclick="downloadTemplate()" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Download CSV Template
+                </button>
+            </div>
+            <form id="importForm">
+                <div class="form-group">
+                    <label>Select CSV or Excel File *</label>
+                    <input type="file" id="importFile" accept=".csv,.xlsx,.xls" required style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                    <small style="color: #666;">Required columns: NIPT, Company_Name (Optional: Notes)</small>
+                </div>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-search"></i> Preview & Validate
+                </button>
+            </form>
+            
+            <!-- Import Preview -->
+            <div id="importPreview" style="margin-top: 20px; display: none;">
+                <h4 style="color: #667eea; margin-bottom: 10px;">📋 Import Preview</h4>
+                <div id="validationMessages" style="margin-bottom: 15px;"></div>
+                <div style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 5px; padding: 10px; background: #f9f9f9;">
+                    <table style="width: 100%; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #fff; position: sticky; top: 0;">
+                                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #667eea;">NIPT</th>
+                                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #667eea;">Company Name</th>
+                                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #667eea;">Notes</th>
+                                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #667eea;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewTableBody"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button id="confirmImportBtn" class="btn btn-success">
+                        <i class="fas fa-check"></i> Confirm Import
+                    </button>
+                    <button id="cancelImportBtn" class="btn" style="background: #dc3545; color: white;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Import Results -->
+            <div id="importResults" style="margin-top: 15px; display: none;">
+                <h4>
+                    <span class="icon-circle"><i class="fas fa-chart-bar"></i></span>
+                    Import Results
+                </h4>
+                <div id="importResultsContent"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>
+                <span class="icon-circle"><i class="fas fa-list"></i></span>
+                All Companies
+            </h2>
+            
+            <!-- Top Controls - Right aligned -->
+            <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label for="perPageSelect" style="font-weight: 600; color: #333;">Show per page:</label>
+                    <select id="perPageSelect" onchange="changePerPage(this.value)" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; cursor: pointer;">
+                        <option value="10" selected>10</option>
+                        <option value="15">15</option>
+                        <option value="30">30</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                    <span id="showingInfo" style="color: #666; margin-left: 15px;"></span>
+                </div>
+            </div>
+            
             <table>
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Code</th>
-                        <th>Company Name</th>
                         <th>NIPT</th>
+                        <th>Company Name</th>
                         <th>Status</th>
                         <th>DevPos</th>
                         <th>QuickBooks</th>
@@ -216,14 +519,114 @@
                     </tr>
                 </thead>
                 <tbody id="companiesTable">
-                    <tr><td colspan="10" style="text-align: center;">Loading companies...</td></tr>
+                    <tr><td colspan="9" style="text-align: center;">Loading companies...</td></tr>
                 </tbody>
             </table>
+            
+            <!-- Pagination Controls at Bottom -->
+            <div id="paginationControls" style="display: flex; gap: 5px; justify-content: center; margin-top: 20px; padding: 15px;"></div>
+        </div>
+    </div>
+
+    <!-- Edit Company Name Modal -->
+    <div class="modal" id="editNameModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>
+                <span class="icon-circle"><i class="fas fa-edit"></i></span>
+                Edit Company Name
+            </h3>
+            <form id="editNameForm">
+                <div class="form-group">
+                    <label>NIPT (Read-only)</label>
+                    <input type="text" id="editCompanyCode" readonly style="background: #f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>Company Name *</label>
+                    <input type="text" id="editCompanyName" required placeholder="Enter new company name">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-success" style="flex: 1;">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="closeEditModal()" style="flex: 1;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DevPos Credentials Modal -->
+    <div class="modal" id="devposModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3>
+                <span class="icon-circle"><i class="fas fa-key"></i></span>
+                DevPos Credentials
+            </h3>
+            <div id="devposCredentialsInfo" style="margin-bottom: 15px; padding: 10px; background: #e7f3ff; border-left: 4px solid #2196F3; border-radius: 4px;">
+                <p style="margin: 0; font-size: 14px; color: #666;">
+                    <strong id="credentialTypeLabel">User-Specific Credentials</strong><br>
+                    <span id="credentialTypeDesc">These credentials are specific to your user account and won't affect other users.</span>
+                </p>
+            </div>
+            <form id="devposForm">
+                <div class="form-group">
+                    <label>Company</label>
+                    <input type="text" id="devposCompanyName" readonly style="background: #f5f5f5;">
+                </div>
+                
+                <!-- Scope Selector (Only for Admins) -->
+                <div id="credentialScopeSelector" style="display: none; margin-bottom: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                    <label style="font-weight: 600; color: #856404; margin-bottom: 10px; display: block;">Credential Scope:</label>
+                    <div style="display: flex; gap: 15px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="credentialScope" value="user" checked onchange="updateCredentialScopeInfo()">
+                            <span><i class="fas fa-user"></i> My Credentials Only</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="credentialScope" value="company" onchange="updateCredentialScopeInfo()">
+                            <span><i class="fas fa-building"></i> Company-Wide Default</span>
+                        </label>
+                    </div>
+                    <small style="display: block; margin-top: 8px; color: #856404;">
+                        <strong>User:</strong> Only you will use these credentials.<br>
+                        <strong>Company-Wide:</strong> All users without personal credentials will use these.
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>DevPos Tenant ID *</label>
+                    <input type="text" id="devposTenant" required placeholder="e.g., K43128625A" maxlength="100">
+                    <small style="color: #666;">The tenant identifier for DevPos API</small>
+                </div>
+                <div class="form-group">
+                    <label>DevPos Username *</label>
+                    <input type="text" id="devposUsername" required placeholder="DevPos username" maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label>DevPos Password <span id="passwordRequiredIndicator">*</span></label>
+                    <input type="password" id="devposPassword" placeholder="DevPos password">
+                    <small style="color: #666;">Password will be encrypted before storage. <span id="passwordHint">Required for new credentials.</span></small>
+                </div>
+                <div id="devposStatus" style="margin: 15px 0; padding: 10px; display: none; border-radius: 4px;"></div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-success" style="flex: 1;">
+                        <i class="fas fa-save"></i> Save Credentials
+                    </button>
+                    <button type="button" class="btn" style="flex: 1; background: #2196F3; color: white;" onclick="testDevPosConnection()">
+                        <i class="fas fa-plug"></i> Test Connection
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="closeDevPosModal()" style="flex: 1;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
         const API_BASE = '/multi-company-Dev2Qbo/public';
+        let editingCompanyId = null;
 
         async function init() {
             try {
@@ -252,6 +655,11 @@
             }
         }
 
+        // Pagination state
+        let allCompanies = [];
+        let currentPage = 1;
+        let perPage = 10;
+
         async function loadCompanies() {
             const response = await fetch(`${API_BASE}/api/companies`, {
                 credentials: 'include'
@@ -275,28 +683,132 @@
                 };
             }));
 
+            allCompanies = companiesWithDetails;
+            renderCompanies();
+        }
+
+        function renderCompanies() {
             const tbody = document.getElementById('companiesTable');
             tbody.innerHTML = '';
 
-            companiesWithDetails.forEach(company => {
+            // Calculate pagination
+            const totalCompanies = allCompanies.length;
+            const startIndex = perPage === 'all' ? 0 : (currentPage - 1) * perPage;
+            const endIndex = perPage === 'all' ? totalCompanies : startIndex + perPage;
+            const companiesToShow = allCompanies.slice(startIndex, endIndex);
+            const totalPages = perPage === 'all' ? 1 : Math.ceil(totalCompanies / perPage);
+
+            // Update showing info
+            const showingInfo = document.getElementById('showingInfo');
+            if (totalCompanies === 0) {
+                showingInfo.textContent = 'No companies found';
+            } else if (perPage === 'all') {
+                showingInfo.textContent = `Showing all ${totalCompanies} companies`;
+            } else {
+                const showing = Math.min(endIndex, totalCompanies);
+                showingInfo.textContent = `Showing ${startIndex + 1}-${showing} of ${totalCompanies} companies`;
+            }
+
+            // Render companies
+            companiesToShow.forEach(company => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${company.company_id}</td>
                     <td><strong>${company.company_code}</strong></td>
                     <td>${company.company_name}</td>
-                    <td>${company.nipt || '-'}</td>
                     <td><span class="status-badge ${company.is_active ? 'status-active' : 'status-inactive'}">${company.is_active ? 'Active' : 'Inactive'}</span></td>
-                    <td>${company.hasDevPos ? '✅ Configured' : '❌ Not set'}</td>
-                    <td>${company.hasQBO ? '✅ Connected' : '❌ Not connected'}</td>
-                    <td>${company.userCount} users</td>
+                    <td>${company.hasDevPos ? '<i class="fas fa-check-circle" style="color: #33cc66;"></i> Configured' : '<i class="fas fa-times-circle" style="color: #dc2626;"></i> Not set'}</td>
+                    <td>${company.hasQBO ? '<i class="fas fa-check-circle" style="color: #33cc66;"></i> Connected' : '<i class="fas fa-times-circle" style="color: #dc2626;"></i> Not connected'}</td>
+                    <td><i class="fas fa-users" style="color: #666;"></i> ${company.userCount} users</td>
                     <td>${company.created_at ? new Date(company.created_at).toLocaleDateString() : '-'}</td>
                     <td class="actions">
-                        <button class="btn btn-primary" onclick="viewCompany(${company.company_id})">View</button>
-                        <button class="btn ${company.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleCompanyStatus(${company.company_id}, ${company.is_active ? 0 : 1})">${company.is_active ? 'Deactivate' : 'Activate'}</button>
+                        <button class="btn btn-primary" onclick="editCompanyName(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')">
+                            <i class="fas fa-edit"></i> Edit Name
+                        </button>
+                        <button class="btn btn-primary" onclick="editDevPosCredentials(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')">
+                            <i class="fas fa-key"></i> DevPos
+                        </button>
+                        <button class="btn btn-primary" onclick="viewCompany(${company.company_id})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="btn ${company.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleCompanyStatus(${company.company_id}, ${company.is_active ? 0 : 1})">
+                            <i class="fas fa-${company.is_active ? 'ban' : 'check'}"></i> ${company.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
+
+            // Render pagination controls
+            renderPaginationControls(totalPages);
+        }
+
+        function renderPaginationControls(totalPages) {
+            const controls = document.getElementById('paginationControls');
+            controls.innerHTML = '';
+
+            if (perPage === 'all' || totalPages <= 1) {
+                return;
+            }
+
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '← Previous';
+            prevBtn.className = 'btn btn-primary';
+            prevBtn.style.cssText = 'padding: 8px 15px; font-size: 13px;';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderCompanies();
+                }
+            };
+            controls.appendChild(prevBtn);
+
+            // Page numbers
+            const maxPageButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPageButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
+            
+            if (endPage - startPage < maxPageButtons - 1) {
+                startPage = Math.max(1, endPage - maxPageButtons + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                pageBtn.className = i === currentPage ? 'btn btn-success' : 'btn';
+                pageBtn.style.cssText = 'padding: 8px 15px; font-size: 13px; min-width: 40px;';
+                if (i === currentPage) {
+                    pageBtn.style.background = '#667eea';
+                    pageBtn.style.color = 'white';
+                }
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    renderCompanies();
+                };
+                controls.appendChild(pageBtn);
+            }
+
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = 'Next →';
+            nextBtn.className = 'btn btn-primary';
+            nextBtn.style.cssText = 'padding: 8px 15px; font-size: 13px;';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderCompanies();
+                }
+            };
+            controls.appendChild(nextBtn);
+        }
+
+        function changePerPage(value) {
+            perPage = value === 'all' ? 'all' : parseInt(value);
+            currentPage = 1;
+            renderCompanies();
         }
 
         document.getElementById('createCompanyForm').addEventListener('submit', async (e) => {
@@ -305,7 +817,6 @@
             const data = {
                 company_code: document.getElementById('companyCode').value.trim().toUpperCase(),
                 company_name: document.getElementById('companyName').value.trim(),
-                nipt: document.getElementById('companyNIPT').value.trim(),
                 is_active: parseInt(document.getElementById('companyStatus').value),
                 notes: document.getElementById('companyNotes').value.trim()
             };
@@ -359,6 +870,546 @@
         function viewCompany(companyId) {
             window.location.href = `${API_BASE}/app.html`;
         }
+
+        function editCompanyName(companyId, currentName) {
+            editingCompanyId = companyId;
+            
+            // Find the company to get its code
+            fetch(`${API_BASE}/api/companies/${companyId}`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(company => {
+                document.getElementById('editCompanyCode').value = company.company_code;
+                document.getElementById('editCompanyName').value = company.company_name;
+                document.getElementById('editNameModal').classList.add('active');
+            })
+            .catch(err => {
+                alert('❌ Error loading company details');
+                console.error(err);
+            });
+        }
+
+        function closeEditModal() {
+            document.getElementById('editNameModal').classList.remove('active');
+            editingCompanyId = null;
+            document.getElementById('editNameForm').reset();
+        }
+
+        // DevPos Credentials Management
+        let editingDevPosCompanyId = null;
+        let currentUserRole = null;
+
+        function updateCredentialScopeInfo() {
+            const scope = document.querySelector('input[name="credentialScope"]:checked')?.value || 'user';
+            const label = document.getElementById('credentialTypeLabel');
+            const desc = document.getElementById('credentialTypeDesc');
+            
+            if (scope === 'company') {
+                label.textContent = '🏢 Company-Wide Default Credentials';
+                desc.textContent = 'These credentials will be used by all users who haven\'t set their own personal credentials.';
+            } else {
+                label.textContent = '👤 User-Specific Credentials';
+                desc.textContent = 'These credentials are specific to your user account and won\'t affect other users.';
+            }
+        }
+
+        async function editDevPosCredentials(companyId, companyName, companyCode) {
+            editingDevPosCompanyId = companyId;
+            document.getElementById('devposCompanyName').value = `${companyName} (${companyCode})`;
+            document.getElementById('devposStatus').style.display = 'none';
+            
+            // Check if user is admin to show scope selector
+            const userResponse = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+            const user = await userResponse.json();
+            currentUserRole = user.role;
+            
+            if (user.role === 'admin') {
+                document.getElementById('credentialScopeSelector').style.display = 'block';
+            } else {
+                document.getElementById('credentialScopeSelector').style.display = 'none';
+            }
+            
+            // Load existing credentials if they exist
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}/credentials/devpos`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const creds = await response.json();
+                    if (creds.tenant) {
+                        document.getElementById('devposTenant').value = creds.tenant || '';
+                        document.getElementById('devposUsername').value = creds.username || '';
+                        // Password is not returned for security reasons
+                        document.getElementById('devposPassword').value = '';
+                        document.getElementById('devposPassword').placeholder = 'Leave blank to keep current password';
+                        document.getElementById('devposPassword').required = false;
+                        document.getElementById('passwordRequiredIndicator').textContent = '';
+                        document.getElementById('passwordHint').textContent = 'Leave blank to keep current password.';
+                        
+                        // Show credential type info
+                        const typeInfo = creds.credential_type === 'company' ? 
+                            '🏢 Currently using company-wide credentials' : 
+                            '👤 Currently using user-specific credentials';
+                        document.getElementById('credentialTypeLabel').innerHTML = typeInfo;
+                    } else {
+                        // No credentials exist yet
+                        document.getElementById('devposTenant').value = companyCode; // Default to company code
+                        document.getElementById('devposUsername').value = '';
+                        document.getElementById('devposPassword').value = '';
+                        document.getElementById('devposPassword').placeholder = 'DevPos password';
+                        document.getElementById('devposPassword').required = true;
+                        document.getElementById('passwordRequiredIndicator').textContent = '*';
+                        document.getElementById('passwordHint').textContent = 'Required for new credentials.';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading DevPos credentials:', error);
+            }
+            
+            updateCredentialScopeInfo();
+            document.getElementById('devposModal').classList.add('active');
+        }
+
+        function closeDevPosModal() {
+            document.getElementById('devposModal').classList.remove('active');
+            editingDevPosCompanyId = null;
+            document.getElementById('devposForm').reset();
+            document.getElementById('devposStatus').style.display = 'none';
+        }
+
+        document.getElementById('devposForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const scope = currentUserRole === 'admin' ? 
+                (document.querySelector('input[name="credentialScope"]:checked')?.value || 'user') : 
+                'user';
+
+            const data = {
+                tenant: document.getElementById('devposTenant').value.trim(),
+                username: document.getElementById('devposUsername').value.trim(),
+                password: document.getElementById('devposPassword').value,
+                scope: scope
+            };
+
+            // Only send password if it's provided
+            if (!data.password) {
+                delete data.password;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${editingDevPosCompanyId}/credentials/devpos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    document.getElementById('devposStatus').innerHTML = '✅ DevPos credentials saved successfully!';
+                    document.getElementById('devposStatus').style.display = 'block';
+                    document.getElementById('devposStatus').style.background = '#d4edda';
+                    document.getElementById('devposStatus').style.color = '#155724';
+                    document.getElementById('devposStatus').style.borderLeft = '4px solid #28a745';
+                    
+                    setTimeout(() => {
+                        closeDevPosModal();
+                        loadCompanies();
+                    }, 1500);
+                } else {
+                    const error = await response.json();
+                    document.getElementById('devposStatus').innerHTML = '❌ Error: ' + (error.message || 'Failed to save credentials');
+                    document.getElementById('devposStatus').style.display = 'block';
+                    document.getElementById('devposStatus').style.background = '#f8d7da';
+                    document.getElementById('devposStatus').style.color = '#721c24';
+                    document.getElementById('devposStatus').style.borderLeft = '4px solid #dc3545';
+                }
+            } catch (error) {
+                document.getElementById('devposStatus').innerHTML = '❌ Network error while saving credentials';
+                document.getElementById('devposStatus').style.display = 'block';
+                document.getElementById('devposStatus').style.background = '#f8d7da';
+                document.getElementById('devposStatus').style.color = '#721c24';
+                document.getElementById('devposStatus').style.borderLeft = '4px solid #dc3545';
+                console.error(error);
+            }
+        });
+
+        async function testDevPosConnection() {
+            if (!editingDevPosCompanyId) {
+                alert('❌ No company selected');
+                return;
+            }
+
+            document.getElementById('devposStatus').innerHTML = '⏳ Testing DevPos connection...';
+            document.getElementById('devposStatus').style.display = 'block';
+            document.getElementById('devposStatus').style.background = '#fff3cd';
+            document.getElementById('devposStatus').style.color = '#856404';
+            document.getElementById('devposStatus').style.borderLeft = '4px solid #ffc107';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${editingDevPosCompanyId}/credentials/devpos/test`, {
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    document.getElementById('devposStatus').innerHTML = '✅ Connection successful! DevPos API is reachable.';
+                    document.getElementById('devposStatus').style.background = '#d4edda';
+                    document.getElementById('devposStatus').style.color = '#155724';
+                    document.getElementById('devposStatus').style.borderLeft = '4px solid #28a745';
+                } else {
+                    document.getElementById('devposStatus').innerHTML = '❌ Connection failed: ' + (result.error || 'Unknown error');
+                    document.getElementById('devposStatus').style.background = '#f8d7da';
+                    document.getElementById('devposStatus').style.color = '#721c24';
+                    document.getElementById('devposStatus').style.borderLeft = '4px solid #dc3545';
+                }
+            } catch (error) {
+                document.getElementById('devposStatus').innerHTML = '❌ Network error while testing connection';
+                document.getElementById('devposStatus').style.background = '#f8d7da';
+                document.getElementById('devposStatus').style.color = '#721c24';
+                document.getElementById('devposStatus').style.borderLeft = '4px solid #dc3545';
+                console.error(error);
+            }
+        }
+
+        // Close modals when clicking outside
+        document.getElementById('devposModal').addEventListener('click', (e) => {
+            if (e.target.id === 'devposModal') {
+                closeDevPosModal();
+            }
+        });
+
+        document.getElementById('editNameForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const newName = document.getElementById('editCompanyName').value.trim();
+            
+            if (!newName) {
+                alert('❌ Company name cannot be empty');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${editingCompanyId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ company_name: newName })
+                });
+
+                if (response.ok) {
+                    alert('✅ Company name updated successfully!');
+                    closeEditModal();
+                    await loadCompanies();
+                } else {
+                    const error = await response.json();
+                    alert('❌ Error: ' + (error.message || 'Failed to update company name'));
+                }
+            } catch (error) {
+                alert('❌ Error updating company name');
+                console.error(error);
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('editNameModal').addEventListener('click', (e) => {
+            if (e.target.id === 'editNameModal') {
+                closeEditModal();
+            }
+        });
+
+        // Download CSV template
+        function downloadTemplate() {
+            const csv = 'NIPT,Company_Name,Notes\nK43128625A,Albanian Engineering & Management,Example company\nL71234567X,Professional Group Albania,Another example';
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'company_import_template.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Import companies from CSV/Excel - with preview and validation
+        let pendingImportCompanies = [];
+
+        document.getElementById('importForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('importFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('❌ Please select a file');
+                return;
+            }
+
+            let rows = [];
+            let companies = []; // Declare here, outside the try block
+
+            try {
+                if (file.name.endsWith('.csv')) {
+                    // Parse CSV
+                    const text = await file.text();
+                    const lines = text.split('\n').filter(line => line.trim());
+                    
+                    if (lines.length < 2) {
+                        alert('❌ File is empty or invalid');
+                        return;
+                    }
+
+                    rows = lines.map(line => {
+                        // Simple CSV parsing
+                        return line.split(',').map(v => v.trim().replace(/^["']|["']$/g, ''));
+                    });
+                } else {
+                    // Parse Excel using SheetJS
+                    const data = await file.arrayBuffer();
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+                }
+
+                if (rows.length < 2) {
+                    alert('❌ File is empty or invalid');
+                    return;
+                }
+
+                // Parse header
+                const headers = rows[0].map(h => String(h).trim().toLowerCase());
+                const niptIndex = headers.findIndex(h => h === 'nipt');
+                const nameIndex = headers.findIndex(h => h.includes('name'));
+                const notesIndex = headers.findIndex(h => h.includes('note'));
+
+                if (niptIndex === -1 || nameIndex === -1) {
+                    alert('❌ File must have NIPT and Company_Name columns');
+                    return;
+                }
+
+                // Parse data rows
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length === 0) continue;
+
+                    const nipt = String(row[niptIndex] || '').trim();
+                    const name = String(row[nameIndex] || '').trim();
+                    const notes = notesIndex >= 0 ? String(row[notesIndex] || '').trim() : '';
+
+                    if (nipt && name) {
+                        companies.push({
+                            company_code: nipt.toUpperCase(),
+                            company_name: name,
+                            is_active: 0, // Inactive by default
+                            notes: notes || ''
+                        });
+                    }
+                }
+            } catch (error) {
+                alert('❌ Error reading file: ' + error.message);
+                console.error(error);
+                return;
+            }
+
+            if (companies.length === 0) {
+                alert('❌ No valid companies found in file');
+                return;
+            }
+
+            // Validate against existing companies
+            await validateAndPreview(companies);
+        });
+
+        async function validateAndPreview(companies) {
+            // Fetch existing companies to check for duplicates
+            let existingCompanies = [];
+            try {
+                const response = await fetch(`${API_BASE}/api/companies`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    existingCompanies = await response.json();
+                }
+            } catch (error) {
+                console.error('Error fetching existing companies:', error);
+            }
+
+            const existingNIPTs = new Set(existingCompanies.map(c => c.company_code.toUpperCase()));
+            
+            // Check for duplicates within the import file
+            const fileNIPTs = new Map();
+            const duplicatesInFile = [];
+            
+            companies.forEach((company, index) => {
+                const nipt = company.company_code;
+                if (fileNIPTs.has(nipt)) {
+                    duplicatesInFile.push({ nipt, rows: [fileNIPTs.get(nipt), index + 2] });
+                } else {
+                    fileNIPTs.set(nipt, index + 2); // +2 because row 1 is header, index is 0-based
+                }
+            });
+
+            // Identify issues
+            const duplicatesInDB = companies.filter(c => existingNIPTs.has(c.company_code));
+            const valid = companies.filter(c => !existingNIPTs.has(c.company_code));
+
+            // Remove duplicates within file (keep first occurrence)
+            const seenNIPTs = new Set();
+            const uniqueCompanies = companies.filter(c => {
+                if (seenNIPTs.has(c.company_code)) {
+                    return false;
+                }
+                seenNIPTs.add(c.company_code);
+                return true;
+            });
+
+            pendingImportCompanies = uniqueCompanies.filter(c => !existingNIPTs.has(c.company_code));
+
+            // Build validation messages
+            let messages = [];
+            
+            if (duplicatesInFile.length > 0) {
+                messages.push(`<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin-bottom: 10px;">
+                    <strong>⚠️ Duplicates in file (${duplicatesInFile.length}):</strong><br>
+                    ${duplicatesInFile.map(d => `NIPT ${d.nipt} appears on rows ${d.rows.join(', ')}`).join('<br>')}
+                    <br><small>Only the first occurrence will be imported.</small>
+                </div>`);
+            }
+
+            if (duplicatesInDB.length > 0) {
+                messages.push(`<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 10px; margin-bottom: 10px;">
+                    <strong>❌ Already exist in database (${duplicatesInDB.length}):</strong><br>
+                    ${duplicatesInDB.map(c => `${c.company_code} - ${c.company_name}`).join('<br>')}
+                    <br><small>These will be skipped.</small>
+                </div>`);
+            }
+
+            if (pendingImportCompanies.length > 0) {
+                messages.push(`<div style="background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 10px; margin-bottom: 10px;">
+                    <strong>✅ Ready to import (${pendingImportCompanies.length}):</strong><br>
+                    <small>All companies will be created as <strong>INACTIVE</strong> and assigned to admin only.</small>
+                </div>`);
+            }
+
+            if (pendingImportCompanies.length === 0) {
+                messages.push(`<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 10px;">
+                    <strong>❌ No companies to import</strong><br>
+                    <small>All companies in the file already exist in the database or are duplicates.</small>
+                </div>`);
+            }
+
+            // Show validation messages
+            document.getElementById('validationMessages').innerHTML = messages.join('');
+
+            // Show preview table
+            const tbody = document.getElementById('previewTableBody');
+            tbody.innerHTML = '';
+
+            uniqueCompanies.forEach(company => {
+                const isDuplicate = existingNIPTs.has(company.company_code);
+                const rowStyle = isDuplicate ? 'background: #f8d7da; color: #721c24;' : 'background: #d4edda; color: #155724;';
+                const statusIcon = isDuplicate ? '❌ Duplicate' : '✅ New';
+
+                tbody.innerHTML += `
+                    <tr style="${rowStyle}">
+                        <td style="padding: 8px;">${company.company_code}</td>
+                        <td style="padding: 8px;">${company.company_name}</td>
+                        <td style="padding: 8px;">${company.notes || '-'}</td>
+                        <td style="padding: 8px; font-weight: bold;">${statusIcon}</td>
+                    </tr>
+                `;
+            });
+
+            // Show preview section
+            document.getElementById('importPreview').style.display = 'block';
+            document.getElementById('importResults').style.display = 'none';
+
+            // Enable/disable confirm button
+            document.getElementById('confirmImportBtn').disabled = pendingImportCompanies.length === 0;
+        }
+
+        // Cancel import
+        document.getElementById('cancelImportBtn').addEventListener('click', () => {
+            document.getElementById('importPreview').style.display = 'none';
+            document.getElementById('importFile').value = '';
+            pendingImportCompanies = [];
+        });
+
+        // Confirm and execute import
+        document.getElementById('confirmImportBtn').addEventListener('click', async () => {
+            if (pendingImportCompanies.length === 0) {
+                alert('❌ No companies to import');
+                return;
+            }
+
+            // Disable buttons during import
+            document.getElementById('confirmImportBtn').disabled = true;
+            document.getElementById('cancelImportBtn').disabled = true;
+
+            // Import companies one by one
+            const results = {
+                success: [],
+                failed: []
+            };
+
+            document.getElementById('importResults').style.display = 'block';
+            document.getElementById('importResultsContent').innerHTML = `<p>⏳ Importing ${pendingImportCompanies.length} companies...</p>`;
+
+            for (const company of pendingImportCompanies) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/companies`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(company)
+                    });
+
+                    if (response.ok) {
+                        results.success.push(`✅ ${company.company_code} - ${company.company_name}`);
+                    } else {
+                        const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+                        const errorMsg = error.message || error.error || 'Unknown error';
+                        results.failed.push(`❌ ${company.company_code} - ${errorMsg}`);
+                        console.error('Import failed for', company.company_code, ':', error);
+                    }
+                } catch (error) {
+                    results.failed.push(`❌ ${company.company_code} - Network error: ${error.message}`);
+                    console.error('Network error for', company.company_code, ':', error);
+                }
+            }
+
+            // Show results
+            let resultsHtml = `<p><strong>✅ Successfully imported: ${results.success.length}</strong></p>`;
+            if (results.success.length > 0) {
+                resultsHtml += '<ul style="max-height: 200px; overflow-y: auto;">';
+                results.success.forEach(msg => resultsHtml += `<li>${msg}</li>`);
+                resultsHtml += '</ul>';
+            }
+
+            if (results.failed.length > 0) {
+                resultsHtml += `<p><strong>❌ Failed: ${results.failed.length}</strong></p>`;
+                resultsHtml += '<ul style="max-height: 200px; overflow-y: auto;">';
+                results.failed.forEach(msg => resultsHtml += `<li>${msg}</li>`);
+                resultsHtml += '</ul>';
+            }
+
+            document.getElementById('importResultsContent').innerHTML = resultsHtml;
+
+            // Hide preview, show results
+            document.getElementById('importPreview').style.display = 'none';
+
+            // Reload companies list
+            await loadCompanies();
+
+            // Reset form
+            document.getElementById('importFile').value = '';
+            pendingImportCompanies = [];
+
+            // Re-enable buttons
+            document.getElementById('confirmImportBtn').disabled = false;
+            document.getElementById('cancelImportBtn').disabled = false;
+        });
 
         init();
     </script>

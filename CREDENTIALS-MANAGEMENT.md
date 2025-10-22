@@ -42,10 +42,12 @@ These are **unique per company** and stored in database tables:
 #### DevPos Credentials (Table: `company_credentials_devpos`)
 ```sql
 company_id    | 1
-tenant        | K43128625A         -- Unique per company
+tenant        | K43128625A         -- Company's NIPT (Tax ID) - same as DevPos Tenant ID
 username      | xhelo-aem          -- Unique per company
 password_enc  | [encrypted]        -- Encrypted password
 ```
+
+**Note:** The `tenant` value is the company's **NIPT (Tax Identification Number)**, which DevPos uses as the Tenant ID. When creating a company, use the NIPT as the `company_code` for consistency.
 
 #### QuickBooks Credentials (Table: `company_credentials_qbo`)
 ```sql

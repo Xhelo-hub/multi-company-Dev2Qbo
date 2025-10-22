@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Company Sync - Authenticated Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -134,6 +136,26 @@
             flex-wrap: wrap;
         }
 
+        .admin-buttons .btn,
+        .admin-buttons a.btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-circle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #33cc66;
+            color: white;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
         /* Main Content */
         .content {
             display: grid;
@@ -253,6 +275,10 @@
             transition: all 0.3s;
             text-align: center;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
         }
 
         .sync-button:hover {
@@ -260,6 +286,11 @@
             color: white;
             border-color: #667eea;
             transform: translateY(-2px);
+        }
+
+        .sync-button:hover .icon-circle {
+            background-color: white;
+            color: #667eea;
         }
 
         /* Sync History */
@@ -374,8 +405,9 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div>
-                <h1>🚀 Multi-Company Sync Dashboard</h1>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <img src="assets/logo.svg" alt="Logo" style="width: 50px; height: 50px;">
+                <h1>DEV-QBO SYNC</h1>
             </div>
             <div class="user-menu">
                 <select id="companySelector" class="company-selector">
@@ -391,21 +423,27 @@
 
         <!-- Admin Panel -->
         <div id="adminPanel" class="admin-nav hidden">
-            <h3>⚡ Admin Controls</h3>
+            <h3>
+                <span class="icon-circle"><i class="fas fa-shield-alt"></i></span>
+                Admin Controls
+            </h3>
             <div class="admin-buttons">
-                <button class="btn btn-primary" onclick="openUserManagement()">👥 Manage Users</button>
-                <button class="btn btn-primary" onclick="openCompanyManagement()">🏢 Manage Companies</button>
-                <button class="btn btn-primary" onclick="viewAuditLog()">📋 Audit Log</button>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="card" style="margin-bottom: 20px;">
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <a href="/multi-company-Dev2Qbo/public/transactions.html" class="btn btn-primary" style="text-decoration: none;">
-                    📊 View All Synced Transactions
+                <button class="btn btn-primary" onclick="openUserManagement()">
+                    <span class="icon-circle"><i class="fas fa-users"></i></span>
+                    Manage Users
+                </button>
+                <button class="btn btn-primary" onclick="openCompanyManagement()">
+                    <span class="icon-circle"><i class="fas fa-building"></i></span>
+                    Manage Companies
+                </button>
+                <button class="btn btn-primary" onclick="viewAuditLog()">
+                    <span class="icon-circle"><i class="fas fa-clipboard-list"></i></span>
+                    Audit Log
+                </button>
+                <a href="transactions.html" class="btn btn-primary" style="text-decoration: none;">
+                    <span class="icon-circle"><i class="fas fa-chart-bar"></i></span>
+                    View All Synced Transactions
                 </a>
-                <button class="btn btn-primary" onclick="openScheduleManager()">⏰ Schedule Management</button>
             </div>
         </div>
 
@@ -416,7 +454,10 @@
         <div class="content">
             <!-- Credentials Card -->
             <div class="card">
-                <h2>🔐 Credentials Management</h2>
+                <h2 style="display: flex; align-items: center; gap: 10px;">
+                    <span class="icon-circle"><i class="fas fa-key"></i></span>
+                    Credentials Management
+                </h2>
                 
                 <!-- DevPos Credentials -->
                 <div class="connection-status">
@@ -424,7 +465,10 @@
                         <span class="status-indicator" id="devposStatus"></span>
                         DevPos Connection
                     </span>
-                    <button class="btn btn-primary" onclick="testDevposConnection()">Test</button>
+                    <button class="btn btn-primary" onclick="testDevposConnection()" style="display: flex; align-items: center; gap: 8px;">
+                        <span class="icon-circle" style="width: 28px; height: 28px; font-size: 12px;"><i class="fas fa-vial"></i></span>
+                        Test
+                    </button>
                 </div>
 
                 <form class="credentials-form" onsubmit="saveDevposCredentials(event)">
@@ -440,7 +484,10 @@
                         <label>DevPos Password</label>
                         <input type="password" id="devposPassword" placeholder="Password (leave blank to keep current)">
                     </div>
-                    <button type="submit" class="btn btn-success">💾 Save DevPos Credentials</button>
+                    <button type="submit" class="btn btn-success" style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <span class="icon-circle"><i class="fas fa-save"></i></span>
+                        Save DevPos Credentials
+                    </button>
                 </form>
 
                 <hr>
@@ -454,14 +501,18 @@
                     <span id="qboRealmId" style="font-size: 12px; color: #666;"></span>
                 </div>
 
-                <button class="btn btn-primary" onclick="connectQuickBooks()" style="width: 100%;">
-                    🔗 Connect to QuickBooks Online
+                <button class="btn btn-primary" onclick="connectQuickBooks()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <span class="icon-circle"><i class="fas fa-link"></i></span>
+                    Connect to QuickBooks Online
                 </button>
             </div>
 
             <!-- Sync Controls Card -->
             <div class="card">
-                <h2>⚡ Sync Operations</h2>
+                <h2 style="display: flex; align-items: center; gap: 10px;">
+                    <span class="icon-circle"><i class="fas fa-bolt"></i></span>
+                    Sync Operations
+                </h2>
                 
                 <div class="date-range">
                     <div class="form-group">
@@ -476,22 +527,27 @@
 
                 <div class="sync-grid">
                     <div class="sync-button" onclick="runSync('sales')">
-                        📄 Sync Sales Invoices
+                        <span class="icon-circle"><i class="fas fa-file-invoice"></i></span>
+                        Sync Sales Invoices
                     </div>
                     <div class="sync-button" onclick="runSync('purchases')">
-                        🛒 Sync Purchase Invoices
+                        <span class="icon-circle"><i class="fas fa-shopping-cart"></i></span>
+                        Sync Purchase Invoices
                     </div>
                     <div class="sync-button" onclick="runSync('bills')">
-                        💰 Sync Bills
+                        <span class="icon-circle"><i class="fas fa-dollar-sign"></i></span>
+                        Sync Bills
                     </div>
                     <div class="sync-button" onclick="runSync('full')">
-                        🔄 Full Sync (All)
+                        <span class="icon-circle"><i class="fas fa-sync-alt"></i></span>
+                        Full Sync (All)
                     </div>
                 </div>
 
                 <div style="margin-top: 20px;">
-                    <button class="btn btn-primary" onclick="openScheduleManager()" style="width: 100%;">
-                        ⏰ Manage Sync Schedules
+                    <button class="btn btn-primary" onclick="openScheduleManager()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <span class="icon-circle"><i class="fas fa-clock"></i></span>
+                        Manage Sync Schedules
                     </button>
                 </div>
             </div>
@@ -499,9 +555,106 @@
 
         <!-- Sync History Card -->
         <div class="card" style="margin-top: 20px;">
-            <h2>📊 Recent Sync Jobs</h2>
+            <h2 style="display: flex; align-items: center; gap: 10px;">
+                <span class="icon-circle"><i class="fas fa-history"></i></span>
+                Recent Sync Jobs
+            </h2>
             <div id="syncHistory" class="sync-history">
                 <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Management Modal -->
+    <div id="scheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+        <div style="max-width: 900px; margin: 50px auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 50px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h2 style="color: #667eea;">⏰ Sync Schedule Management</h2>
+                <button onclick="closeScheduleModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+            </div>
+
+            <!-- Quick Schedule Templates -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                <h3 style="margin-bottom: 15px; color: #333;">📋 Quick Templates</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <button onclick="createScheduleFromTemplate('daily-1pm')" class="btn btn-primary" style="width: 100%; padding: 15px; text-align: left;">
+                        📅 Daily at 1:00 PM
+                    </button>
+                    <button onclick="createScheduleFromTemplate('weekly-friday-5pm')" class="btn btn-primary" style="width: 100%; padding: 15px; text-align: left;">
+                        📆 Weekly (Fri 5:00 PM)
+                    </button>
+                    <button onclick="createScheduleFromTemplate('monthly-first-1am')" class="btn btn-primary" style="width: 100%; padding: 15px; text-align: left;">
+                        📊 Monthly (1st, 1:00 AM)
+                    </button>
+                    <button onclick="showCustomScheduleForm()" class="btn" style="width: 100%; padding: 15px; text-align: left; background: #6c757d; color: white;">
+                        ⚙️ Custom Schedule
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Schedule Form (Hidden by default) -->
+            <div id="customScheduleForm" style="display: none; background: #fff3cd; padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 4px solid #ffc107;">
+                <h3 style="margin-bottom: 15px; color: #856404;">⚙️ Custom Schedule</h3>
+                <form onsubmit="createCustomSchedule(event)">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Schedule Name *</label>
+                            <input type="text" id="customScheduleName" required placeholder="e.g., Daily Sales Sync" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Job Type *</label>
+                            <select id="customJobType" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="full">Full Sync (All)</option>
+                                <option value="sales">Sales Invoices Only</option>
+                                <option value="purchases">Purchase Invoices Only</option>
+                                <option value="bills">Bills Only</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Frequency *</label>
+                            <select id="customFrequency" required onchange="updateCustomScheduleFields()" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="hourly">Hourly</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Time</label>
+                            <input type="time" id="customTime" value="02:00" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                        <div id="customDayField" style="display: none;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Day</label>
+                            <select id="customDay" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                                <option value="7">Sunday</option>
+                            </select>
+                        </div>
+                        <div id="customDayOfMonthField" style="display: none;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Day of Month</label>
+                            <input type="number" id="customDayOfMonth" min="1" max="31" value="1" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn btn-success" style="flex: 1;">✅ Create Schedule</button>
+                        <button type="button" onclick="hideCustomScheduleForm()" class="btn" style="flex: 1; background: #6c757d; color: white;">❌ Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Existing Schedules List -->
+            <div>
+                <h3 style="margin-bottom: 15px; color: #333;">📋 Active Schedules</h3>
+                <div id="schedulesList" style="max-height: 400px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 20px; color: #666;">Loading schedules...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -835,7 +988,295 @@
         }
 
         function openScheduleManager() {
-            showAlert('Schedule manager coming soon!', 'info');
+            if (!currentCompany) {
+                showAlert('⚠️ Please select a company first', 'error');
+                return;
+            }
+            document.getElementById('scheduleModal').style.display = 'block';
+            document.getElementById('customScheduleForm').style.display = 'none';
+            loadSchedules();
+        }
+
+        function closeScheduleModal() {
+            document.getElementById('scheduleModal').style.display = 'none';
+        }
+
+        async function loadSchedules() {
+            if (!currentCompany) {
+                showAlert('⚠️ No company selected', 'error');
+                return;
+            }
+            
+            const container = document.getElementById('schedulesList');
+            container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;"><div class="spinner"></div> Loading schedules...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/schedules`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const schedules = await response.json();
+                
+                const container = document.getElementById('schedulesList');
+                
+                if (schedules.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; padding: 30px; color: #666; background: #f8f9fa; border-radius: 8px;">No schedules configured yet. Use the quick templates above to get started!</div>';
+                    return;
+                }
+                
+                container.innerHTML = schedules.map(schedule => {
+                    const nextRun = schedule.next_run_at ? new Date(schedule.next_run_at).toLocaleString() : 'Not scheduled';
+                    const lastRun = schedule.last_run_at ? new Date(schedule.last_run_at).toLocaleString() : 'Never';
+                    
+                    let frequencyDisplay = schedule.frequency.toUpperCase();
+                    if (schedule.frequency === 'daily') {
+                        frequencyDisplay = `Daily at ${schedule.time_of_day}`;
+                    } else if (schedule.frequency === 'weekly') {
+                        const days = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        frequencyDisplay = `Weekly (${days[schedule.day_of_week]}) at ${schedule.time_of_day}`;
+                    } else if (schedule.frequency === 'monthly') {
+                        frequencyDisplay = `Monthly (Day ${schedule.day_of_month}) at ${schedule.time_of_day}`;
+                    } else if (schedule.frequency === 'hourly') {
+                        frequencyDisplay = `Hourly`;
+                    }
+                    
+                    return `
+                        <div style="padding: 15px; margin-bottom: 10px; background: ${schedule.is_active ? '#e7f3ff' : '#f5f5f5'}; border-radius: 8px; border-left: 4px solid ${schedule.is_active ? '#2196F3' : '#999'};">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                <div style="flex: 1;">
+                                    <h4 style="margin-bottom: 5px; color: #333;">${schedule.schedule_name}</h4>
+                                    <div style="color: #666; font-size: 13px; margin-bottom: 3px;">
+                                        <strong>Type:</strong> ${schedule.job_type.toUpperCase()} | 
+                                        <strong>Frequency:</strong> ${frequencyDisplay}
+                                    </div>
+                                    <div style="color: #666; font-size: 13px;">
+                                        <strong>Next Run:</strong> ${nextRun} | 
+                                        <strong>Last Run:</strong> ${lastRun}
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 5px;">
+                                    <button onclick="toggleSchedule(${schedule.id}, ${schedule.is_active ? 0 : 1})" 
+                                            class="btn ${schedule.is_active ? 'btn-danger' : 'btn-success'}" 
+                                            style="padding: 8px 15px; font-size: 12px;">
+                                        ${schedule.is_active ? '⏸ Pause' : '▶ Activate'}
+                                    </button>
+                                    <button onclick="deleteSchedule(${schedule.id})" 
+                                            class="btn btn-danger" 
+                                            style="padding: 8px 15px; font-size: 12px;">
+                                        🗑 Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+                const container = document.getElementById('schedulesList');
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 30px; color: #dc3545; background: #fee; border-radius: 8px;">
+                        <strong>⚠️ Error loading schedules</strong><br>
+                        <span style="font-size: 13px;">${error.message}</span><br>
+                        <button onclick="loadSchedules()" class="btn btn-primary" style="margin-top: 15px;">🔄 Retry</button>
+                    </div>
+                `;
+                showAlert('Failed to load schedules: ' + error.message, 'error');
+            }
+        }
+
+        async function createScheduleFromTemplate(template) {
+            if (!currentCompany) {
+                showAlert('⚠️ No company selected', 'error');
+                return;
+            }
+            
+            let scheduleData = {};
+            
+            switch(template) {
+                case 'daily-1pm':
+                    scheduleData = {
+                        schedule_name: 'Daily Full Sync at 1:00 PM',
+                        job_type: 'full',
+                        frequency: 'daily',
+                        time_of_day: '13:00:00'
+                    };
+                    break;
+                case 'weekly-friday-5pm':
+                    scheduleData = {
+                        schedule_name: 'Weekly Full Sync (Friday 5:00 PM)',
+                        job_type: 'full',
+                        frequency: 'weekly',
+                        day_of_week: 5,  // Friday
+                        time_of_day: '17:00:00'
+                    };
+                    break;
+                case 'monthly-first-1am':
+                    scheduleData = {
+                        schedule_name: 'Monthly Full Sync (1st of Month, 1:00 AM)',
+                        job_type: 'full',
+                        frequency: 'monthly',
+                        day_of_month: 1,
+                        time_of_day: '01:00:00'
+                    };
+                    break;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/schedules`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(scheduleData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('✅ Schedule created successfully! Next run: ' + new Date(result.next_run_at).toLocaleString(), 'success');
+                    loadSchedules();
+                } else {
+                    showAlert('❌ Error: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error creating schedule:', error);
+                showAlert('Failed to create schedule', 'error');
+            }
+        }
+
+        function showCustomScheduleForm() {
+            document.getElementById('customScheduleForm').style.display = 'block';
+            updateCustomScheduleFields();
+        }
+
+        function hideCustomScheduleForm() {
+            document.getElementById('customScheduleForm').style.display = 'none';
+            document.getElementById('customScheduleName').value = '';
+        }
+
+        function updateCustomScheduleFields() {
+            const frequency = document.getElementById('customFrequency').value;
+            const dayField = document.getElementById('customDayField');
+            const dayOfMonthField = document.getElementById('customDayOfMonthField');
+            const timeField = document.getElementById('customTime');
+            
+            dayField.style.display = 'none';
+            dayOfMonthField.style.display = 'none';
+            
+            if (frequency === 'weekly') {
+                dayField.style.display = 'block';
+                timeField.parentElement.style.display = 'block';
+            } else if (frequency === 'monthly') {
+                dayOfMonthField.style.display = 'block';
+                timeField.parentElement.style.display = 'block';
+            } else if (frequency === 'hourly') {
+                timeField.parentElement.style.display = 'none';
+            } else {
+                timeField.parentElement.style.display = 'block';
+            }
+        }
+
+        async function createCustomSchedule(event) {
+            event.preventDefault();
+            
+            if (!currentCompany) {
+                showAlert('⚠️ Please select a company first', 'error');
+                closeScheduleModal();
+                return;
+            }
+            
+            const frequency = document.getElementById('customFrequency').value;
+            const scheduleData = {
+                schedule_name: document.getElementById('customScheduleName').value,
+                job_type: document.getElementById('customJobType').value,
+                frequency: frequency,
+                time_of_day: document.getElementById('customTime').value + ':00'
+            };
+            
+            if (frequency === 'weekly') {
+                scheduleData.day_of_week = parseInt(document.getElementById('customDay').value);
+            } else if (frequency === 'monthly') {
+                scheduleData.day_of_month = parseInt(document.getElementById('customDayOfMonth').value);
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/schedules`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(scheduleData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('✅ Custom schedule created successfully! Next run: ' + new Date(result.next_run_at).toLocaleString(), 'success');
+                    hideCustomScheduleForm();
+                    loadSchedules();
+                } else {
+                    showAlert('❌ Error: ' + result.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error creating custom schedule:', error);
+                showAlert('Failed to create schedule', 'error');
+            }
+        }
+
+        async function toggleSchedule(scheduleId, isActive) {
+            if (!currentCompany) {
+                showAlert('⚠️ Please select a company first', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/schedules/${scheduleId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ is_active: isActive })
+                });
+                
+                if (response.ok) {
+                    showAlert(isActive ? '✅ Schedule activated' : '⏸ Schedule paused', 'success');
+                    loadSchedules();
+                } else {
+                    showAlert('Failed to update schedule', 'error');
+                }
+            } catch (error) {
+                console.error('Error toggling schedule:', error);
+                showAlert('Failed to update schedule', 'error');
+            }
+        }
+
+        async function deleteSchedule(scheduleId) {
+            if (!currentCompany) {
+                showAlert('⚠️ Please select a company first', 'error');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to delete this schedule?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/schedules/${scheduleId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    showAlert('✅ Schedule deleted successfully', 'success');
+                    loadSchedules();
+                } else {
+                    showAlert('Failed to delete schedule', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting schedule:', error);
+                showAlert('Failed to delete schedule', 'error');
+            }
         }
 
         // Logout

@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Management - Admin</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>User Management - DEV-QBO SYNC</title>
     <style>
         * {
             margin: 0;
@@ -15,7 +17,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
         }
 
         .container {
@@ -32,11 +34,28 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
         .header h1 {
-            color: #667eea;
+            color: #333;
             font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon-circle {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: #33cc66;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
         }
 
         .btn {
@@ -48,7 +67,15 @@
             transition: all 0.3s;
             font-weight: 600;
             text-decoration: none;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
 
         .btn-primary {
@@ -57,8 +84,12 @@
         }
 
         .btn-success {
-            background: #2ca01c;
+            background: #33cc66;
             color: white;
+        }
+
+        .btn-success:hover {
+            background: #2ab359;
         }
 
         .btn-danger {
@@ -75,8 +106,12 @@
         }
 
         .card h2 {
-            color: #667eea;
+            color: #333;
             margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .form-grid {
@@ -95,37 +130,66 @@
             margin-bottom: 5px;
             font-weight: 600;
             color: #333;
+            font-size: 14px;
         }
 
         .form-group input,
         .form-group select {
-            padding: 10px;
-            border: 2px solid #e0e0e0;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
             border-radius: 5px;
             font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #33cc66;
+        }
+
+        .table-container {
+            overflow-x: auto;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 800px;
         }
 
         th {
-            background: #f5f5f5;
+            background: #e6f7ed;
             padding: 12px;
             text-align: left;
             font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #e0e0e0;
+            color: #059669;
+            border-bottom: 2px solid #33cc66;
+        }
+
+        th[onclick] {
+            user-select: none;
+        }
+
+        th[onclick]:hover {
+            background: #e8e8e8;
+        }
+
+        th span {
+            font-size: 10px;
+            color: #999;
+            margin-left: 5px;
         }
 
         td {
             padding: 12px;
             border-bottom: 1px solid #f0f0f0;
+            color: #333;
+            font-size: 14px;
         }
 
         tr:hover {
-            background: #f9f9f9;
+            background: #f9fafb;
         }
 
         .status-badge {
@@ -137,13 +201,13 @@
         }
 
         .status-active {
-            background: #e8f5e9;
-            color: #388e3c;
+            background: #e6f7ed;
+            color: #059669;
         }
 
         .status-inactive {
-            background: #ffebee;
-            color: #c62828;
+            background: #fee2e2;
+            color: #dc2626;
         }
 
         .status-pending {
@@ -225,7 +289,10 @@
 
         .modal-content h3 {
             margin-bottom: 20px;
-            color: #667eea;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .company-checkbox {
@@ -251,17 +318,100 @@
             gap: 5px;
             font-size: 12px;
         }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .icon-circle {
+                width: 30px;
+                height: 30px;
+                font-size: 14px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .card h2 {
+                font-size: 18px;
+            }
+
+            table {
+                font-size: 13px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .icon-circle {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+
+            .btn {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .card h2 {
+                font-size: 16px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 6px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>👥 User Management</h1>
-            <a href="/multi-company-Dev2Qbo/public/app.html" class="btn btn-primary">← Back to Dashboard</a>
+            <h1>
+                <span class="icon-circle"><i class="fas fa-users"></i></span>
+                User Management
+            </h1>
+            <a href="app.html" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
         </div>
 
         <div class="card">
-            <h2>➕ Create New User</h2>
+            <h2>
+                <span class="icon-circle"><i class="fas fa-user-plus"></i></span>
+                Create New User
+            </h2>
             <form id="createUserForm">
                 <div class="form-grid">
                     <div class="form-group">
@@ -284,58 +434,63 @@
                         </select>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-success">Create User</button>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Create User
+                </button>
             </form>
         </div>
 
         <div class="card">
-            <h2>📋 All Users</h2>
+            <h2>
+                <span class="icon-circle"><i class="fas fa-list"></i></span>
+                All Users
+            </h2>
             
-            <!-- Filter Section -->
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <input type="text" id="filterName" placeholder="Filter by name..." style="flex: 1; min-width: 200px; padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
-                <input type="text" id="filterEmail" placeholder="Filter by email..." style="flex: 1; min-width: 200px; padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
-                <select id="filterStatus" style="padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
+            <!-- Search Section -->
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="searchInput" placeholder="Search by name or email..." style="flex: 1; min-width: 300px; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px; font-size: 14px;">
+                <select id="filterStatus" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
                     <option value="">All Statuses</option>
                     <option value="pending">Pending</option>
                     <option value="active">Active</option>
                     <option value="suspended">Suspended</option>
                 </select>
-                <select id="filterCompany" style="padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
-                    <option value="">All Companies</option>
-                </select>
-                <button onclick="loadUsers()" class="btn btn-primary">Apply Filters</button>
+                <button onclick="clearFilters()" class="btn btn-danger" style="padding: 10px 20px;">
+                    <i class="fas fa-times"></i> Clear
+                </button>
             </div>
             
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Email</th>
-                        <th>Full Name</th>
-                        <th>Role</th>
-                        <th>Companies</th>
-                        <th>Status</th>
-                        <th>Last Login</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="usersTable">
-                    <tr><td colspan="8" style="text-align: center;">Loading users...</td></tr>
-                </tbody>
-            </table>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('id')" style="cursor: pointer;">ID <span id="sort-id">⇅</span></th>
+                            <th onclick="sortTable('email')" style="cursor: pointer;">Email <span id="sort-email">⇅</span></th>
+                            <th onclick="sortTable('full_name')" style="cursor: pointer;">Full Name <span id="sort-full_name">⇅</span></th>
+                            <th onclick="sortTable('role')" style="cursor: pointer;">Role <span id="sort-role">⇅</span></th>
+                            <th>Companies</th>
+                            <th onclick="sortTable('status')" style="cursor: pointer;">Status <span id="sort-status">⇅</span></th>
+                            <th onclick="sortTable('last_login_at')" style="cursor: pointer;">Last Login <span id="sort-last_login_at">⇅</span></th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTable">
+                        <tr><td colspan="8" style="text-align: center;">Loading users...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <!-- Company Access Modal -->
     <div id="companyModal" class="modal">
         <div class="modal-content">
-            <h3>🏢 Manage Company Access</h3>
+            <h3><span class="icon-circle"><i class="fas fa-building"></i></span>Manage Company Access</h3>
             <p><strong>User:</strong> <span id="modalUserName"></span></p>
             <div id="companyList"></div>
             <div style="margin-top: 20px; display: flex; gap: 10px;">
-                <button onclick="saveCompanyAccess()" class="btn btn-success">Save Changes</button>
-                <button onclick="closeModal()" class="btn btn-danger">Cancel</button>
+                <button onclick="saveCompanyAccess()" class="btn btn-success"><i class="fas fa-save"></i> Save Changes</button>
+                <button onclick="closeModal()" class="btn btn-danger"><i class="fas fa-times"></i> Cancel</button>
             </div>
         </div>
     </div>
@@ -345,6 +500,9 @@
         let currentUser = null;
         let allCompanies = [];
         let selectedUserId = null;
+        let allUsers = [];
+        let sortColumn = 'id';
+        let sortDirection = 'asc';
 
         async function init() {
             try {
@@ -380,41 +538,57 @@
                 credentials: 'include'
             });
 
-            const users = await response.json();
-            
+            allUsers = await response.json();
+            renderUsers();
+        }
+
+        function renderUsers() {
             // Get filter values
-            const filterName = document.getElementById('filterName').value.toLowerCase();
-            const filterEmail = document.getElementById('filterEmail').value.toLowerCase();
+            const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
             const filterStatus = document.getElementById('filterStatus').value;
-            const filterCompanyId = document.getElementById('filterCompany').value;
             
-            // Filter users
-            const filteredUsers = users.filter(user => {
-                const nameMatch = !filterName || (user.full_name && user.full_name.toLowerCase().includes(filterName));
-                const emailMatch = !filterEmail || user.email.toLowerCase().includes(filterEmail);
+            // Filter users by search text (matches name OR email)
+            let filteredUsers = allUsers.filter(user => {
+                const searchMatch = !searchText || 
+                    (user.email && user.email.toLowerCase().includes(searchText)) ||
+                    (user.full_name && user.full_name.toLowerCase().includes(searchText));
                 const statusMatch = !filterStatus || user.status === filterStatus;
-                // Company filter would need additional API support - for now just check if set
-                const companyMatch = !filterCompanyId; // TODO: implement company filter
                 
-                return nameMatch && emailMatch && statusMatch && companyMatch;
+                return searchMatch && statusMatch;
             });
-            
-            // Populate company filter dropdown on first load
-            if (allCompanies.length > 0 && document.getElementById('filterCompany').options.length === 1) {
-                const companySelect = document.getElementById('filterCompany');
-                allCompanies.forEach(company => {
-                    const option = document.createElement('option');
-                    option.value = company.id;
-                    option.textContent = company.company_name;
-                    companySelect.appendChild(option);
-                });
+
+            // Sort users
+            filteredUsers.sort((a, b) => {
+                let aVal = a[sortColumn];
+                let bVal = b[sortColumn];
+
+                // Handle null values
+                if (aVal === null || aVal === undefined) aVal = '';
+                if (bVal === null || bVal === undefined) bVal = '';
+
+                // Convert to lowercase for string comparison
+                if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+                if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Update sort indicators
+            document.querySelectorAll('th span[id^="sort-"]').forEach(span => {
+                span.textContent = '⇅';
+            });
+            const sortIndicator = document.getElementById(`sort-${sortColumn}`);
+            if (sortIndicator) {
+                sortIndicator.textContent = sortDirection === 'asc' ? '↑' : '↓';
             }
             
             const tbody = document.getElementById('usersTable');
             tbody.innerHTML = '';
 
             if (filteredUsers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No users found matching filters</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No users found</td></tr>';
                 return;
             }
 
@@ -443,11 +617,11 @@
                     <td><span class="status-badge ${statusClass}">${statusBadge}</span></td>
                     <td>${user.last_login_at ? new Date(user.last_login_at).toLocaleString() : 'Never'}</td>
                     <td class="actions">
-                        ${user.status === 'pending' ? `<button class="btn btn-success" onclick="approveUser(${user.id})">✓ Approve</button>` : ''}
-                        <button class="btn btn-primary" onclick="openCompanyModal(${user.id}, '${user.email}')">Companies</button>
-                        <button class="btn btn-warning" onclick="resetUserPassword(${user.id}, '${user.email}')">🔑 Reset Password</button>
-                        <button class="btn ${user.role === 'admin' ? 'btn-secondary' : 'btn-info'}" onclick="changeUserRole(${user.id}, '${user.role}', '${user.email}')">${user.role === 'admin' ? '↓ Make User' : '↑ Make Admin'}</button>
-                        <button class="btn ${user.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleUserStatus(${user.id}, ${user.is_active ? 0 : 1})">${user.is_active ? 'Deactivate' : 'Activate'}</button>
+                        ${user.status === 'pending' ? `<button class="btn btn-success" onclick="approveUser(${user.id})"><i class="fas fa-check"></i> Approve</button>` : ''}
+                        <button class="btn btn-primary" onclick="openCompanyModal(${user.id}, '${user.email}')"><i class="fas fa-building"></i> Companies</button>
+                        <button class="btn btn-warning" onclick="resetUserPassword(${user.id}, '${user.email}')"><i class="fas fa-key"></i> Reset Password</button>
+                        <button class="btn ${user.role === 'admin' ? 'btn-secondary' : 'btn-info'}" onclick="changeUserRole(${user.id}, '${user.role}', '${user.email}')"><i class="fas ${user.role === 'admin' ? 'fa-user' : 'fa-user-shield'}"></i> ${user.role === 'admin' ? 'Make User' : 'Make Admin'}</button>
+                        <button class="btn ${user.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleUserStatus(${user.id}, ${user.is_active ? 0 : 1})"><i class="fas ${user.is_active ? 'fa-ban' : 'fa-check'}"></i> ${user.is_active ? 'Deactivate' : 'Activate'}</button>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -657,20 +831,36 @@
             }
         }
 
+        // Sort table by column
+        function sortTable(column) {
+            if (sortColumn === column) {
+                // Toggle direction if same column
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // New column, default to ascending
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            renderUsers();
+        }
+
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('filterStatus').value = '';
+            renderUsers();
+        }
+
         // Add filter event listeners
         document.addEventListener('DOMContentLoaded', () => {
-            const filterName = document.getElementById('filterName');
-            const filterEmail = document.getElementById('filterEmail');
+            const searchInput = document.getElementById('searchInput');
             const filterStatus = document.getElementById('filterStatus');
             
-            if (filterName) {
-                filterName.addEventListener('input', debounce(() => loadUsers(), 300));
-            }
-            if (filterEmail) {
-                filterEmail.addEventListener('input', debounce(() => loadUsers(), 300));
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(() => renderUsers(), 300));
             }
             if (filterStatus) {
-                filterStatus.addEventListener('change', () => loadUsers());
+                filterStatus.addEventListener('change', () => renderUsers());
             }
         });
 

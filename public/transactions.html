@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synced Transactions - Multi-Company Sync</title>
+    <title>Synced Transactions - DEV-QBO SYNC</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -68,6 +70,25 @@
             background: #5568d3;
         }
 
+        .icon-circle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #33cc66;
+            color: white;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -85,19 +106,28 @@
         .stat-card h3 {
             color: #666;
             font-size: 14px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .stat-card .value {
             font-size: 32px;
             font-weight: bold;
-            color: #667eea;
+            color: #33cc66;
         }
 
         .stat-card .subtext {
             color: #999;
             font-size: 12px;
             margin-top: 5px;
+        }
+
+        .stat-card .icon-circle {
+            width: 30px;
+            height: 30px;
+            font-size: 14px;
         }
 
         .filters {
@@ -133,12 +163,12 @@
         }
 
         th {
-            background: #f5f5f5;
+            background: #e6f7ed;
             padding: 12px;
             text-align: left;
             font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #e0e0e0;
+            color: #059669;
+            border-bottom: 2px solid #33cc66;
         }
 
         td {
@@ -159,28 +189,28 @@
         }
 
         .type-invoice {
-            background: #e3f2fd;
-            color: #1976d2;
+            background: #e6f7ed;
+            color: #059669;
         }
 
         .type-purchase {
-            background: #fff3e0;
-            color: #f57c00;
+            background: #fef3c7;
+            color: #d97706;
         }
 
         .type-bill {
-            background: #fce4ec;
-            color: #c2185b;
+            background: #fee2e2;
+            color: #dc2626;
         }
 
         .type-sales_receipt {
-            background: #e8f5e9;
-            color: #388e3c;
+            background: #dbeafe;
+            color: #2563eb;
         }
 
         .amount {
             font-weight: 600;
-            color: #2ca01c;
+            color: #33cc66;
         }
 
         .pagination {
@@ -192,19 +222,30 @@
 
         .pagination button {
             padding: 8px 16px;
-            border: 1px solid #e0e0e0;
+            border: 2px solid #33cc66;
             background: white;
             border-radius: 5px;
             cursor: pointer;
+            color: #33cc66;
+            font-weight: 600;
+            transition: all 0.3s;
         }
 
         .pagination button:hover {
-            background: #f5f5f5;
+            background: #33cc66;
+            color: white;
         }
 
         .pagination button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            border-color: #d1d5db;
+            color: #9ca3af;
+        }
+        
+        .pagination button:disabled:hover {
+            background: white;
+            color: #9ca3af;
         }
 
         .loading {
@@ -217,40 +258,63 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 Synced Transactions</h1>
+            <div>
+                <h1 style="color: #667eea;">Synced Transactions</h1>
+            </div>
             <div class="header-actions">
                 <select id="companySelector" class="btn">
                     <option>Loading companies...</option>
                 </select>
-                <a href="/multi-company-Dev2Qbo/public/app.html" class="btn btn-primary">← Back to Dashboard</a>
+                <a href="app.html" class="btn btn-primary">
+                    <span class="icon-circle"><i class="fas fa-arrow-left"></i></span>
+                    Back to Dashboard
+                </a>
             </div>
         </div>
 
         <div class="stats-grid">
             <div class="stat-card">
-                <h3>Total Transactions</h3>
+                <h3>
+                    <span class="icon-circle"><i class="fas fa-list"></i></span>
+                    Total Transactions
+                </h3>
                 <div class="value" id="totalCount">-</div>
                 <div class="subtext">All synced records</div>
             </div>
             <div class="stat-card">
-                <h3>Total Amount</h3>
+                <h3>
+                    <span class="icon-circle"><i class="fas fa-coins"></i></span>
+                    Total Amount
+                </h3>
                 <div class="value" id="totalAmount">-</div>
                 <div class="subtext">Combined value</div>
             </div>
             <div class="stat-card">
-                <h3>Invoices</h3>
+                <h3>
+                    <span class="icon-circle"><i class="fas fa-file-invoice"></i></span>
+                    Invoices
+                </h3>
                 <div class="value" id="invoiceCount">-</div>
                 <div class="subtext" id="invoiceAmount">-</div>
             </div>
             <div class="stat-card">
-                <h3>Purchases</h3>
+                <h3>
+                    <span class="icon-circle"><i class="fas fa-shopping-cart"></i></span>
+                    Purchases
+                </h3>
                 <div class="value" id="purchaseCount">-</div>
                 <div class="subtext" id="purchaseAmount">-</div>
             </div>
         </div>
 
+        <div style="background: #e6f7ed; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 14px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <span class="icon-circle" style="width: 28px; height: 28px; font-size: 14px;"><i class="fas fa-info"></i></span>
+            <span style="color: #059669;">Values are displayed in Albanian LEK (ALL)</span>
+        </div>
+
         <div class="filters">
-            <label>Filter by Type:</label>
+            <span class="icon-circle" style="width: 30px; height: 30px; font-size: 14px;"><i class="fas fa-filter"></i></span>
+            <label style="font-weight: 600;">Filter by Type:</label>
             <select id="typeFilter">
                 <option value="all">All Types</option>
                 <option value="invoice">Invoices</option>
@@ -258,7 +322,7 @@
                 <option value="bill">Bills</option>
                 <option value="sales_receipt">Sales Receipts</option>
             </select>
-            <label>Show:</label>
+            <label style="font-weight: 600;">Show:</label>
             <select id="limitFilter">
                 <option value="50">50 records</option>
                 <option value="100" selected>100 records</option>
@@ -370,15 +434,15 @@
             const stats = await response.json();
             
             document.getElementById('totalCount').textContent = stats.total_transactions.toLocaleString();
-            document.getElementById('totalAmount').textContent = '$' + stats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('totalAmount').textContent = stats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ALL';
             
             const invoiceStats = stats.by_type.invoice || {count: 0, total_amount: 0};
             document.getElementById('invoiceCount').textContent = invoiceStats.count.toLocaleString();
-            document.getElementById('invoiceAmount').textContent = '$' + invoiceStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('invoiceAmount').textContent = invoiceStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ALL';
             
             const purchaseStats = stats.by_type.purchase || {count: 0, total_amount: 0};
             document.getElementById('purchaseCount').textContent = purchaseStats.count.toLocaleString();
-            document.getElementById('purchaseAmount').textContent = '$' + purchaseStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('purchaseAmount').textContent = purchaseStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ALL';
         }
 
         async function loadTransactions() {
@@ -407,7 +471,7 @@
                         <td>${tx.devpos_document_number || '-'}</td>
                         <td>${tx.qbo_doc_number || '-'}</td>
                         <td>${tx.customer_name || '-'}</td>
-                        <td class="amount">$${parseFloat(tx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="amount">${parseFloat(tx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} ALL</td>
                         <td>${new Date(tx.synced_at).toLocaleString()}</td>
                         <td>${tx.last_synced_at ? new Date(tx.last_synced_at).toLocaleString() : '-'}</td>
                     `;

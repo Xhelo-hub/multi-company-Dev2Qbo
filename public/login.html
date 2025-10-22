@@ -225,10 +225,10 @@
         </form>
 
         <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-            <a href="/multi-company-Dev2Qbo/public/password-recovery.html" style="color: #667eea; text-decoration: none; font-size: 14px; display: block; margin-bottom: 10px;">
+            <a href="password-recovery.html" style="color: #667eea; text-decoration: none; font-size: 14px; display: block; margin-bottom: 10px;">
                 🔑 Forgot Password?
             </a>
-            <a href="/multi-company-Dev2Qbo/public/register.html" style="color: #667eea; text-decoration: none; font-size: 14px;">
+            <a href="register.html" style="color: #667eea; text-decoration: none; font-size: 14px;">
                 ➕ Don't have an account? Register
             </a>
         </div>
@@ -241,6 +241,7 @@
     </div>
 
     <script>
+        const API_BASE = '/multi-company-Dev2Qbo/public';
         const form = document.getElementById('loginForm');
         const errorAlert = document.getElementById('errorAlert');
         const loading = document.getElementById('loading');
@@ -258,7 +259,7 @@
             loginBtn.disabled = true;
 
             try {
-                const response = await fetch('/multi-company-Dev2Qbo/public/api/auth/login', {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -277,7 +278,7 @@
                 // No need to manually set it here
 
                 // Redirect to dashboard
-                window.location.href = '/multi-company-Dev2Qbo/public/app.html';
+                window.location.href = `${API_BASE}/app.html`;
 
             } catch (error) {
                 errorAlert.textContent = error.message;

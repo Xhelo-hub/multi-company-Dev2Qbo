@@ -35,8 +35,12 @@
    - Add your QBO OAuth credentials (`QBO_CLIENT_ID`, `QBO_CLIENT_SECRET`)
 
 3. **Add Companies & Credentials**
+   
+   **Important:** Use the company's **NIPT** as the `company_code` (same as DevPos Tenant ID)
+   
    ```sql
-   -- Company 1: AEM
+   -- Company 1: AEM (NIPT: K43128625A)
+   -- Note: company_code should be the NIPT (DevPos Tenant ID)
    INSERT INTO company_credentials_devpos (company_id, tenant, username, password_encrypted)
    VALUES (1, 'K43128625A', 'xhelo-aem', 
        AES_ENCRYPT('your-password', 'sewQHws7jDVcUtUNHdbONxro+NA7Uxyb0ycKJCHAwgM='));
@@ -44,9 +48,10 @@
    INSERT INTO company_credentials_qbo (company_id, realm_id)
    VALUES (1, '9341453045416158');
    
-   -- Company 2: PGROUP (add when ready)
+   -- Company 2: PGROUP (NIPT: L71234567X - example)
+   -- Use actual NIPT as company_code when creating company
    INSERT INTO company_credentials_devpos (company_id, tenant, username, password_encrypted)
-   VALUES (2, 'PGROUP_TENANT', 'pgroup-user', 
+   VALUES (2, 'L71234567X', 'pgroup-user', 
        AES_ENCRYPT('password', 'sewQHws7jDVcUtUNHdbONxro+NA7Uxyb0ycKJCHAwgM='));
    ```
 

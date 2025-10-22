@@ -18,9 +18,11 @@ DROP TABLE IF EXISTS oauth_tokens_qbo;
 -- =============================================================================
 -- COMPANIES TABLE
 -- =============================================================================
+-- NOTE: company_code IS the NIPT (Tax ID), which is also the DevPos Tenant ID
+-- There is no separate NIPT field - company_code serves this purpose
 CREATE TABLE companies (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    company_code VARCHAR(50) NOT NULL UNIQUE COMMENT 'Short code for company (e.g., AEM, PGROUP)',
+    company_code VARCHAR(50) NOT NULL UNIQUE COMMENT 'Company NIPT (Tax ID) - also used as DevPos Tenant ID (e.g., K43128625A)',
     company_name VARCHAR(255) NOT NULL COMMENT 'Full company name',
     is_active TINYINT(1) DEFAULT 1 COMMENT '1=active, 0=inactive',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -239,12 +241,14 @@ CREATE TABLE sync_cursors (
 -- =============================================================================
 
 -- Company 1: AEM (Albania)
+-- Note: company_code should be the NIPT (Tax ID), which is the same as DevPos Tenant ID
 INSERT INTO companies (id, company_code, company_name, is_active) 
-VALUES (1, 'AEM', 'Albanian Engineering & Management', 1);
+VALUES (1, 'K43128625A', 'Albanian Engineering & Management', 1);
 
 -- Company 2: PGROUP (Albania)
+-- Replace 'L71234567X' with actual NIPT
 INSERT INTO companies (id, company_code, company_name, is_active) 
-VALUES (2, 'PGROUP', 'Professional Group Albania', 1);
+VALUES (2, 'L71234567X', 'Professional Group Albania', 1);
 
 -- =============================================================================
 -- NOTES

@@ -187,16 +187,82 @@ class SyncExecutor
     }
     
     /**
-     * Sync bills (placeholder)
+     * Sync bills from DevPos to QuickBooks
      */
     private function syncBills(array $job): array
     {
-        // Bills sync logic would go here
+        $companyId = (int)$job['company_id'];
+        
+        // Get DevPos credentials
+        $devposCreds = $this->getDevPosCredentials($companyId);
+        if (!$devposCreds) {
+            throw new Exception('DevPos credentials not configured');
+        }
+        
+        // Get QuickBooks credentials
+        $qboCreds = $this->getQBOCredentials($companyId);
+        if (!$qboCreds) {
+            throw new Exception('QuickBooks not connected');
+        }
+        
+        // Get DevPos access token
+        $devposToken = $this->getDevPosToken($devposCreds);
+        
+        // Fetch purchase invoices (bills) from DevPos
+        $bills = $this->fetchDevPosPurchaseInvoices(
+            $devposToken,
+            $devposCreds['tenant'],
+            $job['from_date'],
+            $job['to_date']
+        );
+        
+        $synced = 0;
+        $skipped = 0;
+        $errors = [];
+        
+        foreach ($bills as $bill) {
+            try {
+                // Check if amount is valid
+                $amount = (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0);
+                if ($amount <= 0) {
+                    $skipped++;
+                    continue;
+                }
+                
+                // Check for duplicate
+                $eic = $bill['eic'] ?? $bill['EIC'] ?? null;
+                $docNumber = $bill['documentNumber'] ?? $bill['id'] ?? null;
+                
+                if (!$docNumber) {
+                    $skipped++;
+                    continue;
+                }
+                
+                // Check if bill already exists
+                $existingBill = $this->findBillByDocNumber($companyId, $docNumber);
+                if ($existingBill) {
+                    $skipped++;
+                    continue;
+                }
+                
+                // Create bill in QuickBooks
+                $this->syncBillToQBO($bill, $qboCreds, $companyId);
+                $synced++;
+                
+            } catch (Exception $e) {
+                $errors[] = [
+                    'bill' => $bill['documentNumber'] ?? $bill['eic'] ?? 'unknown',
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+        
         return [
-            'total' => 0,
-            'synced' => 0,
-            'errors' => 0,
-            'message' => 'Bills sync not yet implemented'
+            'total' => count($bills),
+            'bills_created' => $synced,
+            'skipped' => $skipped,
+            'errors' => count($errors),
+            'error_details' => $errors
         ];
     }
     
@@ -461,6 +527,207 @@ class SyncExecutor
         
         $result = $stmt->fetchColumn();
         return $result ? (int)$result : null;
+    }
+    
+    /**
+     * Find QuickBooks bill by document number
+     */
+    private function findBillByDocNumber(int $companyId, string $docNumber): ?int
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT qbo_invoice_id
+            FROM invoice_mappings
+            WHERE company_id = ? AND devpos_document_number = ? AND transaction_type = 'bill'
+        ");
+        $stmt->execute([$companyId, $docNumber]);
+        
+        $result = $stmt->fetchColumn();
+        return $result ? (int)$result : null;
+    }
+    
+    /**
+     * Sync bill to QuickBooks
+     */
+    private function syncBillToQBO(array $bill, array $qboCreds, int $companyId): void
+    {
+        $client = new Client();
+        $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+        $baseUrl = $isSandbox 
+            ? 'https://sandbox-quickbooks.api.intuit.com'
+            : 'https://quickbooks.api.intuit.com';
+        
+        // Get or create vendor
+        $vendorId = $this->getOrCreateVendor(
+            $bill['sellerNuis'] ?? '',
+            $bill['sellerName'] ?? 'Unknown Vendor',
+            $qboCreds,
+            $companyId
+        );
+        
+        // Convert bill to QBO format
+        $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId);
+        
+        // Create bill in QuickBooks
+        $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/bill', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json'
+            ],
+            'json' => $qboBill
+        ]);
+        
+        $result = json_decode($response->getBody()->getContents(), true);
+        
+        // Store mapping
+        if (isset($result['Bill']['Id'])) {
+            $this->storeBillMapping(
+                $companyId, 
+                $bill['documentNumber'] ?? '',
+                $bill['sellerNuis'] ?? '',
+                (int)$result['Bill']['Id'],
+                $result['Bill']['DocNumber'] ?? '',
+                (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0),
+                $bill['sellerName'] ?? ''
+            );
+        }
+    }
+    
+    /**
+     * Get or create vendor in QuickBooks
+     */
+    private function getOrCreateVendor(string $nuis, string $name, array $qboCreds, int $companyId): string
+    {
+        // Check if vendor already exists in mappings
+        $stmt = $this->pdo->prepare("
+            SELECT qbo_vendor_id 
+            FROM vendor_mappings 
+            WHERE company_id = ? AND devpos_nuis = ?
+        ");
+        $stmt->execute([$companyId, $nuis]);
+        $existingId = $stmt->fetchColumn();
+        
+        if ($existingId) {
+            return (string)$existingId;
+        }
+        
+        // Create new vendor in QuickBooks
+        $client = new Client();
+        $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+        $baseUrl = $isSandbox 
+            ? 'https://sandbox-quickbooks.api.intuit.com'
+            : 'https://quickbooks.api.intuit.com';
+        
+        $vendorData = [
+            'DisplayName' => $name . ($nuis ? " ({$nuis})" : ''),
+            'CompanyName' => $name,
+            'Vendor1099' => false
+        ];
+        
+        if ($nuis) {
+            $vendorData['TaxIdentifier'] = $nuis;
+        }
+        
+        $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/vendor', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json'
+            ],
+            'json' => $vendorData
+        ]);
+        
+        $result = json_decode($response->getBody()->getContents(), true);
+        $vendorId = (string)($result['Vendor']['Id'] ?? '');
+        
+        if ($vendorId) {
+            // Store vendor mapping
+            $stmt = $this->pdo->prepare("
+                INSERT INTO vendor_mappings (company_id, devpos_nuis, vendor_name, qbo_vendor_id, created_at)
+                VALUES (?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([$companyId, $nuis, $name, $vendorId]);
+        }
+        
+        return $vendorId;
+    }
+    
+    /**
+     * Convert DevPos bill to QuickBooks format
+     */
+    private function convertDevPosToQBOBill(array $devposBill, string $vendorId): array
+    {
+        $amount = (float)($devposBill['amount'] ?? $devposBill['total'] ?? $devposBill['totalAmount'] ?? 0);
+        
+        return [
+            'VendorRef' => [
+                'value' => $vendorId
+            ],
+            'Line' => [
+                [
+                    'DetailType' => 'AccountBasedExpenseLineDetail',
+                    'Amount' => $amount,
+                    'AccountBasedExpenseLineDetail' => [
+                        'AccountRef' => [
+                            'value' => $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1' // Should be configured
+                        ]
+                    ],
+                    'Description' => 'Bill from ' . ($devposBill['sellerName'] ?? 'Vendor')
+                ]
+            ],
+            'DocNumber' => $devposBill['documentNumber'] ?? '',
+            'TxnDate' => date('Y-m-d', strtotime($devposBill['issueDate'] ?? $devposBill['dateIssued'] ?? 'now'))
+        ];
+    }
+    
+    /**
+     * Store bill mapping
+     */
+    private function storeBillMapping(
+        int $companyId, 
+        string $docNumber,
+        string $vendorNuis,
+        int $qboId, 
+        string $qboDocNumber = '',
+        float $amount = 0,
+        string $vendorName = ''
+    ): void {
+        $compositeKey = $docNumber . '|' . $vendorNuis;
+        
+        $stmt = $this->pdo->prepare("
+            INSERT INTO invoice_mappings (
+                company_id, 
+                devpos_eic,
+                devpos_document_number,
+                transaction_type,
+                qbo_invoice_id, 
+                qbo_doc_number,
+                amount,
+                customer_name,
+                synced_at,
+                last_synced_at
+            )
+            VALUES (?, ?, ?, 'bill', ?, ?, ?, ?, NOW(), NOW())
+            ON DUPLICATE KEY UPDATE 
+                qbo_invoice_id = ?, 
+                qbo_doc_number = ?,
+                amount = ?,
+                customer_name = ?,
+                last_synced_at = NOW()
+        ");
+        $stmt->execute([
+            $companyId, 
+            $compositeKey, // Use composite key as EIC placeholder
+            $docNumber,
+            $qboId, 
+            $qboDocNumber,
+            $amount,
+            $vendorName,
+            $qboId,
+            $qboDocNumber,
+            $amount,
+            $vendorName
+        ]);
     }
     
     /**
