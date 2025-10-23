@@ -3,43 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Settings - DEV-QBO Sync</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>Email Settings - Multi-Company Sync Dashboard</title>
     <style>
-        .email-container {
-            max-width: 1400px;
-            margin: 20px auto;
-            padding: 20px;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Helvetica, Arial, sans-serif; background: #f5f7fa; color: #2d3748; }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        .header h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .header p { opacity: 0.9; font-size: 0.95rem; }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
 
         .tabs {
             display: flex;
-            gap: 10px;
-            border-bottom: 2px solid #e0e0e0;
-            margin-bottom: 30px;
+            gap: 5px;
+            margin-bottom: 2rem;
+            background: white;
+            border-radius: 8px;
+            padding: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .tab {
-            padding: 12px 24px;
+            flex: 1;
+            padding: 0.75rem 1.5rem;
             background: transparent;
             border: none;
-            border-bottom: 3px solid transparent;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 500;
-            color: #666;
-            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #718096;
+            transition: all 0.2s ease;
         }
 
         .tab:hover {
             color: #667eea;
-            background: #f8f9fa;
+            background: #f7fafc;
         }
 
         .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-            background: #f8f9fa;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .tab-content {
@@ -58,25 +70,25 @@
 
         .config-section {
             background: white;
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
         }
 
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
         }
 
         .section-title {
-            font-size: 20px;
+            font-size: 1.25rem;
             font-weight: 600;
-            color: #333;
+            color: #2d3748;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -85,8 +97,8 @@
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: 1.25rem;
+            margin-bottom: 1.25rem;
         }
 
         .form-group {
@@ -100,17 +112,17 @@
 
         .form-label {
             font-weight: 600;
-            margin-bottom: 8px;
-            color: #333;
-            font-size: 14px;
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+            font-size: 0.85rem;
         }
 
         .form-input, .form-select {
-            padding: 12px;
-            border: 2px solid #e0e0e0;
+            padding: 0.75rem;
+            border: 1px solid #cbd5e0;
             border-radius: 6px;
-            font-size: 14px;
-            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
         }
 
         .form-input:focus, .form-select:focus {
@@ -120,34 +132,34 @@
         }
 
         .form-input:disabled {
-            background: #f8f9fa;
+            background: #f7fafc;
             cursor: not-allowed;
         }
 
         .checkbox-group {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 0.75rem;
+            margin-top: 0.75rem;
         }
 
         .checkbox-input {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             cursor: pointer;
         }
 
         .btn {
-            padding: 12px 24px;
+            padding: 0.75rem 1.5rem;
             border: none;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 0.5rem;
         }
 
         .btn-primary {
@@ -157,49 +169,57 @@
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .btn-secondary {
-            background: #6c757d;
+            background: #718096;
             color: white;
         }
 
         .btn-secondary:hover {
-            background: #5a6268;
+            background: #4a5568;
         }
 
         .btn-success {
-            background: #28a745;
+            background: #48bb78;
             color: white;
         }
 
         .btn-success:hover {
-            background: #218838;
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
         }
 
         .btn-warning {
-            background: #ffc107;
-            color: #212529;
+            background: #f6ad55;
+            color: white;
         }
 
         .btn-warning:hover {
-            background: #e0a800;
+            background: #ed8936;
         }
 
         .btn-actions {
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
         }
 
         .alert {
-            padding: 15px 20px;
+            padding: 1rem 1.25rem;
             border-radius: 6px;
-            margin-bottom: 20px;
+            margin-bottom: 1.25rem;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 0.75rem;
             animation: slideDown 0.3s ease;
         }
 
@@ -209,35 +229,35 @@
         }
 
         .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border-left: 4px solid #28a745;
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #48bb78;
         }
 
         .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border-left: 4px solid #dc3545;
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #f56565;
         }
 
         .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border-left: 4px solid #17a2b8;
+            background: #bee3f8;
+            color: #2c5282;
+            border-left: 4px solid #4299e1;
         }
 
         .template-list {
             display: grid;
-            gap: 15px;
+            gap: 1rem;
         }
 
         .template-item {
             background: white;
-            border: 2px solid #e0e0e0;
+            border: 2px solid #e2e8f0;
             border-radius: 8px;
-            padding: 20px;
+            padding: 1.5rem;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .template-item:hover {
@@ -401,49 +421,54 @@
         .logs-table th {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px;
+            padding: 1rem;
             text-align: left;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .logs-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #e0e0e0;
-            font-size: 13px;
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9rem;
+            color: #4a5568;
         }
 
         .logs-table tr:hover {
-            background: #f8f9fa;
+            background: #f7fafc;
         }
 
         .status-badge {
             display: inline-block;
-            padding: 4px 12px;
+            padding: 0.25rem 0.75rem;
             border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .status-badge.sent {
-            background: #d4edda;
-            color: #155724;
+            background: #c6f6d5;
+            color: #22543d;
         }
 
         .status-badge.failed {
-            background: #f8d7da;
-            color: #721c24;
+            background: #fed7d7;
+            color: #742a2a;
         }
 
         .status-badge.pending {
-            background: #fff3cd;
-            color: #856404;
+            background: #feebc8;
+            color: #7c2d12;
         }
 
         .logs-filter {
             display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
             align-items: center;
         }
 
@@ -451,13 +476,13 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
-            margin-top: 20px;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
         }
 
         .pagination button {
-            padding: 8px 16px;
-            border: 2px solid #e0e0e0;
+            padding: 0.5rem 1rem;
+            border: 1px solid #cbd5e0;
             background: white;
             border-radius: 6px;
             cursor: pointer;
@@ -501,47 +526,38 @@
             font-style: italic;
         }
 
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 500;
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .back-link:hover {
-            color: #764ba2;
-            transform: translateX(-5px);
-        }
-
         .empty-state {
             text-align: center;
-            padding: 60px 20px;
-            color: #999;
+            padding: 4rem 2rem;
+            color: #a0aec0;
         }
 
         .empty-state-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
+            font-size: 4rem;
+            margin-bottom: 1.25rem;
             opacity: 0.3;
         }
 
         .empty-state-text {
-            font-size: 16px;
-            color: #666;
+            font-size: 1rem;
+            color: #718096;
         }
     </style>
 </head>
 <body>
-    <div class="email-container">
-        <a href="dashboard.html" class="back-link">
-            ← Back to Dashboard
-        </a>
+    <div class="header">
+        <div class="container">
+            <h1>📧 Email System Management</h1>
+            <p>Configure SMTP settings, manage email templates, and monitor email logs</p>
+        </div>
+    </div>
 
-        <h1>📧 Email System Management</h1>
+    <div class="container">
+        <div style="margin-bottom: 1.5rem;">
+            <a href="dashboard.html" style="color: #667eea; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem;">
+                ← Back to Dashboard
+            </a>
+        </div>
 
         <div id="alertContainer"></div>
 
