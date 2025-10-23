@@ -3,55 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Settings - Multi-Company Sync Dashboard</title>
+    <title>Email Settings - Multi-Company Sync</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Helvetica, Arial, sans-serif; background: #f5f7fa; color: #2d3748; }
         
-        .header {
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 100vh;
         }
-        .header h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; }
-        .header p { opacity: 0.9; font-size: 0.95rem; }
         
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #f3f4f6;
+        }
 
         .tabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 2rem;
             background: white;
-            border-radius: 8px;
-            padding: 0.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .tab {
-            flex: 1;
-            padding: 0.75rem 1.5rem;
+            padding: 10px 20px;
             background: transparent;
             border: none;
-            border-radius: 6px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 0.95rem;
+            font-size: 14px;
             font-weight: 600;
-            color: #718096;
-            transition: all 0.2s ease;
+            color: #6b7280;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .tab:hover {
+            background: #f3f4f6;
             color: #667eea;
-            background: #f7fafc;
         }
 
         .tab.active {
+            background: #667eea;
             color: white;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .tab-content {
@@ -70,25 +111,25 @@
 
         .config-section {
             background: white;
-            border-radius: 8px;
-            padding: 2rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 1.5rem;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         }
 
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
         }
 
         .section-title {
-            font-size: 1.25rem;
+            font-size: 18px;
             font-weight: 600;
-            color: #2d3748;
+            color: #1f2937;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -97,8 +138,8 @@
         .form-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 1.25rem;
-            margin-bottom: 1.25rem;
+            gap: 15px;
+            margin-bottom: 15px;
         }
 
         .form-group {
@@ -112,17 +153,18 @@
 
         .form-label {
             font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: #4a5568;
-            font-size: 0.85rem;
+            margin-bottom: 8px;
+            color: #374151;
+            font-size: 14px;
         }
 
         .form-input, .form-select {
-            padding: 0.75rem;
-            border: 1px solid #cbd5e0;
-            border-radius: 6px;
-            font-size: 0.95rem;
-            transition: all 0.2s ease;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
         }
 
         .form-input:focus, .form-select:focus {
@@ -132,15 +174,15 @@
         }
 
         .form-input:disabled {
-            background: #f7fafc;
+            background: #f9fafb;
             cursor: not-allowed;
         }
 
         .checkbox-group {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            margin-top: 0.75rem;
+            gap: 10px;
+            margin-top: 10px;
         }
 
         .checkbox-input {
@@ -150,77 +192,84 @@
         }
 
         .btn {
-            padding: 0.75rem 1.5rem;
+            padding: 10px 20px;
             border: none;
-            border-radius: 6px;
-            font-size: 0.9rem;
+            border-radius: 5px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s;
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 8px;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #667eea;
             color: white;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            background: #5568d3;
         }
 
         .btn-primary:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-            transform: none;
         }
 
         .btn-secondary {
-            background: #718096;
+            background: #6b7280;
             color: white;
         }
 
         .btn-secondary:hover {
-            background: #4a5568;
+            background: #4b5563;
         }
 
         .btn-success {
-            background: #48bb78;
+            background: #10b981;
             color: white;
         }
 
         .btn-success:hover {
-            background: #38a169;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+            background: #059669;
         }
 
         .btn-warning {
-            background: #f6ad55;
+            background: #f59e0b;
             color: white;
         }
 
         .btn-warning:hover {
-            background: #ed8936;
+            background: #d97706;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
         }
 
         .btn-actions {
             display: flex;
-            gap: 0.75rem;
-            margin-top: 1.5rem;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
         }
 
         .alert {
-            padding: 1rem 1.25rem;
-            border-radius: 6px;
-            margin-bottom: 1.25rem;
+            padding: 12px 16px;
+            border-radius: 5px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 10px;
             animation: slideDown 0.3s ease;
+            font-size: 14px;
         }
 
         @keyframes slideDown {
@@ -229,40 +278,40 @@
         }
 
         .alert-success {
-            background: #c6f6d5;
-            color: #22543d;
-            border-left: 4px solid #48bb78;
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
         }
 
         .alert-error {
-            background: #fed7d7;
-            color: #742a2a;
-            border-left: 4px solid #f56565;
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
         }
 
         .alert-info {
-            background: #bee3f8;
-            color: #2c5282;
-            border-left: 4px solid #4299e1;
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
         }
 
         .template-list {
             display: grid;
-            gap: 1rem;
+            gap: 15px;
         }
 
         .template-item {
             background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 1.5rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s;
         }
 
         .template-item:hover {
             border-color: #667eea;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.2);
             transform: translateY(-2px);
         }
 
@@ -408,7 +457,7 @@
         .logs-table {
             width: 100%;
             background: white;
-            border-radius: 8px;
+            border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
@@ -419,56 +468,52 @@
         }
 
         .logs-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #667eea;
             color: white;
-            padding: 1rem;
+            padding: 12px 15px;
             text-align: left;
             font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 14px;
         }
 
         .logs-table td {
-            padding: 0.875rem 1rem;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: 0.9rem;
-            color: #4a5568;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #374151;
         }
 
         .logs-table tr:hover {
-            background: #f7fafc;
+            background: #f9fafb;
         }
 
         .status-badge {
             display: inline-block;
-            padding: 0.25rem 0.75rem;
+            padding: 4px 12px;
             border-radius: 12px;
-            font-size: 0.75rem;
+            font-size: 12px;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .status-badge.sent {
-            background: #c6f6d5;
-            color: #22543d;
+            background: #d1fae5;
+            color: #065f46;
         }
 
         .status-badge.failed {
-            background: #fed7d7;
-            color: #742a2a;
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .status-badge.pending {
-            background: #feebc8;
-            color: #7c2d12;
+            background: #fef3c7;
+            color: #92400e;
         }
 
         .logs-filter {
             display: flex;
-            gap: 1rem;
-            margin-bottom: 1.25rem;
+            gap: 15px;
+            margin-bottom: 20px;
             align-items: center;
         }
 
@@ -476,13 +521,13 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 0.75rem;
-            margin-top: 1.5rem;
+            gap: 10px;
+            margin-top: 20px;
         }
 
         .pagination button {
-            padding: 0.5rem 1rem;
-            border: 1px solid #cbd5e0;
+            padding: 8px 16px;
+            border: 2px solid #e5e7eb;
             background: white;
             border-radius: 6px;
             cursor: pointer;
@@ -541,21 +586,15 @@
         .empty-state-text {
             font-size: 1rem;
             color: #718096;
-        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="container">
-            <h1>📧 Email System Management</h1>
-            <p>Configure SMTP settings, manage email templates, and monitor email logs</p>
-        </div>
-    </div>
-
     <div class="container">
-        <div style="margin-bottom: 1.5rem;">
-            <a href="app.html" style="color: #667eea; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem;">
-                ← Back to Dashboard
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-envelope"></i> Email System Management</h1>
+            <a href="app.html" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
             </a>
         </div>
 
@@ -564,13 +603,13 @@
         <!-- Tabs -->
         <div class="tabs">
             <button class="tab active" onclick="switchTab('config')">
-                ⚙️ Configuration
+                <i class="fas fa-cog"></i> Configuration
             </button>
             <button class="tab" onclick="switchTab('templates')">
-                📝 Templates
+                <i class="fas fa-file-alt"></i> Templates
             </button>
             <button class="tab" onclick="switchTab('logs')">
-                📊 Email Logs
+                <i class="fas fa-chart-bar"></i> Email Logs
             </button>
         </div>
 
