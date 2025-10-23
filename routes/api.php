@@ -265,6 +265,123 @@ $app->patch('/api/companies/{id}', function (Request $request, Response $respons
     return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 
+// Delete company (admin only, must be inactive)
+$app->delete('/api/companies/{id}', function (Request $request, Response $response, array $args) use ($pdo) {
+    $user = $request->getAttribute('user');
+    
+    if ($user['role'] !== 'admin') {
+        $response->getBody()->write(json_encode(['error' => 'Admin access required']));
+        return $response->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+    
+    $companyId = (int)$args['id'];
+    
+    // Get company data
+    $stmt = $pdo->prepare("SELECT id, company_code, company_name, is_active FROM companies WHERE id = ?");
+    $stmt->execute([$companyId]);
+    $company = $stmt->fetch();
+    
+    if (!$company) {
+        $response->getBody()->write(json_encode(['error' => 'Company not found']));
+        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+    }
+    
+    // Check if company is inactive
+    if ($company['is_active']) {
+        $response->getBody()->write(json_encode([
+            'error' => 'Cannot delete active company',
+            'message' => 'Company must be deactivated before deletion'
+        ]));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+    
+    try {
+        // Start transaction
+        $pdo->beginTransaction();
+        
+        // Delete related records in correct order (respecting foreign keys)
+        
+        // 1. Delete sync schedules
+        $stmt = $pdo->prepare("DELETE FROM sync_schedules WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        // 2. Delete sync jobs
+        $stmt = $pdo->prepare("DELETE FROM sync_jobs WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        // 3. Delete sync cursors
+        $stmt = $pdo->prepare("DELETE FROM sync_cursors WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        // 4. Delete maps
+        $stmt = $pdo->prepare("DELETE FROM maps_documents WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        $stmt = $pdo->prepare("DELETE FROM maps_masterdata WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        // 5. Delete OAuth tokens
+        $stmt = $pdo->prepare("DELETE FROM oauth_tokens_devpos WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        $stmt = $pdo->prepare("DELETE FROM oauth_tokens_qbo WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        // 6. Delete credentials
+        $stmt = $pdo->prepare("DELETE FROM company_credentials_devpos WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        $stmt = $pdo->prepare("DELETE FROM company_credentials_qbo WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        $stmt = $pdo->prepare("DELETE FROM user_devpos_credentials WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        // 7. Delete user company access
+        $stmt = $pdo->prepare("DELETE FROM user_company_access WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        // 8. Finally, delete the company
+        $stmt = $pdo->prepare("DELETE FROM companies WHERE id = ?");
+        $stmt->execute([$companyId]);
+        
+        // Log audit
+        $auditStmt = $pdo->prepare("
+            INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address, created_at)
+            VALUES (?, 'company.delete', 'company', ?, ?, ?, NOW())
+        ");
+        $auditStmt->execute([
+            $user['id'],
+            $companyId,
+            json_encode([
+                'company_code' => $company['company_code'],
+                'company_name' => $company['company_name'],
+                'deleted_by' => $user['email']
+            ]),
+            $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
+        ]);
+        
+        // Commit transaction
+        $pdo->commit();
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'Company and all related data deleted successfully'
+        ]));
+    } catch (\Exception $e) {
+        // Rollback on error
+        $pdo->rollBack();
+        
+        $response->getBody()->write(json_encode([
+            'error' => 'Failed to delete company',
+            'message' => $e->getMessage()
+        ]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+    
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
 // Get company users (admin only)
 $app->get('/api/companies/{id}/users', function (Request $request, Response $response, array $args) use ($pdo) {
     $user = $request->getAttribute('user');
