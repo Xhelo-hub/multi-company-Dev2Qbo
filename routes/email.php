@@ -7,6 +7,15 @@ use App\Middleware\AuthMiddleware;
 
 return function ($app, $container) {
     
+    // Test endpoint without middleware
+    $app->get('/api/admin/email/test-basic', function (Request $request, Response $response) use ($container) {
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'Email routes are working'
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+    });
+    
     // Get email configuration
     $app->get('/api/admin/email/config', function (Request $request, Response $response) use ($container) {
         try {
