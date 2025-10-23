@@ -86,7 +86,10 @@ $container->set(\App\Services\MultiCompanySyncService::class, function ($c) {
 
 // EmailService
 $container->set(\App\Services\EmailService::class, function ($c) {
-    return new \App\Services\EmailService();
+    return new \App\Services\EmailService(
+        $c->get(PDO::class),
+        $_ENV['ENCRYPTION_KEY'] ?? 'default-insecure-key'
+    );
 });
 
 // Create app

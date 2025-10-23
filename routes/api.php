@@ -16,6 +16,10 @@ $authMiddleware = new \App\Middleware\AuthMiddleware($pdo);
 $authRoutes = require __DIR__ . '/auth.php';
 $authRoutes($app);
 
+// Load email management routes (admin-only)
+$emailRoutes = require __DIR__ . '/email.php';
+$emailRoutes($app, $container);
+
 // API Authentication Middleware (legacy API key auth)
 $apiKeyMiddleware = function (Request $request, $handler) {
     $apiKey = $request->getHeaderLine('X-API-Key');

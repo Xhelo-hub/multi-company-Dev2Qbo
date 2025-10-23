@@ -5,44 +5,75 @@ namespace App\Services;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
+use PDO;
 
 class EmailService
 {
     private $mailer;
+    private $pdo;
     private $fromEmail;
     private $fromName;
     private $isEnabled;
+    private $encryptionKey;
 
-    public function __construct()
+    public function __construct(PDO $pdo, string $encryptionKey)
     {
+        $this->pdo = $pdo;
         $this->mailer = new PHPMailer(true);
-        $this->isEnabled = filter_var($_ENV['MAIL_ENABLED'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        $this->encryptionKey = $encryptionKey;
         
-        if ($this->isEnabled) {
-            $this->configure();
+        $this->loadConfiguration();
+    }
+
+    /**
+     * Load email configuration from database
+     */
+    private function loadConfiguration()
+    {
+        try {
+            $stmt = $this->pdo->query("SELECT * FROM email_config LIMIT 1");
+            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$config) {
+                // Fallback to env if no database config
+                $this->isEnabled = filter_var($_ENV['MAIL_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                $this->configureFromEnv();
+                return;
+            }
+            
+            $this->isEnabled = (bool)$config['is_enabled'];
+            
+            if ($this->isEnabled && $config['mail_username'] && $config['mail_password']) {
+                $this->configureFromDatabase($config);
+            } else {
+                $this->isEnabled = false;
+            }
+            
+        } catch (\Exception $e) {
+            error_log("EmailService loadConfiguration error: " . $e->getMessage());
+            $this->isEnabled = false;
         }
     }
 
     /**
-     * Configure PHPMailer based on environment settings
+     * Configure PHPMailer from database settings
      */
-    private function configure()
+    private function configureFromDatabase(array $config)
     {
         try {
-            $mailDriver = $_ENV['MAIL_DRIVER'] ?? 'smtp'; // smtp, sendmail, mail
+            $mailDriver = $config['mail_driver'] ?? 'smtp';
             
             if ($mailDriver === 'smtp') {
-                // SMTP Configuration
                 $this->mailer->isSMTP();
-                $this->mailer->Host = $_ENV['MAIL_HOST'] ?? 'smtp.gmail.com';
+                $this->mailer->Host = $config['mail_host'];
                 $this->mailer->SMTPAuth = true;
-                $this->mailer->Username = $_ENV['MAIL_USERNAME'] ?? '';
-                $this->mailer->Password = $_ENV['MAIL_PASSWORD'] ?? '';
-                $this->mailer->SMTPSecure = $_ENV['MAIL_ENCRYPTION'] ?? PHPMailer::ENCRYPTION_STARTTLS;
-                $this->mailer->Port = (int)($_ENV['MAIL_PORT'] ?? 587);
+                $this->mailer->Username = $config['mail_username'];
+                $this->mailer->Password = $this->decrypt($config['mail_password']);
+                $this->mailer->SMTPSecure = $config['mail_encryption'] ?? PHPMailer::ENCRYPTION_STARTTLS;
+                $this->mailer->Port = (int)$config['mail_port'];
                 
-                // Enable verbose debug output (disable in production)
-                if ($_ENV['APP_ENV'] === 'development') {
+                // Enable verbose debug output in development
+                if (($_ENV['APP_ENV'] ?? 'production') === 'development') {
                     $this->mailer->SMTPDebug = SMTP::DEBUG_SERVER;
                 }
             } elseif ($mailDriver === 'sendmail') {
@@ -51,18 +82,122 @@ class EmailService
                 $this->mailer->isMail();
             }
 
-            // From address
-            $this->fromEmail = $_ENV['MAIL_FROM_ADDRESS'] ?? 'noreply@devpos-sync.local';
-            $this->fromName = $_ENV['MAIL_FROM_NAME'] ?? 'DEV-QBO Sync';
+            $this->fromEmail = $config['mail_from_address'];
+            $this->fromName = $config['mail_from_name'];
             
-            // Set defaults
             $this->mailer->setFrom($this->fromEmail, $this->fromName);
             $this->mailer->isHTML(true);
             $this->mailer->CharSet = 'UTF-8';
 
         } catch (Exception $e) {
-            error_log("EmailService configuration error: " . $e->getMessage());
+            error_log("EmailService configureFromDatabase error: " . $e->getMessage());
             $this->isEnabled = false;
+        }
+    }
+
+    /**
+     * Fallback configuration from environment variables
+     */
+    private function configureFromEnv()
+    {
+        try {
+            $mailDriver = $_ENV['MAIL_DRIVER'] ?? 'smtp';
+            
+            if ($mailDriver === 'smtp') {
+                $this->mailer->isSMTP();
+                $this->mailer->Host = $_ENV['MAIL_HOST'] ?? 'smtp.office365.com';
+                $this->mailer->SMTPAuth = true;
+                $this->mailer->Username = $_ENV['MAIL_USERNAME'] ?? '';
+                $this->mailer->Password = $_ENV['MAIL_PASSWORD'] ?? '';
+                $this->mailer->SMTPSecure = $_ENV['MAIL_ENCRYPTION'] ?? PHPMailer::ENCRYPTION_STARTTLS;
+                $this->mailer->Port = (int)($_ENV['MAIL_PORT'] ?? 587);
+                
+                if (($_ENV['APP_ENV'] ?? 'production') === 'development') {
+                    $this->mailer->SMTPDebug = SMTP::DEBUG_SERVER;
+                }
+            } elseif ($mailDriver === 'sendmail') {
+                $this->mailer->isSendmail();
+            } else {
+                $this->mailer->isMail();
+            }
+
+            $this->fromEmail = $_ENV['MAIL_FROM_ADDRESS'] ?? 'devsync@konsulence.al';
+            $this->fromName = $_ENV['MAIL_FROM_NAME'] ?? 'DEV-QBO Sync';
+            
+            $this->mailer->setFrom($this->fromEmail, $this->fromName);
+            $this->mailer->isHTML(true);
+            $this->mailer->CharSet = 'UTF-8';
+
+        } catch (Exception $e) {
+            error_log("EmailService configureFromEnv error: " . $e->getMessage());
+            $this->isEnabled = false;
+        }
+    }
+
+    /**
+     * Encrypt password for storage
+     */
+    private function encrypt(string $data): string
+    {
+        $iv = random_bytes(16);
+        $encrypted = openssl_encrypt($data, 'AES-256-CBC', $this->encryptionKey, 0, $iv);
+        return base64_encode($iv . $encrypted);
+    }
+
+    /**
+     * Decrypt password from storage
+     */
+    private function decrypt(string $data): string
+    {
+        $data = base64_decode($data);
+        $iv = substr($data, 0, 16);
+        $encrypted = substr($data, 16);
+        return openssl_decrypt($encrypted, 'AES-256-CBC', $this->encryptionKey, 0, $iv);
+    }
+
+    /**
+     * Get template from database by key
+     */
+    private function getTemplate(string $key): ?array
+    {
+        try {
+            $stmt = $this->pdo->prepare("SELECT * FROM email_templates WHERE template_key = ? AND is_active = 1");
+            $stmt->execute([$key]);
+            return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        } catch (\Exception $e) {
+            error_log("Failed to load template {$key}: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Substitute variables in template
+     */
+    private function substituteVariables(string $content, array $variables): string
+    {
+        foreach ($variables as $key => $value) {
+            $content = str_replace("{{" . $key . "}}", $value, $content);
+        }
+        
+        // Add current year
+        $content = str_replace("{{year}}", date('Y'), $content);
+        
+        return $content;
+    }
+
+    /**
+     * Log email sending attempt
+     */
+    private function logEmail(string $recipient, string $subject, string $status, ?string $errorMessage = null): void
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                "INSERT INTO email_logs (recipient_email, subject, status, error_message, sent_at) 
+                 VALUES (?, ?, ?, ?, NOW())"
+            );
+            $stmt->execute([$recipient, $subject, $status, $errorMessage]);
+        } catch (\Exception $e) {
+            error_log("Failed to log email: " . $e->getMessage());
         }
     }
 
@@ -77,19 +212,36 @@ class EmailService
         }
 
         try {
+            $template = $this->getTemplate('user_welcome');
+            
+            if (!$template) {
+                error_log("Welcome email template not found");
+                $this->logEmail($toEmail, 'Welcome Email', 'failed', 'Template not found');
+                return false;
+            }
+            
+            $loginUrl = $_ENV['APP_URL'] ?? 'http://localhost';
+            $variables = [
+                'name' => $toName,
+                'email' => $toEmail,
+                'temp_password' => $temporaryPassword ?? '(Already set)',
+                'login_url' => $loginUrl
+            ];
+            
             $this->mailer->clearAddresses();
             $this->mailer->addAddress($toEmail, $toName);
             
-            $this->mailer->Subject = 'Welcome to DEV-QBO Sync Platform';
-            
-            $body = $this->getWelcomeEmailTemplate($toName, $toEmail, $temporaryPassword);
-            $this->mailer->Body = $body;
-            $this->mailer->AltBody = strip_tags(str_replace(['<br>', '<br/>'], "\n", $body));
+            $this->mailer->Subject = $this->substituteVariables($template['subject'], $variables);
+            $this->mailer->Body = $this->substituteVariables($template['body_html'], $variables);
+            $this->mailer->AltBody = $this->substituteVariables($template['body_text'], $variables);
 
-            return $this->mailer->send();
+            $result = $this->mailer->send();
+            $this->logEmail($toEmail, $this->mailer->Subject, $result ? 'sent' : 'failed');
+            return $result;
             
         } catch (Exception $e) {
             error_log("Failed to send welcome email to {$toEmail}: " . $e->getMessage());
+            $this->logEmail($toEmail, 'Welcome Email', 'failed', $e->getMessage());
             return false;
         }
     }
@@ -105,19 +257,34 @@ class EmailService
         }
 
         try {
+            $template = $this->getTemplate('password_reset');
+            
+            if (!$template) {
+                error_log("Password reset email template not found");
+                $this->logEmail($toEmail, 'Password Reset', 'failed', 'Template not found');
+                return false;
+            }
+            
+            $resetUrl = ($_ENV['APP_URL'] ?? 'http://localhost') . '/reset-password.html?token=' . urlencode($resetToken);
+            $variables = [
+                'name' => $toName,
+                'reset_url' => $resetUrl
+            ];
+            
             $this->mailer->clearAddresses();
             $this->mailer->addAddress($toEmail, $toName);
             
-            $this->mailer->Subject = 'Password Reset Request - DEV-QBO Sync';
-            
-            $body = $this->getPasswordResetEmailTemplate($toName, $resetToken);
-            $this->mailer->Body = $body;
-            $this->mailer->AltBody = strip_tags(str_replace(['<br>', '<br/>'], "\n", $body));
+            $this->mailer->Subject = $this->substituteVariables($template['subject'], $variables);
+            $this->mailer->Body = $this->substituteVariables($template['body_html'], $variables);
+            $this->mailer->AltBody = $this->substituteVariables($template['body_text'], $variables);
 
-            return $this->mailer->send();
+            $result = $this->mailer->send();
+            $this->logEmail($toEmail, $this->mailer->Subject, $result ? 'sent' : 'failed');
+            return $result;
             
         } catch (Exception $e) {
             error_log("Failed to send password reset email to {$toEmail}: " . $e->getMessage());
+            $this->logEmail($toEmail, 'Password Reset', 'failed', $e->getMessage());
             return false;
         }
     }
@@ -133,19 +300,35 @@ class EmailService
         }
 
         try {
+            $template = $this->getTemplate('temp_password');
+            
+            if (!$template) {
+                error_log("Temporary password email template not found");
+                $this->logEmail($toEmail, 'Password Reset', 'failed', 'Template not found');
+                return false;
+            }
+            
+            $loginUrl = $_ENV['APP_URL'] ?? 'http://localhost';
+            $variables = [
+                'name' => $toName,
+                'temp_password' => $temporaryPassword,
+                'login_url' => $loginUrl
+            ];
+            
             $this->mailer->clearAddresses();
             $this->mailer->addAddress($toEmail, $toName);
             
-            $this->mailer->Subject = 'Your Password Has Been Reset - DEV-QBO Sync';
-            
-            $body = $this->getTemporaryPasswordEmailTemplate($toName, $temporaryPassword);
-            $this->mailer->Body = $body;
-            $this->mailer->AltBody = strip_tags(str_replace(['<br>', '<br/>'], "\n", $body));
+            $this->mailer->Subject = $this->substituteVariables($template['subject'], $variables);
+            $this->mailer->Body = $this->substituteVariables($template['body_html'], $variables);
+            $this->mailer->AltBody = $this->substituteVariables($template['body_text'], $variables);
 
-            return $this->mailer->send();
+            $result = $this->mailer->send();
+            $this->logEmail($toEmail, $this->mailer->Subject, $result ? 'sent' : 'failed');
+            return $result;
             
         } catch (Exception $e) {
             error_log("Failed to send temporary password email to {$toEmail}: " . $e->getMessage());
+            $this->logEmail($toEmail, 'Password Reset', 'failed', $e->getMessage());
             return false;
         }
     }
@@ -161,345 +344,40 @@ class EmailService
         }
 
         try {
+            $template = $this->getTemplate('account_modified');
+            
+            if (!$template) {
+                error_log("Account modified email template not found");
+                $this->logEmail($toEmail, 'Account Modified', 'failed', 'Template not found');
+                return false;
+            }
+            
+            $changesList = '';
+            foreach ($changes as $field => $value) {
+                $changesList .= "<li><strong>" . ucfirst($field) . ":</strong> " . htmlspecialchars($value) . "</li>\n";
+            }
+            
+            $variables = [
+                'name' => $toName,
+                'changes_list' => $changesList
+            ];
+            
             $this->mailer->clearAddresses();
             $this->mailer->addAddress($toEmail, $toName);
             
-            $this->mailer->Subject = 'Your Account Has Been Updated - DEV-QBO Sync';
-            
-            $body = $this->getAccountModifiedEmailTemplate($toName, $changes);
-            $this->mailer->Body = $body;
-            $this->mailer->AltBody = strip_tags(str_replace(['<br>', '<br/>'], "\n", $body));
+            $this->mailer->Subject = $this->substituteVariables($template['subject'], $variables);
+            $this->mailer->Body = $this->substituteVariables($template['body_html'], $variables);
+            $this->mailer->AltBody = $this->substituteVariables($template['body_text'], $variables);
 
-            return $this->mailer->send();
+            $result = $this->mailer->send();
+            $this->logEmail($toEmail, $this->mailer->Subject, $result ? 'sent' : 'failed');
+            return $result;
             
         } catch (Exception $e) {
             error_log("Failed to send account modified email to {$toEmail}: " . $e->getMessage());
+            $this->logEmail($toEmail, 'Account Modified', 'failed', $e->getMessage());
             return false;
         }
-    }
-
-    /**
-     * Email template for welcome message
-     */
-    private function getWelcomeEmailTemplate(string $name, string $email, ?string $temporaryPassword): string
-    {
-        $baseUrl = $_ENV['BASE_URL'] ?? 'http://localhost/multi-company-Dev2Qbo/public';
-        $loginUrl = rtrim($baseUrl, '/') . '/login.html';
-        
-        $passwordInfo = '';
-        if ($temporaryPassword) {
-            $passwordInfo = "
-            <tr>
-                <td style='padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; margin: 20px 0;'>
-                    <h3 style='color: #856404; margin-top: 0;'>🔐 Your Temporary Password</h3>
-                    <p style='margin: 10px 0; color: #333;'><strong>Temporary Password:</strong> <code style='background: #f8f9fa; padding: 5px 10px; border-radius: 4px; font-size: 16px; color: #d63384;'>{$temporaryPassword}</code></p>
-                    <p style='color: #856404; margin-bottom: 0;'><strong>⚠️ Important:</strong> Please change this password immediately after your first login for security reasons.</p>
-                </td>
-            </tr>";
-        }
-
-        return "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset='UTF-8'>
-            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-        </head>
-        <body style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, sans-serif; background-color: #f4f5f7; margin: 0; padding: 0;'>
-            <table width='100%' cellpadding='0' cellspacing='0' style='background-color: #f4f5f7; padding: 20px;'>
-                <tr>
-                    <td align='center'>
-                        <table width='600' cellpadding='0' cellspacing='0' style='background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
-                            <!-- Header -->
-                            <tr>
-                                <td style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
-                                    <h1 style='color: #ffffff; margin: 0; font-size: 28px;'>✨ Welcome to DEV-QBO Sync!</h1>
-                                </td>
-                            </tr>
-                            
-                            <!-- Body -->
-                            <tr>
-                                <td style='padding: 40px 30px;'>
-                                    <h2 style='color: #333; margin-top: 0;'>Hello {$name}! 👋</h2>
-                                    <p style='color: #555; line-height: 1.6; font-size: 16px;'>
-                                        Your account has been successfully created on the <strong>DEV-QBO Sync Platform</strong>. 
-                                        You can now synchronize your DevPos data with QuickBooks Online seamlessly.
-                                    </p>
-                                    
-                                    <div style='background-color: #e6f7ed; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #33cc66;'>
-                                        <p style='margin: 5px 0; color: #333;'><strong>📧 Email:</strong> {$email}</p>
-                                    </div>
-                                    
-                                    {$passwordInfo}
-                                    
-                                    <div style='text-align: center; margin: 30px 0;'>
-                                        <a href='{$loginUrl}' style='display: inline-block; background-color: #667eea; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 16px;'>
-                                            🚀 Login to Your Account
-                                        </a>
-                                    </div>
-                                    
-                                    <p style='color: #555; line-height: 1.6; font-size: 14px; margin-top: 30px;'>
-                                        If you have any questions or need assistance, please don't hesitate to contact our support team.
-                                    </p>
-                                </td>
-                            </tr>
-                            
-                            <!-- Footer -->
-                            <tr>
-                                <td style='background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-radius: 0 0 10px 10px; border-top: 1px solid #e0e0e0;'>
-                                    <p style='color: #999; font-size: 12px; margin: 0;'>
-                                        © " . date('Y') . " DEV-QBO Sync Platform. All rights reserved.
-                                    </p>
-                                    <p style='color: #999; font-size: 12px; margin: 10px 0 0 0;'>
-                                        This is an automated message. Please do not reply to this email.
-                                    </p>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>";
-    }
-
-    /**
-     * Email template for password reset
-     */
-    private function getPasswordResetEmailTemplate(string $name, string $resetToken): string
-    {
-        $baseUrl = $_ENV['BASE_URL'] ?? 'http://localhost/multi-company-Dev2Qbo/public';
-        $resetUrl = rtrim($baseUrl, '/') . '/password-recovery.html?token=' . urlencode($resetToken);
-        
-        return "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset='UTF-8'>
-            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-        </head>
-        <body style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, sans-serif; background-color: #f4f5f7; margin: 0; padding: 0;'>
-            <table width='100%' cellpadding='0' cellspacing='0' style='background-color: #f4f5f7; padding: 20px;'>
-                <tr>
-                    <td align='center'>
-                        <table width='600' cellpadding='0' cellspacing='0' style='background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
-                            <!-- Header -->
-                            <tr>
-                                <td style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
-                                    <h1 style='color: #ffffff; margin: 0; font-size: 28px;'>🔒 Password Reset Request</h1>
-                                </td>
-                            </tr>
-                            
-                            <!-- Body -->
-                            <tr>
-                                <td style='padding: 40px 30px;'>
-                                    <h2 style='color: #333; margin-top: 0;'>Hello {$name},</h2>
-                                    <p style='color: #555; line-height: 1.6; font-size: 16px;'>
-                                        We received a request to reset your password for your DEV-QBO Sync account. 
-                                        Click the button below to create a new password.
-                                    </p>
-                                    
-                                    <div style='background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;'>
-                                        <p style='margin: 0; color: #856404;'>
-                                            <strong>⏰ This link will expire in 1 hour</strong> for security reasons.
-                                        </p>
-                                    </div>
-                                    
-                                    <div style='text-align: center; margin: 30px 0;'>
-                                        <a href='{$resetUrl}' style='display: inline-block; background-color: #667eea; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 16px;'>
-                                            🔑 Reset My Password
-                                        </a>
-                                    </div>
-                                    
-                                    <p style='color: #555; line-height: 1.6; font-size: 14px;'>
-                                        Or copy and paste this URL into your browser:
-                                    </p>
-                                    <p style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; word-break: break-all; font-size: 12px; color: #667eea;'>
-                                        {$resetUrl}
-                                    </p>
-                                    
-                                    <div style='background-color: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;'>
-                                        <p style='margin: 0; color: #721c24;'>
-                                            <strong>⚠️ Didn't request this?</strong><br>
-                                            If you didn't request a password reset, please ignore this email. Your password will remain unchanged.
-                                        </p>
-                                    </div>
-                                </td>
-                            </tr>
-                            
-                            <!-- Footer -->
-                            <tr>
-                                <td style='background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-radius: 0 0 10px 10px; border-top: 1px solid #e0e0e0;'>
-                                    <p style='color: #999; font-size: 12px; margin: 0;'>
-                                        © " . date('Y') . " DEV-QBO Sync Platform. All rights reserved.
-                                    </p>
-                                    <p style='color: #999; font-size: 12px; margin: 10px 0 0 0;'>
-                                        This is an automated message. Please do not reply to this email.
-                                    </p>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>";
-    }
-
-    /**
-     * Email template for temporary password (admin reset)
-     */
-    private function getTemporaryPasswordEmailTemplate(string $name, string $temporaryPassword): string
-    {
-        $baseUrl = $_ENV['BASE_URL'] ?? 'http://localhost/multi-company-Dev2Qbo/public';
-        $loginUrl = rtrim($baseUrl, '/') . '/login.html';
-        
-        return "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset='UTF-8'>
-            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-        </head>
-        <body style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, sans-serif; background-color: #f4f5f7; margin: 0; padding: 0;'>
-            <table width='100%' cellpadding='0' cellspacing='0' style='background-color: #f4f5f7; padding: 20px;'>
-                <tr>
-                    <td align='center'>
-                        <table width='600' cellpadding='0' cellspacing='0' style='background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
-                            <!-- Header -->
-                            <tr>
-                                <td style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
-                                    <h1 style='color: #ffffff; margin: 0; font-size: 28px;'>🔐 Password Reset by Administrator</h1>
-                                </td>
-                            </tr>
-                            
-                            <!-- Body -->
-                            <tr>
-                                <td style='padding: 40px 30px;'>
-                                    <h2 style='color: #333; margin-top: 0;'>Hello {$name},</h2>
-                                    <p style='color: #555; line-height: 1.6; font-size: 16px;'>
-                                        Your account password has been reset by an administrator. 
-                                        You can now log in using the temporary password below.
-                                    </p>
-                                    
-                                    <div style='background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;'>
-                                        <h3 style='color: #856404; margin-top: 0;'>🔑 Your Temporary Password</h3>
-                                        <p style='margin: 10px 0; text-align: center;'>
-                                            <code style='background: #f8f9fa; padding: 10px 20px; border-radius: 5px; font-size: 18px; color: #d63384; font-weight: bold; display: inline-block;'>{$temporaryPassword}</code>
-                                        </p>
-                                    </div>
-                                    
-                                    <div style='background-color: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;'>
-                                        <p style='margin: 0; color: #721c24;'>
-                                            <strong>⚠️ Security Notice:</strong><br>
-                                            This is a temporary password valid for 24 hours. Please change it immediately after logging in to ensure your account security.
-                                        </p>
-                                    </div>
-                                    
-                                    <div style='text-align: center; margin: 30px 0;'>
-                                        <a href='{$loginUrl}' style='display: inline-block; background-color: #667eea; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 16px;'>
-                                            🚀 Login Now
-                                        </a>
-                                    </div>
-                                    
-                                    <p style='color: #555; line-height: 1.6; font-size: 14px;'>
-                                        After logging in, go to your profile settings to set a new, secure password.
-                                    </p>
-                                </td>
-                            </tr>
-                            
-                            <!-- Footer -->
-                            <tr>
-                                <td style='background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-radius: 0 0 10px 10px; border-top: 1px solid #e0e0e0;'>
-                                    <p style='color: #999; font-size: 12px; margin: 0;'>
-                                        © " . date('Y') . " DEV-QBO Sync Platform. All rights reserved.
-                                    </p>
-                                    <p style='color: #999; font-size: 12px; margin: 10px 0 0 0;'>
-                                        This is an automated message. Please do not reply to this email.
-                                    </p>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>";
-    }
-
-    /**
-     * Email template for account modifications
-     */
-    private function getAccountModifiedEmailTemplate(string $name, array $changes): string
-    {
-        $changesList = '';
-        foreach ($changes as $field => $change) {
-            $fieldName = ucwords(str_replace('_', ' ', $field));
-            $changesList .= "<li style='margin: 10px 0; color: #333;'><strong>{$fieldName}:</strong> {$change['old']} → {$change['new']}</li>";
-        }
-        
-        return "
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset='UTF-8'>
-            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-        </head>
-        <body style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, sans-serif; background-color: #f4f5f7; margin: 0; padding: 0;'>
-            <table width='100%' cellpadding='0' cellspacing='0' style='background-color: #f4f5f7; padding: 20px;'>
-                <tr>
-                    <td align='center'>
-                        <table width='600' cellpadding='0' cellspacing='0' style='background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
-                            <!-- Header -->
-                            <tr>
-                                <td style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
-                                    <h1 style='color: #ffffff; margin: 0; font-size: 28px;'>ℹ️ Account Updated</h1>
-                                </td>
-                            </tr>
-                            
-                            <!-- Body -->
-                            <tr>
-                                <td style='padding: 40px 30px;'>
-                                    <h2 style='color: #333; margin-top: 0;'>Hello {$name},</h2>
-                                    <p style='color: #555; line-height: 1.6; font-size: 16px;'>
-                                        Your account information has been updated by an administrator. 
-                                        Here are the changes that were made:
-                                    </p>
-                                    
-                                    <div style='background-color: #d1ecf1; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #17a2b8;'>
-                                        <h3 style='color: #0c5460; margin-top: 0;'>📝 Changes Made:</h3>
-                                        <ul style='margin: 10px 0; padding-left: 20px;'>
-                                            {$changesList}
-                                        </ul>
-                                    </div>
-                                    
-                                    <div style='background-color: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;'>
-                                        <p style='margin: 0; color: #721c24;'>
-                                            <strong>⚠️ Security Notice:</strong><br>
-                                            If you did not authorize these changes or believe your account has been compromised, 
-                                            please contact your administrator immediately.
-                                        </p>
-                                    </div>
-                                </td>
-                            </tr>
-                            
-                            <!-- Footer -->
-                            <tr>
-                                <td style='background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-radius: 0 0 10px 10px; border-top: 1px solid #e0e0e0;'>
-                                    <p style='color: #999; font-size: 12px; margin: 0;'>
-                                        © " . date('Y') . " DEV-QBO Sync Platform. All rights reserved.
-                                    </p>
-                                    <p style='color: #999; font-size: 12px; margin: 10px 0 0 0;'>
-                                        This is an automated message. Please do not reply to this email.
-                                    </p>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>";
     }
 
     /**
