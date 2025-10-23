@@ -207,7 +207,6 @@
     </div>
     
     <script>
-        const API_KEY = 'YOUR_API_KEY_HERE';
         // Detect base path dynamically
         const BASE_PATH = window.location.pathname.includes('/multi-company-Dev2Qbo/') 
             ? '/multi-company-Dev2Qbo/public' 
@@ -218,20 +217,36 @@
         async function loadCompanies() {
             try {
                 const response = await fetch(`${API_BASE}/api/companies`, {
-                    headers: { 'X-API-Key': API_KEY }
+                    credentials: 'include'  // Include cookies for session auth
                 });
+                
+                // Check if unauthorized (redirect to login)
+                if (response.status === 401) {
+                    window.location.href = `${BASE_PATH}/login.html`;
+                    return;
+                }
+                
                 const data = await response.json();
                 
-                if (data.success) {
-                    renderCompanies(data.companies);
+                if (data.success !== false && Array.isArray(data)) {
+                    renderCompanies(data);
                     
                     // Load stats for each company
-                    data.companies.forEach(company => {
-                        loadCompanyStats(company.id);
-                        loadCompanyJobs(company.id);
+                    data.forEach(company => {
+                        loadCompanyStats(company.company_id);
+                        loadCompanyJobs(company.company_id);
+                    });
+                } else if (data.success) {
+                    renderCompanies(data.companies || []);
+                    
+                    // Load stats for each company
+                    (data.companies || []).forEach(company => {
+                        loadCompanyStats(company.id || company.company_id);
+                        loadCompanyJobs(company.id || company.company_id);
                     });
                 }
             } catch (error) {
+                console.error('Error loading companies:', error);
                 document.getElementById('companies-container').innerHTML = 
                     `<p style="color: #e53e3e;">Error loading companies: ${error.message}</p>`;
             }
@@ -304,7 +319,7 @@
         async function loadCompanyStats(companyId) {
             try {
                 const response = await fetch(`${API_BASE}/api/companies/${companyId}/stats`, {
-                    headers: { 'X-API-Key': API_KEY }
+                    credentials: 'include'
                 });
                 const data = await response.json();
                 
@@ -339,7 +354,7 @@
         async function loadCompanyJobs(companyId) {
             try {
                 const response = await fetch(`${API_BASE}/api/companies/${companyId}/jobs?limit=5`, {
-                    headers: { 'X-API-Key': API_KEY }
+                    credentials: 'include'
                 });
                 const data = await response.json();
                 
@@ -386,9 +401,9 @@
                 const response = await fetch(`${API_BASE}/api/companies/${companyId}/sync`, {
                     method: 'POST',
                     headers: {
-                        'X-API-Key': API_KEY,
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify(data)
                 });
                 const result = await response.json();
