@@ -96,8 +96,9 @@ $container->set(\App\Services\EmailService::class, function ($c) {
 AppFactory::setContainer($container);
 $app = AppFactory::create();
 
-// Set base path if running in subdirectory
-$app->setBasePath('/multi-company-Dev2Qbo/public');
+// Set base path if running in subdirectory - detect environment
+$basePath = $_ENV['APP_BASE_PATH'] ?? (str_contains($_SERVER['REQUEST_URI'] ?? '', '/multi-company-Dev2Qbo/') ? '/multi-company-Dev2Qbo/public' : '/public');
+$app->setBasePath($basePath);
 
 // Add error middleware
 $app->addErrorMiddleware(true, true, true);
