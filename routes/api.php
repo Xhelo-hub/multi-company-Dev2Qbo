@@ -26,6 +26,14 @@ try {
         error_log("Email routes loaded, calling with app and container...");
         $emailRoutes($app, $container);
         error_log("Email routes registered successfully!");
+        
+        // Debug: List all registered routes
+        $routeCollector = $app->getRouteCollector();
+        $routes = $routeCollector->getRoutes();
+        error_log("Total routes registered: " . count($routes));
+        foreach ($routes as $route) {
+            error_log("Route: " . $route->getPattern() . " [" . implode(',', $route->getMethods()) . "]");
+        }
     }
 } catch (\Exception $e) {
     error_log("EXCEPTION loading email routes: " . $e->getMessage());
