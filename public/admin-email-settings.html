@@ -763,6 +763,16 @@
     </div>
 
     <script>
+        // Detect base path dynamically
+        const BASE_PATH = window.location.pathname.includes('/multi-company-Dev2Qbo/') 
+            ? '/multi-company-Dev2Qbo/public' 
+            : '/public';
+        
+        // Helper function to build API URLs
+        function apiUrl(path) {
+            return `${BASE_PATH}${path}`;
+        }
+        
         let currentTemplate = null;
         let currentPage = 0;
         const logsPerPage = 50;
@@ -827,7 +837,7 @@
         // Load configuration
         async function loadConfiguration() {
             try {
-                const response = await fetch('/multi-company-Dev2Qbo/public/api/admin/email/config');
+                const response = await fetch(apiUrl('/api/admin/email/config'));
                 const data = await response.json();
 
                 if (data.success && data.config) {
@@ -870,7 +880,7 @@
             }
 
             try {
-                const response = await fetch('/multi-company-Dev2Qbo/public/api/admin/email/config', {
+                const response = await fetch(apiUrl('/api/admin/email/config'), {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -898,7 +908,7 @@
             if (!testEmail) return;
 
             try {
-                const response = await fetch('/multi-company-Dev2Qbo/public/api/admin/email/config/test', {
+                const response = await fetch(apiUrl('/api/admin/email/config/test'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -922,7 +932,7 @@
         // Load templates
         async function loadTemplates() {
             try {
-                const response = await fetch('/multi-company-Dev2Qbo/public/api/admin/email/templates');
+                const response = await fetch(apiUrl('/api/admin/email/templates'));
                 const data = await response.json();
 
                 if (data.success && data.templates) {
@@ -996,7 +1006,7 @@
             };
 
             try {
-                const response = await fetch(`/multi-company-Dev2Qbo/public/api/admin/email/templates/${currentTemplate.template_key}`, {
+                const response = await fetch(apiUrl(`/api/admin/email/templates/${currentTemplate.template_key}`), {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1023,7 +1033,7 @@
             if (!currentTemplate) return;
 
             try {
-                const response = await fetch(`/multi-company-Dev2Qbo/public/api/admin/email/templates/${currentTemplate.template_key}/preview`, {
+                const response = await fetch(apiUrl(`/api/admin/email/templates/${currentTemplate.template_key}/preview`), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1054,7 +1064,7 @@
             if (!testEmail) return;
 
             try {
-                const response = await fetch(`/multi-company-Dev2Qbo/public/api/admin/email/templates/${currentTemplate.template_key}/test`, {
+                const response = await fetch(apiUrl(`/api/admin/email/templates/${currentTemplate.template_key}/test`), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1090,7 +1100,7 @@
                     params.append('status', status);
                 }
 
-                const response = await fetch(`/multi-company-Dev2Qbo/public/api/admin/email/logs?${params}`);
+                const response = await fetch(apiUrl(`/api/admin/email/logs?${params}`));
                 const data = await response.json();
 
                 if (data.success && data.logs) {
