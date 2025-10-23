@@ -737,9 +737,13 @@
                         <button class="btn ${company.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleCompanyStatus(${company.company_id}, ${company.is_active ? 0 : 1})">
                             <i class="fas fa-${company.is_active ? 'ban' : 'check'}"></i> ${company.is_active ? 'Deactivate' : 'Activate'}
                         </button>
-                        ${!company.is_active ? `<button class="btn btn-danger" onclick="deleteCompany(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}')">
+                        <button class="btn btn-danger" 
+                                ${company.is_active ? 'disabled' : ''} 
+                                onclick="${company.is_active ? 'return false;' : `deleteCompany(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}')`}" 
+                                title="${company.is_active ? 'Only inactive companies can be deleted' : 'Delete this company'}"
+                                style="${company.is_active ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;'}">
                             <i class="fas fa-trash"></i> Delete
-                        </button>` : ''}
+                        </button>
                     </td>
                 `;
                 tbody.appendChild(row);
