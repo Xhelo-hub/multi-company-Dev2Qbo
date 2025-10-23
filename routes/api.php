@@ -17,8 +17,23 @@ $authRoutes = require __DIR__ . '/auth.php';
 $authRoutes($app);
 
 // Load email management routes (admin-only) - WITHOUT middleware for now to test
-$emailRoutes = require __DIR__ . '/email.php';
-$emailRoutes($app, $container);
+error_log("About to load email routes...");
+try {
+    $emailRoutes = require __DIR__ . '/email.php';
+    if (!is_callable($emailRoutes)) {
+        error_log("ERROR: email.php did not return a callable function!");
+    } else {
+        error_log("Email routes loaded, calling with app and container...");
+        $emailRoutes($app, $container);
+        error_log("Email routes registered successfully!");
+    }
+} catch (\Exception $e) {
+    error_log("EXCEPTION loading email routes: " . $e->getMessage());
+    error_log("Stack: " . $e->getTraceAsString());
+} catch (\Error $e) {
+    error_log("ERROR loading email routes: " . $e->getMessage());
+    error_log("Stack: " . $e->getTraceAsString());
+}
 
 // API Authentication Middleware (legacy API key auth)
 $apiKeyMiddleware = function (Request $request, $handler) {
