@@ -524,7 +524,12 @@
             </table>
             
             <!-- Pagination Controls at Bottom -->
-            <div id="paginationControls" style="display: flex; gap: 5px; justify-content: center; margin-top: 20px; padding: 15px;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 15px;">
+                <button class="btn btn-primary" onclick="showCreateCompanyModal()" style="margin: 0;">
+                    <i class="fas fa-plus"></i> Add Company
+                </button>
+                <div id="paginationControls" style="display: flex; gap: 5px;"></div>
+            </div>
         </div>
     </div>
 
@@ -904,6 +909,19 @@
                 }
             } catch (error) {
                 alert('❌ Error deleting company: ' + error.message);
+            }
+        }
+
+        function showCreateCompanyModal() {
+            // Scroll to the create company form
+            const createSection = document.getElementById('createCompanyForm');
+            if (createSection) {
+                createSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Focus on the first input field
+                setTimeout(() => {
+                    const firstInput = document.getElementById('companyCode');
+                    if (firstInput) firstInput.focus();
+                }, 500);
             }
         }
 
