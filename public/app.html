@@ -433,6 +433,10 @@
                     <span class="icon-circle"><i class="fas fa-building"></i></span>
                     Manage Companies
                 </button>
+                <button class="btn btn-primary" onclick="openEmailSettings()">
+                    <span class="icon-circle"><i class="fas fa-envelope"></i></span>
+                    Email Settings
+                </button>
                 <button class="btn btn-primary" onclick="viewAuditLog()">
                     <span class="icon-circle"><i class="fas fa-clipboard-list"></i></span>
                     Audit Log
@@ -980,6 +984,10 @@
 
         function openCompanyManagement() {
             window.location.href = `${PAGE_BASE}/admin-companies.html`;
+        }
+
+        function openEmailSettings() {
+            window.location.href = `${PAGE_BASE}/admin-email-settings.html`;
         }
 
         function viewAuditLog() {
