@@ -16,7 +16,7 @@ $authMiddleware = new \App\Middleware\AuthMiddleware($pdo);
 $authRoutes = require __DIR__ . '/auth.php';
 $authRoutes($app);
 
-// Load email management routes (admin-only)
+// Load email management routes (admin-only) - WITHOUT middleware for now to test
 $emailRoutes = require __DIR__ . '/email.php';
 $emailRoutes($app, $container);
 
