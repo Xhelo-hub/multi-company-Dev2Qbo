@@ -34,9 +34,12 @@ $authRoutes = function ($app) use ($pdo) {
             );
 
             // Set session cookie (7 days, HTTP-only, same-site)
+            // Detect environment for cookie path
+            $basePath = ($_ENV['APP_ENV'] ?? 'development') === 'production' ? '/public' : '/multi-company-Dev2Qbo/public';
             $cookieValue = sprintf(
-                'session_token=%s; Path=/multi-company-Dev2Qbo/public; Max-Age=%d; HttpOnly; SameSite=Lax',
+                'session_token=%s; Path=%s; Max-Age=%d; HttpOnly; SameSite=Lax',
                 $result['session_token'],
+                $basePath,
                 7 * 24 * 60 * 60 // 7 days in seconds
             );
 
@@ -64,7 +67,8 @@ $authRoutes = function ($app) use ($pdo) {
         }
 
         // Clear session cookie
-        $cookieValue = 'session_token=; Path=/multi-company-Dev2Qbo/public; Max-Age=0; HttpOnly; SameSite=Lax';
+        $basePath = ($_ENV['APP_ENV'] ?? 'development') === 'production' ? '/public' : '/multi-company-Dev2Qbo/public';
+        $cookieValue = "session_token=; Path={$basePath}; Max-Age=0; HttpOnly; SameSite=Lax";
 
         $response->getBody()->write(json_encode(['success' => true]));
         return $response
