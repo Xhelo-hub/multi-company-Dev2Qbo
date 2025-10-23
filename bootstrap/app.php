@@ -84,6 +84,11 @@ $container->set(\App\Services\MultiCompanySyncService::class, function ($c) {
     );
 });
 
+// EmailService
+$container->set(\App\Services\EmailService::class, function ($c) {
+    return new \App\Services\EmailService();
+});
+
 // Create app
 AppFactory::setContainer($container);
 $app = AppFactory::create();

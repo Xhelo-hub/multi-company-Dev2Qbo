@@ -5,11 +5,13 @@ declare(strict_types=1);
 // Auth API Routes
 
 use App\Services\AuthService;
+use App\Services\EmailService;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-$authRoutes = function ($app) use ($pdo) {
+$authRoutes = function ($app) use ($pdo, $container) {
     $authService = new AuthService($pdo);
+    $emailService = $container->get(EmailService::class);
 
     // Login
     $app->post('/api/auth/login', function (Request $request, Response $response) use ($authService) {
@@ -268,7 +270,7 @@ $authRoutes = function ($app) use ($pdo) {
     // ============================================================================
 
     // Register new user (public)
-    $app->post('/api/auth/register', function (Request $request, Response $response) use ($pdo) {
+    $app->post('/api/auth/register', function (Request $request, Response $response) use ($pdo, $emailService) {
         $data = json_decode($request->getBody()->getContents(), true);
         
         $email = trim($data['email'] ?? '');
@@ -315,7 +317,8 @@ $authRoutes = function ($app) use ($pdo) {
             $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
         ]);
         
-        // TODO: Send notification email to admin about new registration
+        // Send welcome email
+        $emailService->sendWelcomeEmail($email, $fullName);
         
         $response->getBody()->write(json_encode([
             'success' => true,
@@ -326,7 +329,7 @@ $authRoutes = function ($app) use ($pdo) {
     });
 
     // Password recovery request (public)
-    $app->post('/api/auth/password-recovery', function (Request $request, Response $response) use ($pdo) {
+    $app->post('/api/auth/password-recovery', function (Request $request, Response $response) use ($pdo, $emailService) {
         $data = json_decode($request->getBody()->getContents(), true);
         $email = trim($data['email'] ?? '');
         
@@ -344,12 +347,8 @@ $authRoutes = function ($app) use ($pdo) {
         $user = $stmt->fetch();
         
         if ($user) {
-            // Generate temporary password
-            $tempPassword = bin2hex(random_bytes(4)); // 8-char temp password
+            // Generate reset token
             $token = bin2hex(random_bytes(32));
-            
-            // Hash the temporary password
-            $tempPasswordHash = password_hash($tempPassword, PASSWORD_DEFAULT);
             
             // Store password reset request
             $stmt = $pdo->prepare("
@@ -358,15 +357,14 @@ $authRoutes = function ($app) use ($pdo) {
             ");
             $stmt->execute([$user['id'], $token, $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1']);
             
-            // Update user with temp password that expires
+            // Update user with reset token
             $stmt = $pdo->prepare("
                 UPDATE users 
-                SET password_hash = ?, 
-                    password_reset_token = ?,
+                SET password_reset_token = ?,
                     password_reset_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR)
                 WHERE id = ?
             ");
-            $stmt->execute([$tempPasswordHash, $token, $user['id']]);
+            $stmt->execute([$token, $user['id']]);
             
             // Log audit
             $stmt = $pdo->prepare("
@@ -380,15 +378,14 @@ $authRoutes = function ($app) use ($pdo) {
                 $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
             ]);
             
-            // TODO: Send email with temporary password
-            // For now, log it (in production, send via email)
-            error_log("Temporary password for {$email}: {$tempPassword}");
+            // Send password reset email
+            $emailService->sendPasswordResetEmail($email, $user['full_name'], $token);
         }
         
         // Always return success to avoid email enumeration
         $response->getBody()->write(json_encode([
             'success' => true,
-            'message' => 'If an account exists, a temporary password has been sent'
+            'message' => 'If an account exists, a password reset link has been sent to your email'
         ]));
         return $response->withHeader('Content-Type', 'application/json');
     });
@@ -636,7 +633,7 @@ $authRoutes = function ($app) use ($pdo) {
     })->add(new \App\Middleware\AuthMiddleware($pdo, true));
 
     // Admin: Reset user password
-    $app->post('/api/admin/users/{userId}/reset-password', function (Request $request, Response $response, array $args) use ($pdo) {
+    $app->post('/api/admin/users/{userId}/reset-password', function (Request $request, Response $response, array $args) use ($pdo, $emailService) {
         $admin = $request->getAttribute('user');
         $userId = (int)$args['userId'];
         
@@ -677,12 +674,12 @@ $authRoutes = function ($app) use ($pdo) {
             $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
         ]);
         
-        // TODO: Send email with temporary password
-        error_log("Admin reset password for {$user['email']}: {$tempPassword}");
+        // Send temporary password email
+        $emailService->sendTemporaryPasswordEmail($user['email'], $user['full_name'], $tempPassword);
         
         $response->getBody()->write(json_encode([
             'success' => true,
-            'message' => 'Password reset successfully. Temporary password has been sent to user.'
+            'message' => 'Password reset successfully. Temporary password has been sent to user\'s email.'
         ]));
         return $response->withHeader('Content-Type', 'application/json');
     })->add(new \App\Middleware\AuthMiddleware($pdo, true));

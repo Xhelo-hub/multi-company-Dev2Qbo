@@ -5,8 +5,9 @@ declare(strict_types=1);
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-// Get PDO from container
-$pdo = $app->getContainer()->get(PDO::class);
+// Get services from container
+$container = $app->getContainer();
+$pdo = $container->get(PDO::class);
 
 // Create auth middleware instance
 $authMiddleware = new \App\Middleware\AuthMiddleware($pdo);
@@ -32,6 +33,30 @@ $apiKeyMiddleware = function (Request $request, $handler) {
     
     return $handler->handle($request);
 };
+
+// ============================================================================
+// EMAIL TEST ENDPOINT (for admins)
+// ============================================================================
+
+// Test email configuration
+$app->post('/api/admin/test-email', function (Request $request, Response $response) use ($container) {
+    $emailService = $container->get(\App\Services\EmailService::class);
+    $data = json_decode($request->getBody()->getContents(), true);
+    $testEmail = $data['email'] ?? '';
+    
+    if (empty($testEmail)) {
+        $response->getBody()->write(json_encode([
+            'success' => false,
+            'message' => 'Email address is required'
+        ]));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+    
+    $result = $emailService->testConnection($testEmail);
+    
+    $response->getBody()->write(json_encode($result));
+    return $response->withHeader('Content-Type', 'application/json');
+})->add(new \App\Middleware\AuthMiddleware($pdo, true));
 
 // ============================================================================
 // COMPANIES ENDPOINTS
