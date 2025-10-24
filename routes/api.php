@@ -683,10 +683,16 @@ $app->get('/api/companies/{companyId}/credentials/devpos/test', function (Reques
         
         if ($statusCode !== 200) {
             $errorBody = $authResponse->getBody()->getContents();
+            $errorData = json_decode($errorBody, true);
+            $errorMessage = $errorData['error_description'] ?? $errorData['error'] ?? $errorBody;
+            
             $response->getBody()->write(json_encode([
                 'success' => false, 
-                'message' => 'DevPos authentication failed',
-                'error' => $errorBody
+                'message' => "DevPos authentication failed (HTTP $statusCode)",
+                'error' => $errorMessage,
+                'status_code' => $statusCode,
+                'tenant' => $creds['tenant'],
+                'username' => $creds['username']
             ]));
             return $response->withHeader('Content-Type', 'application/json');
         }

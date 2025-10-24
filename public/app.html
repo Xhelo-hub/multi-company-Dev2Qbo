@@ -857,11 +857,21 @@
                     showAlert('✅ DevPos connection successful!', 'success');
                     document.getElementById('devposStatus').className = 'status-indicator status-connected';
                 } else {
-                    showAlert('❌ DevPos connection failed: ' + result.message, 'error');
+                    // Show detailed error information
+                    let errorMsg = result.message || 'Connection failed';
+                    if (result.error) {
+                        errorMsg += '\nError: ' + result.error;
+                    }
+                    if (result.status_code) {
+                        errorMsg += '\nHTTP Status: ' + result.status_code;
+                    }
+                    console.error('DevPos test failed:', result);
+                    showAlert('❌ DevPos connection failed: ' + errorMsg, 'error');
                     document.getElementById('devposStatus').className = 'status-indicator status-disconnected';
                 }
             } catch (error) {
-                showAlert('❌ Connection test failed', 'error');
+                console.error('DevPos test error:', error);
+                showAlert('❌ Connection test failed: ' + error.message, 'error');
             }
         }
 
