@@ -446,29 +446,51 @@ class SyncExecutor
         // Create invoice in QuickBooks
         $qboInvoice = $this->convertDevPosToQBOInvoice($invoice);
         
-        $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/invoice', [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $qboCreds['access_token'],
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json'
-            ],
-            'json' => $qboInvoice
-        ]);
-        
-        $result = json_decode($response->getBody()->getContents(), true);
-        
-        // Store mapping
-        if (isset($result['Invoice']['Id'])) {
-            $this->storeInvoiceMapping(
-                $companyId, 
-                $eic, 
-                (int)$result['Invoice']['Id'],
-                'invoice',
-                $invoice['documentNumber'] ?? '',
-                $result['Invoice']['DocNumber'] ?? '',
-                (float)($invoice['totalAmount'] ?? 0),
-                $invoice['buyerName'] ?? ''
-            );
+        try {
+            $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/invoice', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json'
+                ],
+                'json' => $qboInvoice
+            ]);
+            
+            $result = json_decode($response->getBody()->getContents(), true);
+            
+            // Store mapping
+            if (isset($result['Invoice']['Id'])) {
+                $this->storeInvoiceMapping(
+                    $companyId, 
+                    $eic, 
+                    (int)$result['Invoice']['Id'],
+                    'invoice',
+                    $invoice['documentNumber'] ?? '',
+                    $result['Invoice']['DocNumber'] ?? '',
+                    (float)($invoice['totalAmount'] ?? 0),
+                    $invoice['buyerName'] ?? ''
+                );
+            }
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            // Get the full error response from QuickBooks
+            $errorBody = $e->getResponse()->getBody()->getContents();
+            $errorData = json_decode($errorBody, true);
+            
+            $errorDetail = 'QuickBooks API Error';
+            if (isset($errorData['Fault']['Error'][0])) {
+                $error = $errorData['Fault']['Error'][0];
+                $errorDetail = $error['Message'] ?? 'Unknown error';
+                if (isset($error['Detail'])) {
+                    $errorDetail .= ': ' . $error['Detail'];
+                }
+            }
+            
+            // Log the payload that failed for debugging
+            error_log("QuickBooks Invoice Creation Failed");
+            error_log("Error: " . $errorDetail);
+            error_log("Payload sent: " . json_encode($qboInvoice, JSON_PRETTY_PRINT));
+            
+            throw new Exception($errorDetail);
         }
     }
     
