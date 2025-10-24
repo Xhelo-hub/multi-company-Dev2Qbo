@@ -572,6 +572,6 @@ $app->group('/api/field-mappings', function (RouteCollectorProxy $group) {
         return $response->withHeader('Content-Type', 'application/json');
     });
     
-});
+})->add($container->get('AuthMiddleware'));
 
 }; // End of return function
