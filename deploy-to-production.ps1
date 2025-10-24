@@ -32,16 +32,16 @@ if (-not $SkipGitPull) {
     Write-Host ""
 }
 
-# Step 2: Sync HTML files to document root
+# Step 2: Sync HTML files to document root (excluding dashboard.html)
 if (-not $SkipFileSync) {
     Write-Host "[2/3] Syncing HTML files to document root..." -ForegroundColor Yellow
-    ssh $SERVER "cd $REMOTE_PATH && cp -v public/*.html ."
+    ssh $SERVER "cd $REMOTE_PATH && find public/ -maxdepth 1 -name '*.html' ! -name 'dashboard.html' -exec cp -v {} . \;"
     
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Failed to copy HTML files!" -ForegroundColor Red
         exit 1
     }
-    Write-Host "✓ HTML files synced" -ForegroundColor Green
+    Write-Host "✓ HTML files synced (dashboard.html excluded)" -ForegroundColor Green
     Write-Host ""
 }
 
@@ -69,7 +69,7 @@ Write-Host "  Deployment Complete!" -ForegroundColor Green
 Write-Host "====================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Site URL: https://devsync.konsulence.al/" -ForegroundColor Cyan
-Write-Host "Dashboard: https://devsync.konsulence.al/dashboard.html" -ForegroundColor Cyan
+Write-Host "Main Dashboard: https://devsync.konsulence.al/app.html" -ForegroundColor Cyan
 Write-Host "Field Mappings: https://devsync.konsulence.al/admin-field-mappings.html" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Run with -SkipGitPull to skip git pull" -ForegroundColor Gray
