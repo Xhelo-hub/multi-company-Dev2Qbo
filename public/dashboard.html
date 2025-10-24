@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Company Sync Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Helvetica, Arial, sans-serif; background: #f5f7fa; color: #2d3748; }
@@ -13,9 +14,34 @@
             color: white;
             padding: 2rem;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
         }
         .header h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; }
         .header p { opacity: 0.9; font-size: 0.95rem; }
+        .admin-toolbar {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 10px;
+        }
+        .admin-link {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .admin-link:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
         
         .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
         
@@ -194,6 +220,12 @@
 </head>
 <body>
     <div class="header">
+        <div class="admin-toolbar">
+            <a href="admin-field-mappings.html" class="admin-link">
+                <i class="fas fa-code-branch"></i>
+                Field Mappings
+            </a>
+        </div>
         <h1>Multi-Company Sync Dashboard</h1>
         <p>Manage DevPos to QuickBooks synchronization for all companies</p>
     </div>
