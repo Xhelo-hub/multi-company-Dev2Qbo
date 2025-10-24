@@ -92,6 +92,16 @@ $container->set(\App\Services\EmailService::class, function ($c) {
     );
 });
 
+// AuthMiddleware
+$container->set('AuthMiddleware', function ($c) {
+    return new \App\Middleware\AuthMiddleware($c->get(PDO::class));
+});
+
+// AdminAuthMiddleware (requires admin role)
+$container->set('AdminAuthMiddleware', function ($c) {
+    return new \App\Middleware\AuthMiddleware($c->get(PDO::class), true);
+});
+
 // Create app
 AppFactory::setContainer($container);
 $app = AppFactory::create();
