@@ -480,22 +480,44 @@
         }
 
         async function loadStats() {
-            const response = await fetch(`${API_BASE}/api/sync/${currentCompany}/stats`, {
-                credentials: 'include'
-            });
+            try {
+                const response = await fetch(`${API_BASE}/api/sync/${currentCompany}/stats`, {
+                    credentials: 'include'
+                });
 
-            const stats = await response.json();
-            
-            document.getElementById('totalCount').textContent = stats.total_transactions.toLocaleString();
-            document.getElementById('totalAmount').textContent = stats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ALL';
-            
-            const invoiceStats = stats.by_type.invoice || {count: 0, total_amount: 0};
-            document.getElementById('invoiceCount').textContent = invoiceStats.count.toLocaleString();
-            document.getElementById('invoiceAmount').textContent = invoiceStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ALL';
-            
-            const purchaseStats = stats.by_type.purchase || {count: 0, total_amount: 0};
-            document.getElementById('purchaseCount').textContent = purchaseStats.count.toLocaleString();
-            document.getElementById('purchaseAmount').textContent = purchaseStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ALL';
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Stats API error:', errorData);
+                    throw new Error(errorData.message || `HTTP ${response.status}`);
+                }
+
+                const stats = await response.json();
+                
+                if (stats.error) {
+                    console.error('Stats error:', stats);
+                    throw new Error(stats.message || stats.error);
+                }
+                
+                document.getElementById('totalCount').textContent = stats.total_transactions.toLocaleString();
+                document.getElementById('totalAmount').textContent = stats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ALL';
+                
+                const invoiceStats = stats.by_type.invoice || {count: 0, total_amount: 0};
+                document.getElementById('invoiceCount').textContent = invoiceStats.count.toLocaleString();
+                document.getElementById('invoiceAmount').textContent = invoiceStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ALL';
+                
+                const purchaseStats = stats.by_type.purchase || {count: 0, total_amount: 0};
+                document.getElementById('purchaseCount').textContent = purchaseStats.count.toLocaleString();
+                document.getElementById('purchaseAmount').textContent = purchaseStats.total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ALL';
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                // Show zeros if tables don't exist yet
+                document.getElementById('totalCount').textContent = '0';
+                document.getElementById('totalAmount').textContent = '0.00 ALL';
+                document.getElementById('invoiceCount').textContent = '0';
+                document.getElementById('invoiceAmount').textContent = '0.00 ALL';
+                document.getElementById('purchaseCount').textContent = '0';
+                document.getElementById('purchaseAmount').textContent = '0.00 ALL';
+            }
         }
 
         async function loadTransactions() {
