@@ -407,8 +407,11 @@
                 const responseData = await userResponse.json();
                 console.log('Auth response data:', responseData);
                 
-                if (!responseData.user) {
-                    console.error('No user in response');
+                // The API returns the user object directly, not wrapped
+                const user = responseData.id ? responseData : responseData.user;
+                
+                if (!user || !user.id) {
+                    console.error('No valid user in response');
                     alert('Session invalid. You will be redirected to login.');
                     setTimeout(() => {
                         window.location.href = `${PAGE_BASE}/login.html`;
@@ -416,7 +419,7 @@
                     return;
                 }
                 
-                console.log('User authenticated:', responseData.user);
+                console.log('User authenticated:', user);
                 
                 // Load companies
                 await loadCompanies();
