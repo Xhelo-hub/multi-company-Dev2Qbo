@@ -1,3 +1,6 @@
+<?php
+require __DIR__ . '/../routes/field-mappings.php';
+
 # 🎨 Visual Field Mapping - DevPos to QuickBooks
 
 ## 🧾 Invoice Mapping (E-Invoices)
@@ -184,9 +187,9 @@ Step 1: Fetch from DevPos
 │  DevPos API          │
 │  /api/v3/Invoices    │    Filters:
 │  /PurchaseInvoices   │    ├─ Date range (from_date → to_date)
-└──────┬───────────────┘    ├─ Company tenant ID
-       │                    └─ Document type
-       │ Returns: JSON array of documents
+│  /api/v3/SalesReceipts│   ├─ Company tenant ID
+└──────┬───────────────┘    └─ Document type
+       │                    Returns: JSON array of documents
        ▼
 ┌──────────────────────┐
 │  Raw DevPos Data     │
@@ -434,3 +437,8 @@ CREATE TABLE vendor_mappings (
 **Version:** 1.0  
 **Last Updated:** January 2025  
 **Visual Style:** ASCII Diagrams for universal compatibility
+
+<button class="btn btn-primary" onclick="window.location.href='admin-field-mappings.html'">
+    <span class="icon-circle"><i class="fas fa-code-branch"></i></span>
+    Field Mappings
+</button>

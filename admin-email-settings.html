@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Settings - Multi-Company Sync</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #f3f4f6;
+        }
+
+        .tabs {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab:hover {
+            background: #f3f4f6;
+            color: #667eea;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .config-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .form-input, .form-select {
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-input:disabled {
+            background: #f9fafb;
+            cursor: not-allowed;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .checkbox-input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.3s ease;
+            font-size: 14px;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .template-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .template-item {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .template-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .template-item.active {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .template-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .template-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .template-key {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .template-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        .template-status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .template-status.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .template-variables {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .variable-tag {
+            background: #e7f3ff;
+            color: #0066cc;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            border: 1px solid #b3d9ff;
+        }
+
+        .template-editor {
+            margin-top: 30px;
+        }
+
+        .editor-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .editor-tab {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-bottom: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #666;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .editor-tab.active {
+            background: white;
+            color: #667eea;
+            border-color: #667eea;
+            border-bottom: 2px solid white;
+            margin-bottom: -1px;
+        }
+
+        .editor-content {
+            border: 2px solid #e0e0e0;
+            border-radius: 0 6px 6px 6px;
+            padding: 0;
+        }
+
+        .code-editor {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            border: none;
+            resize: vertical;
+        }
+
+        .code-editor:focus {
+            outline: none;
+        }
+
+        .preview-panel {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .preview-header {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .preview-body {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .logs-table {
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .logs-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .logs-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .logs-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .logs-table tr:hover {
+            background: #f9fafb;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.sent {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-badge.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .logs-filter {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination span {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #a0aec0;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1.25rem;
+            opacity: 0.3;
+        }
+
+        .empty-state-text {
+            font-size: 1rem;
+            color: #718096;
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-envelope"></i> Email System Management</h1>
+            <a href="app.html" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('config')">
+                <i class="fas fa-cog"></i> Configuration
+            </button>
+            <button class="tab" onclick="switchTab('templates')">
+                <i class="fas fa-file-alt"></i> Templates
+            </button>
+            <button class="tab" onclick="switchTab('logs')">
+                <i class="fas fa-chart-bar"></i> Email Logs
+            </button>
+        </div>
+
+        <!-- Configuration Tab -->
+        <div id="configTab" class="tab-content active">
+            <div class="config-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        📮 SMTP Configuration
+                    </h2>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="enableEmail" class="checkbox-input">
+                        <label for="enableEmail" class="form-label" style="margin: 0;">Enable Email Service</label>
+                    </div>
+                </div>
+
+                <form id="configForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Mail Driver</label>
+                            <select id="mailDriver" class="form-select">
+                                <option value="smtp">SMTP</option>
+                                <option value="sendmail">Sendmail</option>
+                                <option value="mail">PHP Mail</option>
+                            </select>
+                            <span class="help-text">Select email sending method</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">SMTP Host</label>
+                            <input type="text" id="mailHost" class="form-input" placeholder="smtp.office365.com">
+                            <span class="help-text">SMTP server hostname</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">SMTP Port</label>
+                            <input type="number" id="mailPort" class="form-input" placeholder="587">
+                            <span class="help-text">Common ports: 587 (TLS), 465 (SSL), 25</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Encryption</label>
+                            <select id="mailEncryption" class="form-select">
+                                <option value="tls">TLS (Recommended)</option>
+                                <option value="ssl">SSL</option>
+                                <option value="">None</option>
+                            </select>
+                            <span class="help-text">Encryption method</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">SMTP Username</label>
+                            <input type="email" id="mailUsername" class="form-input" placeholder="devsync@konsulence.al">
+                            <span class="help-text">Your email address</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">SMTP Password</label>
+                            <input type="password" id="mailPassword" class="form-input" placeholder="Enter password to change">
+                            <span class="help-text">Leave blank to keep current password</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">From Email Address</label>
+                            <input type="email" id="mailFromAddress" class="form-input" placeholder="devsync@konsulence.al">
+                            <span class="help-text">Email address shown in "From" field</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">From Name</label>
+                            <input type="text" id="mailFromName" class="form-input" placeholder="DEV-QBO Sync">
+                            <span class="help-text">Name shown in "From" field</span>
+                        </div>
+                    </div>
+
+                    <div class="btn-actions">
+                        <button type="submit" class="btn btn-primary">
+                            💾 Save Configuration
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="testConnection()">
+                            🧪 Test Connection
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="loadConfiguration()">
+                            🔄 Reload
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Templates Tab -->
+        <div id="templatesTab" class="tab-content">
+            <div class="config-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        📝 Email Templates
+                    </h2>
+                </div>
+
+                <div class="template-list" id="templateList">
+                    <!-- Templates will be loaded here -->
+                </div>
+
+                <div id="templateEditor" class="template-editor" style="display: none;">
+                    <div class="section-header">
+                        <h3 class="section-title" id="editorTitle">Edit Template</h3>
+                        <button class="btn btn-secondary" onclick="closeEditor()">✕ Close</button>
+                    </div>
+
+                    <form id="templateForm">
+                        <div class="form-group">
+                            <label class="form-label">Subject Line</label>
+                            <input type="text" id="templateSubject" class="form-input" placeholder="Email subject with {{variables}}">
+                            <span class="help-text">Use {{variable_name}} for dynamic content</span>
+                        </div>
+
+                        <div class="editor-tabs">
+                            <div class="editor-tab active" onclick="switchEditorTab('html')">HTML Body</div>
+                            <div class="editor-tab" onclick="switchEditorTab('text')">Plain Text</div>
+                        </div>
+
+                        <div class="editor-content">
+                            <textarea id="templateBodyHtml" class="code-editor" placeholder="HTML email body..."></textarea>
+                            <textarea id="templateBodyText" class="code-editor" style="display: none;" placeholder="Plain text email body..."></textarea>
+                        </div>
+
+                        <div class="checkbox-group" style="margin-top: 15px;">
+                            <input type="checkbox" id="templateActive" class="checkbox-input">
+                            <label for="templateActive" class="form-label" style="margin: 0;">Template is active</label>
+                        </div>
+
+                        <div class="btn-actions">
+                            <button type="submit" class="btn btn-primary">
+                                💾 Save Template
+                            </button>
+                            <button type="button" class="btn btn-warning" onclick="previewTemplate()">
+                                👁️ Preview
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="sendTestEmail()">
+                                📧 Send Test
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="previewPanel" class="preview-panel" style="display: none;">
+                        <div class="preview-header">
+                            👁️ Template Preview
+                        </div>
+                        <div>
+                            <strong>Subject:</strong> <span id="previewSubject"></span>
+                        </div>
+                        <div class="preview-body" id="previewBody">
+                            <!-- Preview content will be shown here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="logsTab" class="tab-content">
+            <div class="config-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        📊 Email Send History
+                    </h2>
+                    <button class="btn btn-secondary" onclick="loadLogs()">
+                        🔄 Refresh
+                    </button>
+                </div>
+
+                <div class="logs-filter">
+                    <div class="form-group" style="margin: 0; flex: 0 0 200px;">
+                        <label class="form-label">Filter by Status</label>
+                        <select id="logStatusFilter" class="form-select" onchange="loadLogs()">
+                            <option value="">All Status</option>
+                            <option value="sent">Sent</option>
+                            <option value="failed">Failed</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="logs-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Recipient</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Sent At</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <!-- Logs will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="logsPagination">
+                    <!-- Pagination will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Detect base path dynamically
+        const BASE_PATH = window.location.pathname.includes('/multi-company-Dev2Qbo/') 
+            ? '/multi-company-Dev2Qbo/public' 
+            : '/public';
+        
+        // Helper function to build API URLs
+        function apiUrl(path) {
+            return `${BASE_PATH}${path}`;
+        }
+        
+        let currentTemplate = null;
+        let currentPage = 0;
+        const logsPerPage = 50;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfiguration();
+            loadTemplates();
+            
+            // Setup form handlers
+            document.getElementById('configForm').addEventListener('submit', saveConfiguration);
+            document.getElementById('templateForm').addEventListener('submit', saveTemplate);
+        });
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // Load data if needed
+            if (tabName === 'logs') {
+                loadLogs();
+            }
+        }
+
+        // Editor tab switching
+        function switchEditorTab(type) {
+            document.querySelectorAll('.editor-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (type === 'html') {
+                document.getElementById('templateBodyHtml').style.display = 'block';
+                document.getElementById('templateBodyText').style.display = 'none';
+            } else {
+                document.getElementById('templateBodyHtml').style.display = 'none';
+                document.getElementById('templateBodyText').style.display = 'block';
+            }
+        }
+
+        // Alert functions
+        function showAlert(message, type = 'success') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                ${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'} 
+                ${message}
+            `;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // Load configuration
+        async function loadConfiguration() {
+            try {
+                const response = await fetch(apiUrl('/api/admin/email/config'));
+                const data = await response.json();
+
+                if (data.success && data.config) {
+                    const config = data.config;
+                    document.getElementById('mailDriver').value = config.mail_driver || 'smtp';
+                    document.getElementById('mailHost').value = config.mail_host || '';
+                    document.getElementById('mailPort').value = config.mail_port || '587';
+                    document.getElementById('mailEncryption').value = config.mail_encryption || 'tls';
+                    document.getElementById('mailUsername').value = config.mail_username || '';
+                    document.getElementById('mailFromAddress').value = config.mail_from_address || '';
+                    document.getElementById('mailFromName').value = config.mail_from_name || '';
+                    document.getElementById('enableEmail').checked = config.is_enabled == 1;
+                } else {
+                    showAlert('No configuration found. Please set up email settings.', 'info');
+                }
+            } catch (error) {
+                console.error('Error loading configuration:', error);
+                showAlert('Failed to load configuration: ' + error.message, 'error');
+            }
+        }
+
+        // Save configuration
+        async function saveConfiguration(e) {
+            e.preventDefault();
+
+            const config = {
+                mail_driver: document.getElementById('mailDriver').value,
+                mail_host: document.getElementById('mailHost').value,
+                mail_port: parseInt(document.getElementById('mailPort').value),
+                mail_username: document.getElementById('mailUsername').value,
+                mail_encryption: document.getElementById('mailEncryption').value,
+                mail_from_address: document.getElementById('mailFromAddress').value,
+                mail_from_name: document.getElementById('mailFromName').value,
+                is_enabled: document.getElementById('enableEmail').checked ? 1 : 0
+            };
+
+            const password = document.getElementById('mailPassword').value;
+            if (password) {
+                config.mail_password = password;
+            }
+
+            try {
+                const response = await fetch(apiUrl('/api/admin/email/config'), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('Configuration saved successfully!', 'success');
+                    document.getElementById('mailPassword').value = '';
+                } else {
+                    showAlert('Failed to save configuration: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving configuration:', error);
+                showAlert('Failed to save configuration: ' + error.message, 'error');
+            }
+        }
+
+        // Test connection
+        async function testConnection() {
+            const testEmail = prompt('Enter email address to send test email:', document.getElementById('mailUsername').value);
+            if (!testEmail) return;
+
+            try {
+                const response = await fetch(apiUrl('/api/admin/email/config/test'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: testEmail })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('Test email sent successfully to ' + testEmail + '!', 'success');
+                } else {
+                    showAlert('Test email failed: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error testing connection:', error);
+                showAlert('Failed to test connection: ' + error.message, 'error');
+            }
+        }
+
+        // Load templates
+        async function loadTemplates() {
+            try {
+                const response = await fetch(apiUrl('/api/admin/email/templates'));
+                const data = await response.json();
+
+                if (data.success && data.templates) {
+                    const listContainer = document.getElementById('templateList');
+                    listContainer.innerHTML = '';
+
+                    data.templates.forEach(template => {
+                        const variables = JSON.parse(template.available_variables || '[]');
+                        const item = document.createElement('div');
+                        item.className = 'template-item';
+                        item.onclick = () => editTemplate(template);
+                        item.innerHTML = `
+                            <div class="template-header">
+                                <div>
+                                    <div class="template-name">${template.template_name}</div>
+                                    <div class="template-key">${template.template_key}</div>
+                                </div>
+                                <span class="template-status ${template.is_active ? 'active' : 'inactive'}">
+                                    ${template.is_active ? '✓ Active' : '✗ Inactive'}
+                                </span>
+                            </div>
+                            <div><strong>Subject:</strong> ${template.subject}</div>
+                            <div class="template-variables">
+                                ${variables.map(v => `<span class="variable-tag">${v}</span>`).join('')}
+                            </div>
+                        `;
+                        listContainer.appendChild(item);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading templates:', error);
+                showAlert('Failed to load templates: ' + error.message, 'error');
+            }
+        }
+
+        // Edit template
+        function editTemplate(template) {
+            currentTemplate = template;
+            
+            document.getElementById('editorTitle').textContent = `Edit: ${template.template_name}`;
+            document.getElementById('templateSubject').value = template.subject;
+            document.getElementById('templateBodyHtml').value = template.body_html;
+            document.getElementById('templateBodyText').value = template.body_text;
+            document.getElementById('templateActive').checked = template.is_active == 1;
+            
+            document.getElementById('templateEditor').style.display = 'block';
+            document.getElementById('previewPanel').style.display = 'none';
+            
+            // Scroll to editor
+            document.getElementById('templateEditor').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Close editor
+        function closeEditor() {
+            currentTemplate = null;
+            document.getElementById('templateEditor').style.display = 'none';
+            document.getElementById('previewPanel').style.display = 'none';
+        }
+
+        // Save template
+        async function saveTemplate(e) {
+            e.preventDefault();
+
+            if (!currentTemplate) return;
+
+            const templateData = {
+                subject: document.getElementById('templateSubject').value,
+                body_html: document.getElementById('templateBodyHtml').value,
+                body_text: document.getElementById('templateBodyText').value,
+                is_active: document.getElementById('templateActive').checked ? 1 : 0
+            };
+
+            try {
+                const response = await fetch(apiUrl(`/api/admin/email/templates/${currentTemplate.template_key}`), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(templateData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('Template saved successfully!', 'success');
+                    loadTemplates();
+                } else {
+                    showAlert('Failed to save template: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving template:', error);
+                showAlert('Failed to save template: ' + error.message, 'error');
+            }
+        }
+
+        // Preview template
+        async function previewTemplate() {
+            if (!currentTemplate) return;
+
+            try {
+                const response = await fetch(apiUrl(`/api/admin/email/templates/${currentTemplate.template_key}/preview`), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.preview) {
+                    document.getElementById('previewSubject').textContent = data.preview.subject;
+                    document.getElementById('previewBody').innerHTML = data.preview.body_html;
+                    document.getElementById('previewPanel').style.display = 'block';
+                } else {
+                    showAlert('Failed to preview template: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error previewing template:', error);
+                showAlert('Failed to preview template: ' + error.message, 'error');
+            }
+        }
+
+        // Send test email
+        async function sendTestEmail() {
+            if (!currentTemplate) return;
+
+            const testEmail = prompt('Enter email address to send test email:', '');
+            if (!testEmail) return;
+
+            try {
+                const response = await fetch(apiUrl(`/api/admin/email/templates/${currentTemplate.template_key}/test`), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: testEmail })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('Test email sent successfully to ' + testEmail + '!', 'success');
+                } else {
+                    showAlert('Test email failed: ' + data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error sending test email:', error);
+                showAlert('Failed to send test email: ' + error.message, 'error');
+            }
+        }
+
+        // Load logs
+        async function loadLogs(page = 0) {
+            currentPage = page;
+            const status = document.getElementById('logStatusFilter').value;
+
+            try {
+                const params = new URLSearchParams({
+                    limit: logsPerPage,
+                    offset: page * logsPerPage
+                });
+
+                if (status) {
+                    params.append('status', status);
+                }
+
+                const response = await fetch(apiUrl(`/api/admin/email/logs?${params}`));
+                const data = await response.json();
+
+                if (data.success && data.logs) {
+                    const tbody = document.getElementById('logsTableBody');
+                    tbody.innerHTML = '';
+
+                    if (data.logs.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 40px;">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon">📭</div>
+                                        <div class="empty-state-text">No email logs found</div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    } else {
+                        data.logs.forEach(log => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${log.recipient_email}</td>
+                                <td>${log.subject}</td>
+                                <td><span class="status-badge ${log.status}">${log.status.toUpperCase()}</span></td>
+                                <td>${new Date(log.sent_at).toLocaleString()}</td>
+                                <td>${log.error_message || '-'}</td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    }
+
+                    // Update pagination
+                    updatePagination(data.pagination);
+                }
+            } catch (error) {
+                console.error('Error loading logs:', error);
+                showAlert('Failed to load logs: ' + error.message, 'error');
+            }
+        }
+
+        // Update pagination
+        function updatePagination(pagination) {
+            const container = document.getElementById('logsPagination');
+            const totalPages = Math.ceil(pagination.total / pagination.limit);
+
+            container.innerHTML = `
+                <button onclick="loadLogs(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>
+                    ← Previous
+                </button>
+                <span>Page ${currentPage + 1} of ${totalPages || 1} (${pagination.total} total)</span>
+                <button onclick="loadLogs(${currentPage + 1})" ${(currentPage + 1) >= totalPages ? 'disabled' : ''}>
+                    Next →
+                </button>
+            `;
+        }
+    </script>
+</body>
+</html>

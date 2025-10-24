@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Log - Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .filters select,
+        .filters input {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -28px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #667eea;
+            border: 3px solid white;
+        }
+
+        .timeline-item.type-error::before {
+            background: #ef4444;
+        }
+
+        .timeline-item.type-warning::before {
+            background: #f59e0b;
+        }
+
+        .timeline-item.type-success::before {
+            background: #10b981;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .timeline-time {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .timeline-details {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .timeline-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .action-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+
+        .action-login {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .action-logout {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .action-sync {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .action-create {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .action-update {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .action-delete {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Audit Log</h1>
+            <a href="app.html" class="btn btn-primary">← Back to Dashboard</a>
+        </div>
+
+        <div class="card">
+            <div class="filters">
+                <select id="actionFilter">
+                    <option value="">All Actions</option>
+                    <option value="login">Logins</option>
+                    <option value="logout">Logouts</option>
+                    <option value="sync">Sync Operations</option>
+                    <option value="create">Creates</option>
+                    <option value="update">Updates</option>
+                    <option value="delete">Deletes</option>
+                </select>
+                <select id="userFilter">
+                    <option value="">All Users</option>
+                </select>
+                <select id="companyFilter">
+                    <option value="">All Companies</option>
+                </select>
+                <input type="date" id="dateFrom" placeholder="From Date">
+                <input type="date" id="dateTo" placeholder="To Date">
+                <button class="btn btn-primary" onclick="loadAuditLog()">Apply Filters</button>
+            </div>
+
+            <div class="timeline" id="auditTimeline">
+                <p style="text-align: center; color: #666;">Loading audit log...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const isLocal = window.location.hostname === 'localhost' && window.location.pathname.includes('multi-company-Dev2Qbo');
+        const API_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
+        const PAGE_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
+
+        async function init() {
+            try {
+                const userResponse = await fetch(`${API_BASE}/api/auth/me`, {
+                    credentials: 'include'
+                });
+
+                if (!userResponse.ok) {
+                    window.location.href = `${PAGE_BASE}/login.html`;
+                    return;
+                }
+
+                const user = await userResponse.json(); // Changed from { user }
+                
+                if (user.role !== 'admin') {
+                    alert('Access denied. Admin only.');
+                    window.location.href = `${PAGE_BASE}/app.html`;
+                    return;
+                }
+
+                // Set default dates (last 7 days)
+                const today = new Date();
+                const weekAgo = new Date(today);
+                weekAgo.setDate(today.getDate() - 7);
+                document.getElementById('dateTo').valueAsDate = today;
+                document.getElementById('dateFrom').valueAsDate = weekAgo;
+
+                await loadFilters();
+                await loadAuditLog();
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                window.location.href = `${PAGE_BASE}/login.html`;
+            }
+        }
+
+        async function loadFilters() {
+            // Load users for filter
+            const usersResponse = await fetch(`${API_BASE}/api/auth/users`, {
+                credentials: 'include'
+            });
+            const users = await usersResponse.json();
+            
+            const userFilter = document.getElementById('userFilter');
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = user.email;
+                userFilter.appendChild(option);
+            });
+
+            // Load companies for filter
+            const companiesResponse = await fetch(`${API_BASE}/api/companies`, {
+                credentials: 'include'
+            });
+            const companies = await companiesResponse.json();
+            
+            const companyFilter = document.getElementById('companyFilter');
+            companies.forEach(company => {
+                const option = document.createElement('option');
+                option.value = company.company_id;
+                option.textContent = `${company.company_code} - ${company.company_name}`;
+                companyFilter.appendChild(option);
+            });
+        }
+
+        async function loadAuditLog() {
+            const timeline = document.getElementById('auditTimeline');
+            timeline.innerHTML = '<p style="text-align: center; color: #666;">Loading...</p>';
+
+            const actionFilter = document.getElementById('actionFilter').value;
+            const userFilter = document.getElementById('userFilter').value;
+            const companyFilter = document.getElementById('companyFilter').value;
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+
+            try {
+                // Build query params
+                const params = new URLSearchParams({
+                    limit: '100',
+                    offset: '0'
+                });
+                
+                if (actionFilter) params.append('action', actionFilter);
+                if (userFilter) params.append('user_id', userFilter);
+                if (companyFilter) params.append('company_id', companyFilter);
+                if (dateFrom) params.append('date_from', dateFrom);
+                if (dateTo) params.append('date_to', dateTo);
+
+                // Get audit logs from new endpoint
+                const auditResponse = await fetch(`${API_BASE}/api/audit/logs?${params}`, {
+                    credentials: 'include'
+                });
+                
+                if (!auditResponse.ok) {
+                    throw new Error('Failed to load audit logs');
+                }
+                
+                const auditData = await auditResponse.json();
+                const logs = auditData.logs || [];
+
+                // Also get sync jobs for timeline
+                const activityResponse = await fetch(`${API_BASE}/api/admin/recent-activity`, {
+                    credentials: 'include'
+                });
+                
+                const activityData = await activityResponse.json();
+                const syncJobs = activityData.sync_jobs || [];
+
+                // Combine and sort by date
+                const allActivity = [];
+                
+                // Add audit logs
+                logs.forEach(log => {
+                    allActivity.push({
+                        type: 'audit',
+                        action: log.action,
+                        action_type: log.action.split('.')[0],
+                        timestamp: log.created_at,
+                        user: log.user_name || log.user_email || 'System',
+                        details: getAuditLogDescription(log),
+                        meta: `User: ${log.user_email || 'Unknown'} | IP: ${log.ip_address || 'N/A'}`
+                    });
+                });
+
+                // Add sync jobs
+                syncJobs.forEach(job => {
+                    allActivity.push({
+                        type: 'sync',
+                        action: `sync.${job.job_type}`,
+                        action_type: 'sync',
+                        timestamp: job.created_at,
+                        status: job.status,
+                        user: job.triggered_by_email || 'System',
+                        details: `${job.job_type.toUpperCase()} Sync - ${job.company_code} (${job.company_name})<br>` +
+                                `Date Range: ${job.from_date} to ${job.to_date}<br>` +
+                                `Status: ${job.status}` +
+                                (job.error_message ? `<br>Error: ${job.error_message}` : '') +
+                                (job.completed_at ? `<br>Completed: ${new Date(job.completed_at).toLocaleString()}` : ''),
+                        meta: `Job ID: ${job.id} | Triggered: ${job.trigger_source}`
+                    });
+                });
+
+                // Sort by timestamp
+                allActivity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                if (allActivity.length === 0) {
+                    timeline.innerHTML = '<p style="text-align: center; color: #666;">No activity found</p>';
+                    return;
+                }
+
+                timeline.innerHTML = '';
+                
+                allActivity.forEach(item => {
+                    const div = document.createElement('div');
+                    let typeClass = 'type-success';
+                    
+                    if (item.type === 'sync') {
+                        typeClass = item.status === 'failed' ? 'type-error' : 
+                                   item.status === 'running' ? 'type-warning' : 'type-success';
+                    } else if (item.action.includes('delete') || item.action.includes('logout')) {
+                        typeClass = 'type-error';
+                    } else if (item.action.includes('update')) {
+                        typeClass = 'type-warning';
+                    }
+                    
+                    div.className = `timeline-item ${typeClass}`;
+                    div.innerHTML = `
+                        <div class="timeline-header">
+                            <div>
+                                <span class="action-badge action-${item.action_type}">${item.action.toUpperCase()}</span>
+                                <span class="timeline-title">${item.user}</span>
+                            </div>
+                            <span class="timeline-time">${new Date(item.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="timeline-details">
+                            ${item.details}
+                        </div>
+                        <div class="timeline-meta">
+                            <span>${item.meta}</span>
+                        </div>
+                    `;
+                    timeline.appendChild(div);
+                });
+
+            } catch (error) {
+                console.error('Error loading audit log:', error);
+                timeline.innerHTML = '<p style="text-align: center; color: #ef4444;">Error loading audit log</p>';
+            }
+        }
+
+        function getAuditLogDescription(log) {
+            const details = log.details || {};
+            
+            switch (log.action) {
+                case 'user.login':
+                    return `User logged in: ${details.email || 'Unknown'}`;
+                case 'user.logout':
+                    return `User logged out`;
+                case 'user.create':
+                    return `Created user: ${details.email || 'Unknown'} (${details.role || 'user'})`;
+                case 'user.update_status':
+                    return `Updated user status: ${details.is_active ? 'Active' : 'Inactive'}`;
+                case 'user.assign_company':
+                    return `Assigned user to company<br>Permissions: ${JSON.stringify(details.permissions || {})}`;
+                case 'company.create':
+                    return `Created company: ${details.company_code || 'Unknown'} - ${details.company_name || 'Unknown'}`;
+                case 'company.update':
+                    const changes = Object.keys(details).map(key => 
+                        `${key}: ${details[key].from} → ${details[key].to}`
+                    ).join('<br>');
+                    return `Updated company:<br>${changes}`;
+                default:
+                    return `Action: ${log.action}<br>${JSON.stringify(details)}`;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

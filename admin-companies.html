@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Management - DEV-QBO SYNC</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS for Excel support -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon-circle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #33cc66;
+            color: white;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #33cc66;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2ab359;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #33cc66;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        th {
+            background: #e6f7ed;
+            padding: 14px 12px;
+            color: #059669;
+            font-weight: 600;
+            text-align: left;
+            border-bottom: 2px solid #33cc66;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #e6f7ed;
+            color: #059669;
+        }
+
+        .status-inactive {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .actions button {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 15px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #importResults {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e5e7eb;
+        }
+
+        #importResults h4 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        #importResults ul {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        #importResults li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .icon-circle {
+                width: 30px;
+                height: 30px;
+                font-size: 14px;
+            }
+
+            .btn {
+                padding: 8px 15px;
+                font-size: 13px;
+            }
+
+            .card {
+                padding: 20px 15px;
+            }
+
+            .card h2 {
+                font-size: 18px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .modal-content {
+                padding: 20px 15px;
+            }
+
+            .actions {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .actions button {
+                width: 100%;
+            }
+
+            table {
+                font-size: 13px;
+            }
+
+            th, td {
+                padding: 10px 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .btn {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+
+            .icon-circle {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+
+            .card h2 {
+                font-size: 16px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span class="icon-circle"><i class="fas fa-building"></i></span>
+                Company Management
+            </h1>
+            <a href="app.html" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+
+        <div class="card">
+            <h2>
+                <span class="icon-circle"><i class="fas fa-list"></i></span>
+                All Companies
+            </h2>
+            
+            <!-- Top Controls - Space between -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; flex-wrap: wrap; gap: 15px;">
+                <a href="admin-create-company.html" class="btn btn-success" style="margin: 0;">
+                    <i class="fas fa-plus"></i> Add Company
+                </a>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <label for="perPageSelect" style="font-weight: 600; color: #333;">Show per page:</label>
+                    <select id="perPageSelect" onchange="changePerPage(this.value)" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; cursor: pointer;">
+                        <option value="10" selected>10</option>
+                        <option value="15">15</option>
+                        <option value="30">30</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                    <span id="showingInfo" style="color: #666; margin-left: 15px;"></span>
+                </div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>NIPT</th>
+                        <th>Company Name</th>
+                        <th>Status</th>
+                        <th>DevPos</th>
+                        <th>QuickBooks</th>
+                        <th>Users</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="companiesTable">
+                    <tr><td colspan="9" style="text-align: center;">Loading companies...</td></tr>
+                </tbody>
+            </table>
+            
+            <!-- Pagination Controls at Bottom -->
+            <div style="display: flex; justify-content: center; margin-top: 20px; padding: 15px;">
+                <div id="paginationControls" style="display: flex; gap: 5px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Company Name Modal -->
+    <div class="modal" id="editNameModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>
+                <span class="icon-circle"><i class="fas fa-edit"></i></span>
+                Edit Company Name
+            </h3>
+            <form id="editNameForm">
+                <div class="form-group">
+                    <label>NIPT (Read-only)</label>
+                    <input type="text" id="editCompanyCode" readonly style="background: #f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>Company Name *</label>
+                    <input type="text" id="editCompanyName" required placeholder="Enter new company name">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-success" style="flex: 1;">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="closeEditModal()" style="flex: 1;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DevPos Credentials Modal -->
+    <div class="modal" id="devposModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3>
+                <span class="icon-circle"><i class="fas fa-key"></i></span>
+                DevPos Credentials
+            </h3>
+            <div id="devposCredentialsInfo" style="margin-bottom: 15px; padding: 10px; background: #e7f3ff; border-left: 4px solid #2196F3; border-radius: 4px;">
+                <p style="margin: 0; font-size: 14px; color: #666;">
+                    <strong id="credentialTypeLabel">User-Specific Credentials</strong><br>
+                    <span id="credentialTypeDesc">These credentials are specific to your user account and won't affect other users.</span>
+                </p>
+            </div>
+            <form id="devposForm">
+                <div class="form-group">
+                    <label>Company</label>
+                    <input type="text" id="devposCompanyName" readonly style="background: #f5f5f5;">
+                </div>
+                
+                <!-- Scope Selector (Only for Admins) -->
+                <div id="credentialScopeSelector" style="display: none; margin-bottom: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                    <label style="font-weight: 600; color: #856404; margin-bottom: 10px; display: block;">Credential Scope:</label>
+                    <div style="display: flex; gap: 15px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="credentialScope" value="user" checked onchange="updateCredentialScopeInfo()">
+                            <span><i class="fas fa-user"></i> My Credentials Only</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="credentialScope" value="company" onchange="updateCredentialScopeInfo()">
+                            <span><i class="fas fa-building"></i> Company-Wide Default</span>
+                        </label>
+                    </div>
+                    <small style="display: block; margin-top: 8px; color: #856404;">
+                        <strong>User:</strong> Only you will use these credentials.<br>
+                        <strong>Company-Wide:</strong> All users without personal credentials will use these.
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>DevPos Tenant ID *</label>
+                    <input type="text" id="devposTenant" required placeholder="e.g., X12345678Y" maxlength="100">
+                    <small style="color: #666;">The tenant identifier for DevPos API</small>
+                </div>
+                <div class="form-group">
+                    <label>DevPos Username *</label>
+                    <input type="text" id="devposUsername" required placeholder="DevPos username" maxlength="255">
+                </div>
+                <div class="form-group">
+                    <label>DevPos Password <span id="passwordRequiredIndicator">*</span></label>
+                    <input type="password" id="devposPassword" placeholder="DevPos password">
+                    <small style="color: #666;">Password will be encrypted before storage. <span id="passwordHint">Required for new credentials.</span></small>
+                </div>
+                <div id="devposStatus" style="margin: 15px 0; padding: 10px; display: none; border-radius: 4px;"></div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-success" style="flex: 1;">
+                        <i class="fas fa-save"></i> Save Credentials
+                    </button>
+                    <button type="button" class="btn" style="flex: 1; background: #2196F3; color: white;" onclick="testDevPosConnection()">
+                        <i class="fas fa-plug"></i> Test Connection
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="closeDevPosModal()" style="flex: 1;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const isLocal = window.location.hostname === 'localhost' && window.location.pathname.includes('multi-company-Dev2Qbo');
+        const API_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
+        const PAGE_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
+        
+        let editingCompanyId = null;
+
+        async function init() {
+            try {
+                const userResponse = await fetch(`${API_BASE}/api/auth/me`, {
+                    credentials: 'include'
+                });
+
+                if (!userResponse.ok) {
+                    window.location.href = `${PAGE_BASE}/login.html`;
+                    return;
+                }
+
+                const user = await userResponse.json(); // Changed from { user }
+                
+                if (user.role !== 'admin') {
+                    alert('Access denied. Admin only.');
+                    window.location.href = `${PAGE_BASE}/app.html`;
+                    return;
+                }
+
+                await loadCompanies();
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                window.location.href = `${PAGE_BASE}/login.html`;
+            }
+        }
+
+        // Pagination state
+        let allCompanies = [];
+        let currentPage = 1;
+        let perPage = 10;
+
+        async function loadCompanies() {
+            const response = await fetch(`${API_BASE}/api/companies`, {
+                credentials: 'include'
+            });
+
+            const companies = await response.json();
+            
+            // Get additional info for each company
+            const companiesWithDetails = await Promise.all(companies.map(async (company) => {
+                const [devpos, qbo, users] = await Promise.all([
+                    fetch(`${API_BASE}/api/companies/${company.company_id}/credentials/devpos`, {credentials: 'include'}).then(r => r.json()),
+                    fetch(`${API_BASE}/api/companies/${company.company_id}/credentials/qbo`, {credentials: 'include'}).then(r => r.json()),
+                    fetch(`${API_BASE}/api/companies/${company.company_id}/users`, {credentials: 'include'}).then(r => r.ok ? r.json() : [])
+                ]);
+                
+                return {
+                    ...company,
+                    hasDevPos: !!(devpos.tenant && devpos.username),
+                    hasQBO: !!qbo.realm_id,
+                    userCount: Array.isArray(users) ? users.length : 0
+                };
+            }));
+
+            allCompanies = companiesWithDetails;
+            renderCompanies();
+        }
+
+        function renderCompanies() {
+            const tbody = document.getElementById('companiesTable');
+            tbody.innerHTML = '';
+
+            // Calculate pagination
+            const totalCompanies = allCompanies.length;
+            const startIndex = perPage === 'all' ? 0 : (currentPage - 1) * perPage;
+            const endIndex = perPage === 'all' ? totalCompanies : startIndex + perPage;
+            const companiesToShow = allCompanies.slice(startIndex, endIndex);
+            const totalPages = perPage === 'all' ? 1 : Math.ceil(totalCompanies / perPage);
+
+            // Update showing info
+            const showingInfo = document.getElementById('showingInfo');
+            if (totalCompanies === 0) {
+                showingInfo.textContent = 'No companies found';
+            } else if (perPage === 'all') {
+                showingInfo.textContent = `Showing all ${totalCompanies} companies`;
+            } else {
+                const showing = Math.min(endIndex, totalCompanies);
+                showingInfo.textContent = `Showing ${startIndex + 1}-${showing} of ${totalCompanies} companies`;
+            }
+
+            // Render companies
+            companiesToShow.forEach(company => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${company.company_id}</td>
+                    <td><strong>${company.company_code}</strong></td>
+                    <td>${company.company_name}</td>
+                    <td><span class="status-badge ${company.is_active ? 'status-active' : 'status-inactive'}">${company.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td>${company.hasDevPos ? '<i class="fas fa-check-circle" style="color: #33cc66;"></i> Configured' : '<i class="fas fa-times-circle" style="color: #dc2626;"></i> Not set'}</td>
+                    <td>${company.hasQBO ? '<i class="fas fa-check-circle" style="color: #33cc66;"></i> Connected' : '<i class="fas fa-times-circle" style="color: #dc2626;"></i> Not connected'}</td>
+                    <td><i class="fas fa-users" style="color: #666;"></i> ${company.userCount} users</td>
+                    <td>${company.created_at ? new Date(company.created_at).toLocaleDateString() : '-'}</td>
+                    <td class="actions">
+                        <button class="btn btn-primary" onclick="editCompanyName(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')">
+                            <i class="fas fa-edit"></i> Edit Name
+                        </button>
+                        <button class="btn btn-primary" onclick="editDevPosCredentials(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')">
+                            <i class="fas fa-key"></i> DevPos
+                        </button>
+                        <button class="btn btn-primary" onclick="openFieldMappings(${company.company_id})" title="Map Fields between systems">
+                            <i class="fas fa-code-branch"></i>
+                        </button>
+                        <button class="btn btn-primary" onclick="viewCompany(${company.company_id})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="btn ${company.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleCompanyStatus(${company.company_id}, ${company.is_active ? 0 : 1})">
+                            <i class="fas fa-${company.is_active ? 'ban' : 'check'}"></i> ${company.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button class="btn btn-danger" 
+                                ${company.is_active ? 'disabled' : ''} 
+                                onclick="${company.is_active ? 'return false;' : `deleteCompany(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}')`}" 
+                                title="${company.is_active ? 'Only inactive companies can be deleted' : 'Delete this company'}"
+                                style="${company.is_active ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;'}">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Render pagination controls
+            renderPaginationControls(totalPages);
+        }
+
+        function renderPaginationControls(totalPages) {
+            const controls = document.getElementById('paginationControls');
+            controls.innerHTML = '';
+
+            if (perPage === 'all' || totalPages <= 1) {
+                return;
+            }
+
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '← Previous';
+            prevBtn.className = 'btn btn-primary';
+            prevBtn.style.cssText = 'padding: 8px 15px; font-size: 13px;';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderCompanies();
+                }
+            };
+            controls.appendChild(prevBtn);
+
+            // Page numbers
+            const maxPageButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPageButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
+            
+            if (endPage - startPage < maxPageButtons - 1) {
+                startPage = Math.max(1, endPage - maxPageButtons + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                pageBtn.className = i === currentPage ? 'btn btn-success' : 'btn';
+                pageBtn.style.cssText = 'padding: 8px 15px; font-size: 13px; min-width: 40px;';
+                if (i === currentPage) {
+                    pageBtn.style.background = '#667eea';
+                    pageBtn.style.color = 'white';
+                }
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    renderCompanies();
+                };
+                controls.appendChild(pageBtn);
+            }
+
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = 'Next →';
+            nextBtn.className = 'btn btn-primary';
+            nextBtn.style.cssText = 'padding: 8px 15px; font-size: 13px;';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderCompanies();
+                }
+            };
+            controls.appendChild(nextBtn);
+        }
+
+        function changePerPage(value) {
+            perPage = value === 'all' ? 'all' : parseInt(value);
+            currentPage = 1;
+            renderCompanies();
+        }
+
+        async function toggleCompanyStatus(companyId, isActive) {
+            if (!confirm(`Are you sure you want to ${isActive ? 'activate' : 'deactivate'} this company?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ is_active: isActive })
+                });
+
+                if (response.ok) {
+                    alert('✅ Company status updated!');
+                    await loadCompanies();
+                } else {
+                    alert('❌ Error updating company status');
+                }
+            } catch (error) {
+                alert('❌ Error updating company');
+            }
+        }
+
+        async function deleteCompany(companyId, companyName) {
+            if (!confirm(`⚠️ Are you sure you want to DELETE company "${companyName}"?\n\nThis action CANNOT be undone and will remove:\n- Company record\n- All credentials\n- All sync history\n- All schedules\n\nType "DELETE" to confirm.`)) {
+                return;
+            }
+
+            const confirmText = prompt(`Type "DELETE" to confirm deletion of ${companyName}:`);
+            if (confirmText !== 'DELETE') {
+                alert('❌ Deletion cancelled - confirmation text did not match');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Company deleted successfully!');
+                    await loadCompanies();
+                } else {
+                    alert('❌ ' + (data.message || 'Error deleting company'));
+                }
+            } catch (error) {
+                alert('❌ Error deleting company: ' + error.message);
+            }
+        }
+
+        function viewCompany(companyId) {
+            window.location.href = `${PAGE_BASE}/app.html`;
+        }
+
+        function openFieldMappings(companyId) {
+            window.location.href = `${PAGE_BASE}/admin-field-mappings.html?company=${companyId}`;
+        }
+
+        function editCompanyName(companyId, currentName) {
+            editingCompanyId = companyId;
+            
+            // Find the company to get its code
+            fetch(`${API_BASE}/api/companies/${companyId}`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(company => {
+                document.getElementById('editCompanyCode').value = company.company_code;
+                document.getElementById('editCompanyName').value = company.company_name;
+                document.getElementById('editNameModal').classList.add('active');
+            })
+            .catch(err => {
+                alert('❌ Error loading company details');
+                console.error(err);
+            });
+        }
+
+        function closeEditModal() {
+            document.getElementById('editNameModal').classList.remove('active');
+            editingCompanyId = null;
+            document.getElementById('editNameForm').reset();
+        }
+
+        // DevPos Credentials Management
+        let editingDevPosCompanyId = null;
+        let currentUserRole = null;
+
+        function updateCredentialScopeInfo() {
+            const scope = document.querySelector('input[name="credentialScope"]:checked')?.value || 'user';
+            const label = document.getElementById('credentialTypeLabel');
+            const desc = document.getElementById('credentialTypeDesc');
+            
+            if (scope === 'company') {
+                label.textContent = '🏢 Company-Wide Default Credentials';
+                desc.textContent = 'These credentials will be used by all users who haven\'t set their own personal credentials.';
+            } else {
+                label.textContent = '👤 User-Specific Credentials';
+                desc.textContent = 'These credentials are specific to your user account and won\'t affect other users.';
+            }
+        }
+
+        async function editDevPosCredentials(companyId, companyName, companyCode) {
+            editingDevPosCompanyId = companyId;
+            document.getElementById('devposCompanyName').value = `${companyName} (${companyCode})`;
+            document.getElementById('devposStatus').style.display = 'none';
+            
+            // Check if user is admin to show scope selector
+            const userResponse = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+            const user = await userResponse.json();
+            currentUserRole = user.role;
+            
+            if (user.role === 'admin') {
+                document.getElementById('credentialScopeSelector').style.display = 'block';
+            } else {
+                document.getElementById('credentialScopeSelector').style.display = 'none';
+            }
+            
+            // Load existing credentials if they exist
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}/credentials/devpos`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const creds = await response.json();
+                    if (creds.tenant) {
+                        document.getElementById('devposTenant').value = creds.tenant || '';
+                        document.getElementById('devposUsername').value = creds.username || '';
+                        // Password is not returned for security reasons
+                        document.getElementById('devposPassword').value = '';
+                        document.getElementById('devposPassword').placeholder = 'Leave blank to keep current password';
+                        document.getElementById('devposPassword').required = false;
+                        document.getElementById('passwordRequiredIndicator').textContent = '';
+                        document.getElementById('passwordHint').textContent = 'Leave blank to keep current password.';
+                        
+                        // Show credential type info
+                        const typeInfo = creds.credential_type === 'company' ? 
+                            '🏢 Currently using company-wide credentials' : 
+                            '👤 Currently using user-specific credentials';
+                        document.getElementById('credentialTypeLabel').innerHTML = typeInfo;
+                    } else {
+                        // No credentials exist yet
+                        document.getElementById('devposTenant').value = companyCode; // Default to company code
+                        document.getElementById('devposUsername').value = '';
+                        document.getElementById('devposPassword').value = '';
+                        document.getElementById('devposPassword').placeholder = 'DevPos password';
+                        document.getElementById('devposPassword').required = true;
+                        document.getElementById('passwordRequiredIndicator').textContent = '*';
+                        document.getElementById('passwordHint').textContent = 'Required for new credentials.';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading DevPos credentials:', error);
+            }
+            
+            updateCredentialScopeInfo();
+            document.getElementById('devposModal').classList.add('active');
+        }
+
+        function closeDevPosModal() {
+            document.getElementById('devposModal').classList.remove('active');
+            editingDevPosCompanyId = null;
+            document.getElementById('devposForm').reset();
+            document.getElementById('devposStatus').style.display = 'none';
+        }
+
+        document.getElementById('devposForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const scope = currentUserRole === 'admin' ? 
+                (document.querySelector('input[name="credentialScope"]:checked')?.value || 'user') : 
+                'user';
+
+            const data = {
+                tenant: document.getElementById('devposTenant').value.trim(),
+                username: document.getElementById('devposUsername').value.trim(),
+                password: document.getElementById('devposPassword').value,
+                scope: scope
+            };
+
+            // Only send password if it's provided
+            if (!data.password) {
+                delete data.password;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${editingDevPosCompanyId}/credentials/devpos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    document.getElementById('devposStatus').innerHTML = '✅ DevPos credentials saved successfully!';
+                    document.getElementById('devposStatus').style.display = 'block';
+                    document.getElementById('devposStatus').style.background = '#d4edda';
+                    document.getElementById('devposStatus').style.color = '#155724';
+                    document.getElementById('devposStatus').style.borderLeft = '4px solid #28a745';
+                    
+                    setTimeout(() => {
+                        closeDevPosModal();
+                        loadCompanies();
+                    }, 1500);
+                } else {
+                    const error = await response.json();
+                    document.getElementById('devposStatus').innerHTML = '❌ Error: ' + (error.message || 'Failed to save credentials');
+                    document.getElementById('devposStatus').style.display = 'block';
+                    document.getElementById('devposStatus').style.background = '#f8d7da';
+                    document.getElementById('devposStatus').style.color = '#721c24';
+                    document.getElementById('devposStatus').style.borderLeft = '4px solid #dc3545';
+                }
+            } catch (error) {
+                document.getElementById('devposStatus').innerHTML = '❌ Network error while saving credentials';
+                document.getElementById('devposStatus').style.display = 'block';
+                document.getElementById('devposStatus').style.background = '#f8d7da';
+                document.getElementById('devposStatus').style.color = '#721c24';
+                document.getElementById('devposStatus').style.borderLeft = '4px solid #dc3545';
+                console.error(error);
+            }
+        });
+
+        async function testDevPosConnection() {
+            if (!editingDevPosCompanyId) {
+                alert('❌ No company selected');
+                return;
+            }
+
+            document.getElementById('devposStatus').innerHTML = '⏳ Testing DevPos connection...';
+            document.getElementById('devposStatus').style.display = 'block';
+            document.getElementById('devposStatus').style.background = '#fff3cd';
+            document.getElementById('devposStatus').style.color = '#856404';
+            document.getElementById('devposStatus').style.borderLeft = '4px solid #ffc107';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${editingDevPosCompanyId}/credentials/devpos/test`, {
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    document.getElementById('devposStatus').innerHTML = '✅ Connection successful! DevPos API is reachable.';
+                    document.getElementById('devposStatus').style.background = '#d4edda';
+                    document.getElementById('devposStatus').style.color = '#155724';
+                    document.getElementById('devposStatus').style.borderLeft = '4px solid #28a745';
+                } else {
+                    document.getElementById('devposStatus').innerHTML = '❌ Connection failed: ' + (result.error || 'Unknown error');
+                    document.getElementById('devposStatus').style.background = '#f8d7da';
+                    document.getElementById('devposStatus').style.color = '#721c24';
+                    document.getElementById('devposStatus').style.borderLeft = '4px solid #dc3545';
+                }
+            } catch (error) {
+                document.getElementById('devposStatus').innerHTML = '❌ Network error while testing connection';
+                document.getElementById('devposStatus').style.background = '#f8d7da';
+                document.getElementById('devposStatus').style.color = '#721c24';
+                document.getElementById('devposStatus').style.borderLeft = '4px solid #dc3545';
+                console.error(error);
+            }
+        }
+
+        // Close modals when clicking outside
+        document.getElementById('devposModal').addEventListener('click', (e) => {
+            if (e.target.id === 'devposModal') {
+                closeDevPosModal();
+            }
+        });
+
+        document.getElementById('editNameForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const newName = document.getElementById('editCompanyName').value.trim();
+            
+            if (!newName) {
+                alert('❌ Company name cannot be empty');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${editingCompanyId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ company_name: newName })
+                });
+
+                if (response.ok) {
+                    alert('✅ Company name updated successfully!');
+                    closeEditModal();
+                    await loadCompanies();
+                } else {
+                    const error = await response.json();
+                    alert('❌ Error: ' + (error.message || 'Failed to update company name'));
+                }
+            } catch (error) {
+                alert('❌ Error updating company name');
+                console.error(error);
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('editNameModal').addEventListener('click', (e) => {
+            if (e.target.id === 'editNameModal') {
+                closeEditModal();
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Company Sync Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Helvetica, Arial, sans-serif; background: #f5f7fa; color: #2d3748; }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .header p { opacity: 0.9; font-size: 0.95rem; }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        
+        .companies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .company-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .company-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .company-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        .company-name { font-size: 1.25rem; font-weight: 600; color: #2d3748; }
+        .company-code {
+            background: #667eea;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .company-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+        .stat-box {
+            background: #f7fafc;
+            padding: 0.75rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-top: 0.25rem;
+        }
+        
+        .sync-form {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        .form-group {
+            margin-bottom: 0.75rem;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 0.25rem;
+        }
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-primary {
+            background: #48bb78;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #38a169;
+        }
+        .btn-primary:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+        
+        .results {
+            margin-top: 2rem;
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .results h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: #2d3748;
+        }
+        .results pre {
+            background: #f7fafc;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-completed { background: #c6f6d5; color: #22543d; }
+        .status-failed { background: #fed7d7; color: #742a2a; }
+        .status-running { background: #bee3f8; color: #2c5282; }
+        
+        .job-list {
+            margin-top: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .job-item {
+            padding: 0.75rem;
+            background: #f7fafc;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .job-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+        .job-item-details {
+            color: #718096;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Multi-Company Sync Dashboard</h1>
+        <p>Manage DevPos to QuickBooks synchronization for all companies</p>
+    </div>
+    
+    <div class="container">
+        <div id="companies-container" class="companies-grid">
+            <p>Loading companies...</p>
+        </div>
+        
+        <div id="results-container"></div>
+    </div>
+    
+    <script>
+        // Detect base path dynamically
+        const BASE_PATH = window.location.pathname.includes('/multi-company-Dev2Qbo/') 
+            ? '/multi-company-Dev2Qbo/public' 
+            : '/public';
+        const API_BASE = window.location.origin + BASE_PATH;
+        
+        // Fetch companies on load
+        async function loadCompanies() {
+            try {
+                const response = await fetch(`${API_BASE}/api/companies`, {
+                    credentials: 'include'  // Include cookies for session auth
+                });
+                
+                // Check if unauthorized (redirect to login)
+                if (response.status === 401) {
+                    window.location.href = `${BASE_PATH}/login.html`;
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success !== false && Array.isArray(data)) {
+                    renderCompanies(data);
+                    
+                    // Load stats for each company
+                    data.forEach(company => {
+                        loadCompanyStats(company.company_id);
+                        loadCompanyJobs(company.company_id);
+                    });
+                } else if (data.success) {
+                    renderCompanies(data.companies || []);
+                    
+                    // Load stats for each company
+                    (data.companies || []).forEach(company => {
+                        loadCompanyStats(company.id || company.company_id);
+                        loadCompanyJobs(company.id || company.company_id);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading companies:', error);
+                document.getElementById('companies-container').innerHTML = 
+                    `<p style="color: #e53e3e;">Error loading companies: ${error.message}</p>`;
+            }
+        }
+        
+        // Render companies
+        function renderCompanies(companies) {
+            const container = document.getElementById('companies-container');
+            
+            if (companies.length === 0) {
+                container.innerHTML = '<p>No companies found. Add companies via CLI or API.</p>';
+                return;
+            }
+            
+            container.innerHTML = companies.map(company => `
+                <div class="company-card" id="company-${company.id}">
+                    <div class="company-header">
+                        <div class="company-name">${company.company_name}</div>
+                        <div class="company-code">${company.company_code}</div>
+                    </div>
+                    
+                    <div class="company-stats" id="stats-${company.id}">
+                        <div class="stat-box">
+                            <div class="stat-value">-</div>
+                            <div class="stat-label">Total Jobs</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">-</div>
+                            <div class="stat-label">Completed</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">-</div>
+                            <div class="stat-label">Failed</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">-</div>
+                            <div class="stat-label">Last Sync</div>
+                        </div>
+                    </div>
+                    
+                    <form class="sync-form" onsubmit="runSync(event, ${company.id})">
+                        <div class="form-group">
+                            <label>Sync Type</label>
+                            <select name="job_type">
+                                <option value="sales">Sales (Invoices & Receipts)</option>
+                                <option value="bills">Bills</option>
+                                <option value="purchases">Purchases</option>
+                                <option value="full">Full Sync (All)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>From Date</label>
+                            <input type="date" name="from_date" value="${getToday()}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>To Date</label>
+                            <input type="date" name="to_date" value="${getToday()}" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="btn-${company.id}">
+                            Run Sync
+                        </button>
+                    </form>
+                    
+                    <div class="job-list" id="jobs-${company.id}"></div>
+                </div>
+            `).join('');
+        }
+        
+        // Load company stats
+        async function loadCompanyStats(companyId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}/stats`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.stats;
+                    const container = document.getElementById(`stats-${companyId}`);
+                    container.innerHTML = `
+                        <div class="stat-box">
+                            <div class="stat-value">${stats.total_jobs || 0}</div>
+                            <div class="stat-label">Total Jobs</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">${stats.completed_jobs || 0}</div>
+                            <div class="stat-label">Completed</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">${stats.failed_jobs || 0}</div>
+                            <div class="stat-label">Failed</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value">${stats.last_sync_at ? formatDate(stats.last_sync_at) : 'Never'}</div>
+                            <div class="stat-label">Last Sync</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error(`Error loading stats for company ${companyId}:`, error);
+            }
+        }
+        
+        // Load company jobs
+        async function loadCompanyJobs(companyId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}/jobs?limit=5`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                
+                if (data.success && data.jobs.length > 0) {
+                    const container = document.getElementById(`jobs-${companyId}`);
+                    container.innerHTML = '<h4 style="margin-bottom: 0.5rem; font-size: 0.9rem;">Recent Jobs</h4>' +
+                        data.jobs.map(job => `
+                            <div class="job-item">
+                                <div class="job-item-header">
+                                    <span>${job.job_type.toUpperCase()}</span>
+                                    <span class="status-badge status-${job.status}">${job.status}</span>
+                                </div>
+                                <div class="job-item-details">
+                                    ${job.from_date} to ${job.to_date} • ${formatDate(job.created_at)}
+                                </div>
+                            </div>
+                        `).join('');
+                }
+            } catch (error) {
+                console.error(`Error loading jobs for company ${companyId}:`, error);
+            }
+        }
+        
+        // Run sync
+        async function runSync(event, companyId) {
+            event.preventDefault();
+            const form = event.target;
+            const button = document.getElementById(`btn-${companyId}`);
+            const resultsContainer = document.getElementById('results-container');
+            
+            // Disable button
+            button.disabled = true;
+            button.innerHTML = '<span class="loading"></span> Running...';
+            
+            // Get form data
+            const formData = new FormData(form);
+            const data = {
+                job_type: formData.get('job_type'),
+                from_date: formData.get('from_date'),
+                to_date: formData.get('to_date')
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}/sync`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                
+                // Display results
+                resultsContainer.innerHTML = `
+                    <div class="results">
+                        <h3>Sync Results - Company ${companyId}</h3>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    </div>
+                `;
+                
+                // Reload stats and jobs
+                await loadCompanyStats(companyId);
+                await loadCompanyJobs(companyId);
+                
+            } catch (error) {
+                resultsContainer.innerHTML = `
+                    <div class="results">
+                        <h3>Error</h3>
+                        <pre style="color: #e53e3e;">${error.message}</pre>
+                    </div>
+                `;
+            } finally {
+                button.disabled = false;
+                button.innerHTML = 'Run Sync';
+            }
+        }
+        
+        // Utility functions
+        function getToday() {
+            return new Date().toISOString().split('T')[0];
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            return date.toLocaleDateString();
+        }
+        
+        // Load companies on page load
+        loadCompanies();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            const companies = document.querySelectorAll('[id^="company-"]');
+            companies.forEach(card => {
+                const companyId = parseInt(card.id.replace('company-', ''));
+                loadCompanyStats(companyId);
+                loadCompanyJobs(companyId);
+            });
+        }, 30000);
+    </script>
+</body>
+</html>

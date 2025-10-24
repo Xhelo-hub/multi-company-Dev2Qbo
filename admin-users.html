@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>User Management - DEV-QBO SYNC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon-circle {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: #33cc66;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-success {
+            background: #33cc66;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2ab359;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #33cc66;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        th {
+            background: #e6f7ed;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #059669;
+            border-bottom: 2px solid #33cc66;
+        }
+
+        th[onclick] {
+            user-select: none;
+        }
+
+        th[onclick]:hover {
+            background: #e8e8e8;
+        }
+
+        th span {
+            font-size: 10px;
+            color: #999;
+            margin-left: 5px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+            font-size: 14px;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #e6f7ed;
+            color: #059669;
+        }
+
+        .status-inactive {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .status-pending {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .status-suspended {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-info {
+            background: #2196f3;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #757575;
+            color: white;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .role-admin {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .company-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .permissions {
+            margin-left: 30px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+        }
+
+        .permission-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .icon-circle {
+                width: 30px;
+                height: 30px;
+                font-size: 14px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .card h2 {
+                font-size: 18px;
+            }
+
+            table {
+                font-size: 13px;
+            }
+
+            th, td {
+                padding: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .icon-circle {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+
+            .btn {
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .card h2 {
+                font-size: 16px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span class="icon-circle"><i class="fas fa-users"></i></span>
+                User Management
+            </h1>
+            <a href="app.html" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+
+        <div class="card">
+            <h2>
+                <span class="icon-circle"><i class="fas fa-user-plus"></i></span>
+                Create New User
+            </h2>
+            <form id="createUserForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="newEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="newFullName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password *</label>
+                        <input type="password" id="newPassword" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select id="newRole">
+                            <option value="company_user">Company User</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Create User
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>
+                <span class="icon-circle"><i class="fas fa-list"></i></span>
+                All Users
+            </h2>
+            
+            <!-- Search Section -->
+            <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="searchInput" placeholder="Search by name or email..." style="flex: 1; min-width: 300px; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px; font-size: 14px;">
+                <select id="filterStatus" style="padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                </select>
+                <button onclick="clearFilters()" class="btn btn-danger" style="padding: 10px 20px;">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable('id')" style="cursor: pointer;">ID <span id="sort-id">⇅</span></th>
+                            <th onclick="sortTable('email')" style="cursor: pointer;">Email <span id="sort-email">⇅</span></th>
+                            <th onclick="sortTable('full_name')" style="cursor: pointer;">Full Name <span id="sort-full_name">⇅</span></th>
+                            <th onclick="sortTable('role')" style="cursor: pointer;">Role <span id="sort-role">⇅</span></th>
+                            <th>Companies</th>
+                            <th onclick="sortTable('status')" style="cursor: pointer;">Status <span id="sort-status">⇅</span></th>
+                            <th onclick="sortTable('last_login_at')" style="cursor: pointer;">Last Login <span id="sort-last_login_at">⇅</span></th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTable">
+                        <tr><td colspan="8" style="text-align: center;">Loading users...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Company Access Modal -->
+    <div id="companyModal" class="modal">
+        <div class="modal-content">
+            <h3><span class="icon-circle"><i class="fas fa-building"></i></span>Manage Company Access</h3>
+            <p><strong>User:</strong> <span id="modalUserName"></span></p>
+            <div id="companyList"></div>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button onclick="saveCompanyAccess()" class="btn btn-success"><i class="fas fa-save"></i> Save Changes</button>
+                <button onclick="closeModal()" class="btn btn-danger"><i class="fas fa-times"></i> Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const isLocal = window.location.hostname === 'localhost' && window.location.pathname.includes('multi-company-Dev2Qbo');
+        const API_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
+        const PAGE_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '/public';
+        
+        let currentUser = null;
+        let allCompanies = [];
+        let selectedUserId = null;
+        let allUsers = [];
+        let sortColumn = 'id';
+        let sortDirection = 'asc';
+
+        async function init() {
+            try {
+                const userResponse = await fetch(`${API_BASE}/api/auth/me`, {
+                    credentials: 'include'
+                });
+
+                if (!userResponse.ok) {
+                    window.location.href = `${PAGE_BASE}/login.html`;
+                    return;
+                }
+
+                const user = await userResponse.json(); // Changed from { user }
+                
+                if (user.role !== 'admin') {
+                    alert('Access denied. Admin only.');
+                    window.location.href = `${PAGE_BASE}/app.html`;
+                    return;
+                }
+
+                currentUser = user;
+                await loadUsers();
+                await loadCompanies();
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                window.location.href = `${PAGE_BASE}/login.html`;
+            }
+        }
+
+        async function loadUsers() {
+            const response = await fetch(`${API_BASE}/api/auth/users`, {
+                credentials: 'include'
+            });
+
+            allUsers = await response.json();
+            renderUsers();
+        }
+
+        function renderUsers() {
+            // Get filter values
+            const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filterStatus = document.getElementById('filterStatus').value;
+            
+            // Filter users by search text (matches name OR email)
+            let filteredUsers = allUsers.filter(user => {
+                const searchMatch = !searchText || 
+                    (user.email && user.email.toLowerCase().includes(searchText)) ||
+                    (user.full_name && user.full_name.toLowerCase().includes(searchText));
+                const statusMatch = !filterStatus || user.status === filterStatus;
+                
+                return searchMatch && statusMatch;
+            });
+
+            // Sort users
+            filteredUsers.sort((a, b) => {
+                let aVal = a[sortColumn];
+                let bVal = b[sortColumn];
+
+                // Handle null values
+                if (aVal === null || aVal === undefined) aVal = '';
+                if (bVal === null || bVal === undefined) bVal = '';
+
+                // Convert to lowercase for string comparison
+                if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+                if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Update sort indicators
+            document.querySelectorAll('th span[id^="sort-"]').forEach(span => {
+                span.textContent = '⇅';
+            });
+            const sortIndicator = document.getElementById(`sort-${sortColumn}`);
+            if (sortIndicator) {
+                sortIndicator.textContent = sortDirection === 'asc' ? '↑' : '↓';
+            }
+            
+            const tbody = document.getElementById('usersTable');
+            tbody.innerHTML = '';
+
+            if (filteredUsers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No users found</td></tr>';
+                return;
+            }
+
+            filteredUsers.forEach(user => {
+                // Status badge with colors
+                let statusBadge = '';
+                let statusClass = '';
+                if (user.status === 'pending') {
+                    statusClass = 'status-pending';
+                    statusBadge = '⏳ Pending';
+                } else if (user.status === 'active') {
+                    statusClass = 'status-active';
+                    statusBadge = '✅ Active';
+                } else if (user.status === 'suspended') {
+                    statusClass = 'status-suspended';
+                    statusBadge = '🚫 Suspended';
+                }
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.email}</td>
+                    <td>${user.full_name || '-'}</td>
+                    <td><span class="role-badge ${user.role === 'admin' ? 'role-admin' : ''}">${user.role}</span></td>
+                    <td>${user.company_count || 0} companies</td>
+                    <td><span class="status-badge ${statusClass}">${statusBadge}</span></td>
+                    <td>${user.last_login_at ? new Date(user.last_login_at).toLocaleString() : 'Never'}</td>
+                    <td class="actions">
+                        ${user.status === 'pending' ? `<button class="btn btn-success" onclick="approveUser(${user.id})"><i class="fas fa-check"></i> Approve</button>` : ''}
+                        <button class="btn btn-primary" onclick="openCompanyModal(${user.id}, '${user.email}')"><i class="fas fa-building"></i> Companies</button>
+                        <button class="btn btn-warning" onclick="resetUserPassword(${user.id}, '${user.email}')"><i class="fas fa-key"></i> Reset Password</button>
+                        <button class="btn ${user.role === 'admin' ? 'btn-secondary' : 'btn-info'}" onclick="changeUserRole(${user.id}, '${user.role}', '${user.email}')"><i class="fas ${user.role === 'admin' ? 'fa-user' : 'fa-user-shield'}"></i> ${user.role === 'admin' ? 'Make User' : 'Make Admin'}</button>
+                        <button class="btn ${user.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleUserStatus(${user.id}, ${user.is_active ? 0 : 1})"><i class="fas ${user.is_active ? 'fa-ban' : 'fa-check'}"></i> ${user.is_active ? 'Deactivate' : 'Activate'}</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function loadCompanies() {
+            const response = await fetch(`${API_BASE}/api/companies`, {
+                credentials: 'include'
+            });
+            allCompanies = await response.json();
+        }
+
+        document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                email: document.getElementById('newEmail').value,
+                full_name: document.getElementById('newFullName').value,
+                password: document.getElementById('newPassword').value,
+                role: document.getElementById('newRole').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('✅ User created successfully!');
+                    document.getElementById('createUserForm').reset();
+                    await loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert('❌ Error: ' + error.message);
+                }
+            } catch (error) {
+                alert('❌ Error creating user');
+            }
+        });
+
+        async function toggleUserStatus(userId, isActive) {
+            // This endpoint needs to be created
+            alert('User status toggle - endpoint needs implementation');
+        }
+
+        async function openCompanyModal(userId, userEmail) {
+            selectedUserId = userId;
+            document.getElementById('modalUserName').textContent = userEmail;
+
+            // Get user's current company access
+            const response = await fetch(`${API_BASE}/api/auth/users/${userId}/companies`, {
+                credentials: 'include'
+            });
+
+            let userCompanies = [];
+            if (response.ok) {
+                userCompanies = await response.json();
+            }
+
+            // Build company list with checkboxes
+            const companyList = document.getElementById('companyList');
+            companyList.innerHTML = '';
+
+            allCompanies.forEach(company => {
+                const access = userCompanies.find(uc => uc.company_id === company.company_id) || {};
+                
+                const div = document.createElement('div');
+                div.className = 'company-checkbox';
+                div.innerHTML = `
+                    <input type="checkbox" 
+                           id="company_${company.company_id}" 
+                           ${access.company_id ? 'checked' : ''}>
+                    <label for="company_${company.company_id}"><strong>${company.company_code}</strong> - ${company.company_name}</label>
+                    <div class="permissions">
+                        <div class="permission-item">
+                            <input type="checkbox" id="perm_view_${company.company_id}" ${access.can_view_sync ? 'checked' : ''}>
+                            <label for="perm_view_${company.company_id}">View Sync</label>
+                        </div>
+                        <div class="permission-item">
+                            <input type="checkbox" id="perm_run_${company.company_id}" ${access.can_run_sync ? 'checked' : ''}>
+                            <label for="perm_run_${company.company_id}">Run Sync</label>
+                        </div>
+                        <div class="permission-item">
+                            <input type="checkbox" id="perm_edit_${company.company_id}" ${access.can_edit_credentials ? 'checked' : ''}>
+                            <label for="perm_edit_${company.company_id}">Edit Credentials</label>
+                        </div>
+                        <div class="permission-item">
+                            <input type="checkbox" id="perm_schedule_${company.company_id}" ${access.can_manage_schedules ? 'checked' : ''}>
+                            <label for="perm_schedule_${company.company_id}">Manage Schedules</label>
+                        </div>
+                    </div>
+                `;
+                companyList.appendChild(div);
+            });
+
+            document.getElementById('companyModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('companyModal').classList.remove('active');
+        }
+
+        async function saveCompanyAccess() {
+            const updates = [];
+
+            for (const company of allCompanies) {
+                const checkbox = document.getElementById(`company_${company.company_id}`);
+                
+                if (checkbox.checked) {
+                    updates.push({
+                        company_id: company.company_id,
+                        can_view_sync: document.getElementById(`perm_view_${company.company_id}`).checked,
+                        can_run_sync: document.getElementById(`perm_run_${company.company_id}`).checked,
+                        can_edit_credentials: document.getElementById(`perm_edit_${company.company_id}`).checked,
+                        can_manage_schedules: document.getElementById(`perm_schedule_${company.company_id}`).checked
+                    });
+                }
+            }
+
+            try {
+                for (const update of updates) {
+                    await fetch(`${API_BASE}/api/auth/users/${selectedUserId}/companies/${update.company_id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(update)
+                    });
+                }
+
+                alert('✅ Company access updated!');
+                closeModal();
+                await loadUsers();
+            } catch (error) {
+                alert('❌ Error updating access');
+            }
+        }
+
+        async function approveUser(userId) {
+            if (!confirm('Are you sure you want to approve this user?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/users/${userId}/approve`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    alert('✅ User approved successfully!');
+                    await loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert('❌ Error: ' + error.message);
+                }
+            } catch (error) {
+                alert('❌ Error approving user');
+            }
+        }
+
+        async function resetUserPassword(userId, userEmail) {
+            if (!confirm(`Reset password for ${userEmail}?\n\nA temporary password will be sent to their email.`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/users/${userId}/reset-password`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert('✅ Password reset successfully!\n\nTemporary password has been sent to the user\'s email.');
+                } else {
+                    const error = await response.json();
+                    alert('❌ Error: ' + error.message);
+                }
+            } catch (error) {
+                alert('❌ Error resetting password');
+            }
+        }
+
+        async function changeUserRole(userId, currentRole, userEmail) {
+            const newRole = currentRole === 'admin' ? 'company_user' : 'admin';
+            const action = newRole === 'admin' ? 'promote to admin' : 'demote to regular user';
+            
+            if (!confirm(`Are you sure you want to ${action} for ${userEmail}?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/users/${userId}/role`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ role: newRole })
+                });
+
+                if (response.ok) {
+                    alert(`✅ User role changed to ${newRole}!`);
+                    await loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert('❌ Error: ' + error.message);
+                }
+            } catch (error) {
+                alert('❌ Error changing user role');
+            }
+        }
+
+        // Sort table by column
+        function sortTable(column) {
+            if (sortColumn === column) {
+                // Toggle direction if same column
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // New column, default to ascending
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            renderUsers();
+        }
+
+        // Clear all filters
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('filterStatus').value = '';
+            renderUsers();
+        }
+
+        // Add filter event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('searchInput');
+            const filterStatus = document.getElementById('filterStatus');
+            
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(() => renderUsers(), 300));
+            }
+            if (filterStatus) {
+                filterStatus.addEventListener('change', () => renderUsers());
+            }
+        });
+
+        // Debounce helper for filter inputs
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        init();
+    </script>
+</body>
+</html>
