@@ -2,7 +2,7 @@
 require __DIR__ . '/../bootstrap/app.php';
 
 // Get PDO from container
-$pdo = $container->get('pdo');
+$pdo = $container->get(PDO::class);
 
 // Get the latest sync job with invoice errors
 $stmt = $pdo->query("
