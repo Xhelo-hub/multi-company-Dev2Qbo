@@ -9,6 +9,13 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 $container = $app->getContainer();
 $pdo = $container->get(PDO::class);
 
+// Redirect root URL to login page
+$app->get('/', function (Request $request, Response $response) {
+    return $response
+        ->withHeader('Location', '/login.html')
+        ->withStatus(302);
+});
+
 // Create auth middleware instance
 $authMiddleware = new \App\Middleware\AuthMiddleware($pdo);
 
