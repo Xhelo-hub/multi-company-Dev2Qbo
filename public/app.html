@@ -865,6 +865,10 @@
                     if (result.status_code) {
                         errorMsg += '\nHTTP Status: ' + result.status_code;
                     }
+                    if (result.debug) {
+                        console.log('DevPos debug info:', result.debug);
+                        errorMsg += '\nDebug: ' + JSON.stringify(result.debug);
+                    }
                     console.error('DevPos test failed:', result);
                     showAlert('❌ DevPos connection failed: ' + errorMsg, 'error');
                     document.getElementById('devposStatus').className = 'status-indicator status-disconnected';

@@ -624,30 +624,53 @@ $app->post('/api/companies/{companyId}/credentials/devpos', function (Request $r
 $app->get('/api/companies/{companyId}/credentials/devpos/test', function (Request $request, Response $response, array $args) use ($pdo) {
     $companyId = (int)$args['companyId'];
     $user = $request->getAttribute('user');
-    $userId = $user['id'];
+    $userId = $user['id'] ?? null;
     
-    // First, try to get user-specific credentials
-    $stmt = $pdo->prepare("
-        SELECT tenant, username, password_encrypted, 'user' as credential_type
-        FROM user_devpos_credentials 
-        WHERE company_id = ? AND user_id = ?
-    ");
-    $stmt->execute([$companyId, $userId]);
-    $creds = $stmt->fetch();
+    // Debug: Check what tables exist
+    $debugInfo = ['company_id' => $companyId, 'user_id' => $userId];
+    
+    // First, try to get user-specific credentials (if user_devpos_credentials table exists)
+    $creds = null;
+    try {
+        if ($userId) {
+            $stmt = $pdo->prepare("
+                SELECT tenant, username, password_encrypted, 'user' as credential_type
+                FROM user_devpos_credentials 
+                WHERE company_id = ? AND user_id = ?
+            ");
+            $stmt->execute([$companyId, $userId]);
+            $creds = $stmt->fetch();
+            $debugInfo['user_credentials_checked'] = true;
+            $debugInfo['user_credentials_found'] = $creds ? true : false;
+        }
+    } catch (PDOException $e) {
+        // Table might not exist, continue to company-level
+        $debugInfo['user_credentials_table_error'] = $e->getMessage();
+    }
     
     // If no user-specific credentials, fallback to company-level credentials
     if (!$creds) {
-        $stmt = $pdo->prepare("
-            SELECT tenant, username, password_encrypted, 'company' as credential_type
-            FROM company_credentials_devpos 
-            WHERE company_id = ?
-        ");
-        $stmt->execute([$companyId]);
-        $creds = $stmt->fetch();
+        try {
+            $stmt = $pdo->prepare("
+                SELECT tenant, username, password_encrypted, 'company' as credential_type
+                FROM company_credentials_devpos 
+                WHERE company_id = ?
+            ");
+            $stmt->execute([$companyId]);
+            $creds = $stmt->fetch();
+            $debugInfo['company_credentials_checked'] = true;
+            $debugInfo['company_credentials_found'] = $creds ? true : false;
+        } catch (PDOException $e) {
+            $debugInfo['company_credentials_error'] = $e->getMessage();
+        }
     }
     
     if (!$creds) {
-        $response->getBody()->write(json_encode(['success' => false, 'message' => 'No credentials configured']));
+        $response->getBody()->write(json_encode([
+            'success' => false, 
+            'message' => 'No credentials configured',
+            'debug' => $debugInfo
+        ]));
         return $response->withHeader('Content-Type', 'application/json');
     }
     
