@@ -451,8 +451,8 @@
 </head>
 <body>
     <div class="container">
-        <a href="app.html" class="back-link">
-            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        <a href="#" id="backLink" class="back-link">
+            <i class="fas fa-arrow-left"></i> <span id="backLinkText">Back to Dashboard</span>
         </a>
 
         <div class="header">
@@ -679,13 +679,31 @@
             ? currentPath.substring(0, currentPath.indexOf('/public/')) 
             : '';
 
+        // Get company ID from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentCompanyId = urlParams.get('company');
+
         let currentEntityType = 'invoice';
         let currentTemplateId = null;
         let devposFields = {};
         let qboFields = {};
+        let companyInfo = null;
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Set back link based on whether we came from company management
+            const backLink = document.getElementById('backLink');
+            const backLinkText = document.getElementById('backLinkText');
+            
+            if (currentCompanyId) {
+                backLink.href = `${BASE_PATH}/admin-companies.html`;
+                backLinkText.textContent = 'Back to Company Management';
+                await loadCompanyInfo();
+            } else {
+                backLink.href = `${BASE_PATH}/app.html`;
+                backLinkText.textContent = 'Back to Dashboard';
+            }
+            
             loadTemplates();
             setupTabs();
         });
@@ -704,13 +722,54 @@
             });
         }
 
+        // Load company information
+        async function loadCompanyInfo() {
+            try {
+                const response = await fetch(`${BASE_PATH}/api/companies/${currentCompanyId}`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    companyInfo = await response.json();
+                    updateHeaderWithCompany();
+                } else {
+                    console.error('Failed to load company info');
+                }
+            } catch (error) {
+                console.error('Error loading company info:', error);
+            }
+        }
+
+        // Update header to show company info
+        function updateHeaderWithCompany() {
+            if (companyInfo) {
+                const headerElement = document.querySelector('.header h1');
+                headerElement.innerHTML = `
+                    <i class="fas fa-code-branch"></i>
+                    Field Mapping Management
+                    <span style="font-size: 16px; font-weight: normal; color: #667eea; background: #f7fafc; padding: 5px 15px; border-radius: 20px; margin-left: 10px;">
+                        <i class="fas fa-building" style="font-size: 14px;"></i> ${companyInfo.company_name} (${companyInfo.company_code})
+                    </span>
+                `;
+                
+                const headerDesc = document.querySelector('.header p');
+                headerDesc.textContent = `Configure how fields are mapped between DevPos and QuickBooks Online for ${companyInfo.company_name}`;
+            }
+        }
+
         // Load templates
         async function loadTemplates() {
             const container = document.getElementById('templates-container');
             container.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i><p>Loading templates...</p></div>';
 
             try {
-                const response = await fetch(`${BASE_PATH}/api/field-mappings/templates?entity_type=${currentEntityType}`, {
+                // Build URL with entity type and optional company filter
+                let url = `${BASE_PATH}/api/field-mappings/templates?entity_type=${currentEntityType}`;
+                if (currentCompanyId) {
+                    url += `&company_id=${currentCompanyId}`;
+                }
+                
+                const response = await fetch(url, {
                     credentials: 'include'
                 });
                 
