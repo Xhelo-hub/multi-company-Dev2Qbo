@@ -369,31 +369,56 @@
         // Initialize
         async function init() {
             try {
-                // Check auth
+                // Check auth with detailed debugging
+                console.log('Checking authentication...');
+                console.log('API_BASE:', API_BASE);
+                console.log('Cookies:', document.cookie);
+                
                 const userResponse = await fetch(`${API_BASE}/api/auth/me`, {
-                    credentials: 'include'
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
+
+                console.log('Auth response status:', userResponse.status);
+                console.log('Auth response headers:', [...userResponse.headers.entries()]);
 
                 if (!userResponse.ok) {
                     console.error('Auth check failed:', userResponse.status, userResponse.statusText);
-                    // Add a small delay to see error in console before redirect
+                    const errorText = await userResponse.text();
+                    console.error('Error response:', errorText);
+                    
+                    alert('Authentication failed. You will be redirected to login.');
                     setTimeout(() => {
                         window.location.href = `${PAGE_BASE}/login.html`;
-                    }, 100);
+                    }, 1000);
                     return;
                 }
 
-                const { user } = await userResponse.json();
-                console.log('User authenticated:', user);
+                const responseData = await userResponse.json();
+                console.log('Auth response data:', responseData);
+                
+                if (!responseData.user) {
+                    console.error('No user in response');
+                    alert('Session invalid. You will be redirected to login.');
+                    setTimeout(() => {
+                        window.location.href = `${PAGE_BASE}/login.html`;
+                    }, 1000);
+                    return;
+                }
+                
+                console.log('User authenticated:', responseData.user);
                 
                 // Load companies
                 await loadCompanies();
 
             } catch (error) {
                 console.error('Initialization error:', error);
+                alert('Error loading page: ' + error.message);
                 setTimeout(() => {
                     window.location.href = `${PAGE_BASE}/login.html`;
-                }, 100);
+                }, 1000);
             }
         }
 
