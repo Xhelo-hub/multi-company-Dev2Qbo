@@ -30,6 +30,29 @@
             padding: 30px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .back-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
         .header h1 {
@@ -456,11 +479,15 @@
         </a>
 
         <div class="header">
+            <a href="dashboard.html" class="back-button" id="backButton">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
             <h1>
                 <i class="fas fa-code-branch"></i>
-                Field Mapping Management
+                Global Field Mapping Configuration
             </h1>
-            <p>Configure how fields are mapped between DevPos and QuickBooks Online</p>
+            <p>Configure global field mappings between DevPos and QuickBooks Online for all companies</p>
         </div>
 
         <div class="tabs">
@@ -679,30 +706,23 @@
             ? currentPath.substring(0, currentPath.indexOf('/public/')) 
             : '';
 
-        // Get company ID from URL parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentCompanyId = urlParams.get('company');
-
+        // Global configuration - no company-specific logic needed
+        // Company-specific mapping button is kept for future use but not used in this interface
+        
         let currentEntityType = 'invoice';
         let currentTemplateId = null;
         let devposFields = {};
         let qboFields = {};
-        let companyInfo = null;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            // Set back link based on whether we came from company management
-            const backLink = document.getElementById('backLink');
-            const backLinkText = document.getElementById('backLinkText');
-            
-            if (currentCompanyId) {
-                backLink.href = `${BASE_PATH}/admin-companies.html`;
-                backLinkText.textContent = 'Back to Company Management';
-                await loadCompanyInfo();
-            } else {
-                backLink.href = `${BASE_PATH}/app.html`;
-                backLinkText.textContent = 'Back to Dashboard';
-            }
+            // Set correct base path for back button
+            const backButton = document.getElementById('backButton');
+            const isLocal = window.location.hostname === 'localhost';
+            const correctBasePath = isLocal && window.location.pathname.includes('multi-company-Dev2Qbo') 
+                ? '/multi-company-Dev2Qbo/public' 
+                : '';
+            backButton.href = `${correctBasePath}/dashboard.html`;
             
             loadTemplates();
             setupTabs();
@@ -722,40 +742,8 @@
             });
         }
 
-        // Load company information
-        async function loadCompanyInfo() {
-            try {
-                const response = await fetch(`${BASE_PATH}/api/companies/${currentCompanyId}`, {
-                    credentials: 'include'
-                });
-                
-                if (response.ok) {
-                    companyInfo = await response.json();
-                    updateHeaderWithCompany();
-                } else {
-                    console.error('Failed to load company info');
-                }
-            } catch (error) {
-                console.error('Error loading company info:', error);
-            }
-        }
-
-        // Update header to show company info
-        function updateHeaderWithCompany() {
-            if (companyInfo) {
-                const headerElement = document.querySelector('.header h1');
-                headerElement.innerHTML = `
-                    <i class="fas fa-code-branch"></i>
-                    Field Mapping Management
-                    <span style="font-size: 16px; font-weight: normal; color: #667eea; background: #f7fafc; padding: 5px 15px; border-radius: 20px; margin-left: 10px;">
-                        <i class="fas fa-building" style="font-size: 14px;"></i> ${companyInfo.company_name} (${companyInfo.company_code})
-                    </span>
-                `;
-                
-                const headerDesc = document.querySelector('.header p');
-                headerDesc.textContent = `Configure how fields are mapped between DevPos and QuickBooks Online for ${companyInfo.company_name}`;
-            }
-        }
+        // Note: Company-specific mapping overrides are available via the company management page
+        // This interface manages global/default mappings that apply to all companies
 
         // Load templates
         async function loadTemplates() {
