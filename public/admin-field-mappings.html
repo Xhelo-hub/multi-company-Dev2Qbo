@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Field Mapping Management - DevPos to QuickBooks Sync</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header h1 i {
+            color: #667eea;
+        }
+
+        .header p {
+            color: #718096;
+        }
+
+        .tabs {
+            background: white;
+            border-radius: 12px 12px 0 0;
+            padding: 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            white-space: nowrap;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .tab:hover {
+            background: #f7fafc;
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .content {
+            background: white;
+            border-radius: 0 0 12px 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: 600px;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .template-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .template-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .template-card.active {
+            border-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .template-card h3 {
+            color: #2d3748;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .template-card .badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-default {
+            background: #667eea;
+            color: white;
+        }
+
+        .badge-active {
+            background: #48bb78;
+            color: white;
+        }
+
+        .badge-inactive {
+            background: #cbd5e0;
+            color: #4a5568;
+        }
+
+        .template-card p {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .template-card .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 13px;
+            color: #718096;
+        }
+
+        .mapping-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .mapping-table th,
+        .mapping-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .mapping-table th {
+            background: #f7fafc;
+            color: #4a5568;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        .mapping-table tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        .mapping-table .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mapping-table .actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #2d3748;
+        }
+
+        .close {
+            cursor: pointer;
+            font-size: 28px;
+            color: #718096;
+        }
+
+        .close:hover {
+            color: #2d3748;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4a5568;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #3182ce;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .info-box p {
+            color: #2c5282;
+            margin: 5px 0;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #48bb78;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #f56565;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .transformation-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .type-direct { background: #c6f6d5; color: #22543d; }
+        .type-lookup { background: #bee3f8; color: #2c5282; }
+        .type-calculation { background: #feebc8; color: #7c2d12; }
+        .type-concatenation { background: #e9d8fd; color: #44337a; }
+        .type-conditional { background: #fed7e2; color: #702459; }
+        .type-custom { background: #e2e8f0; color: #2d3748; }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #667eea;
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .back-link:hover {
+            color: #764ba2;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+
+        .loading i {
+            font-size: 32px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Field selector with icons */
+        .field-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .field-option .field-type {
+            font-size: 11px;
+            color: #718096;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="app.html" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+
+        <div class="header">
+            <h1>
+                <i class="fas fa-code-branch"></i>
+                Field Mapping Management
+            </h1>
+            <p>Configure how fields are mapped between DevPos and QuickBooks Online</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-entity="invoice">
+                <i class="fas fa-file-invoice"></i> Invoices
+            </div>
+            <div class="tab" data-entity="sales_receipt">
+                <i class="fas fa-receipt"></i> Sales Receipts
+            </div>
+            <div class="tab" data-entity="bill">
+                <i class="fas fa-file-invoice-dollar"></i> Bills
+            </div>
+            <div class="tab" data-entity="vendor">
+                <i class="fas fa-building"></i> Vendors
+            </div>
+            <div class="tab" data-entity="customer">
+                <i class="fas fa-users"></i> Customers
+            </div>
+        </div>
+
+        <div class="content">
+            <div id="alert-container"></div>
+
+            <div class="toolbar">
+                <div>
+                    <h2 style="color: #2d3748; margin-bottom: 5px;">Mapping Templates</h2>
+                    <p style="color: #718096; font-size: 14px;">Select a template to view and edit field mappings</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="refreshTemplates()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" onclick="showCreateTemplateModal()">
+                        <i class="fas fa-plus"></i> New Template
+                    </button>
+                </div>
+            </div>
+
+            <div id="templates-container" class="loading">
+                <i class="fas fa-spinner"></i>
+                <p>Loading templates...</p>
+            </div>
+
+            <div id="mappings-container" style="display: none;">
+                <div class="toolbar">
+                    <div>
+                        <h3 id="selected-template-name" style="color: #2d3748;"></h3>
+                        <p id="selected-template-desc" style="color: #718096; font-size: 14px;"></p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-secondary" onclick="closeTemplateView()">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                        <button class="btn btn-secondary" onclick="cloneTemplate()">
+                            <i class="fas fa-copy"></i> Clone
+                        </button>
+                        <button class="btn btn-primary" onclick="showAddMappingModal()">
+                            <i class="fas fa-plus"></i> Add Field Mapping
+                        </button>
+                    </div>
+                </div>
+
+                <table class="mapping-table" id="mappings-table">
+                    <thead>
+                        <tr>
+                            <th>Priority</th>
+                            <th>DevPos Field</th>
+                            <th>→</th>
+                            <th>QuickBooks Field</th>
+                            <th>Type</th>
+                            <th>Required</th>
+                            <th>Active</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mappings-tbody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Template Modal -->
+    <div id="createTemplateModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-plus"></i> Create New Template</h2>
+                <span class="close" onclick="closeModal('createTemplateModal')">&times;</span>
+            </div>
+            <form id="createTemplateForm" onsubmit="createTemplate(event)">
+                <div class="form-group">
+                    <label>Template Name *</label>
+                    <input type="text" name="template_name" required placeholder="e.g., Enhanced Invoice Mapping">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" placeholder="Describe what makes this template unique..."></textarea>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" name="is_default" id="is_default">
+                    <label for="is_default" style="margin: 0;">Set as default template</label>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createTemplateModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Mapping Modal -->
+    <div id="mappingModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="mapping-modal-title"><i class="fas fa-plus"></i> Add Field Mapping</h2>
+                <span class="close" onclick="closeModal('mappingModal')">&times;</span>
+            </div>
+            <form id="mappingForm" onsubmit="saveMapping(event)">
+                <input type="hidden" name="mapping_id">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>DevPos Field *</label>
+                        <select name="devpos_field" id="devpos_field" required onchange="updateDevPosFieldInfo()">
+                            <option value="">-- Select DevPos Field --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>DevPos Field Type</label>
+                        <select name="devpos_field_type">
+                            <option value="string">String</option>
+                            <option value="number">Number</option>
+                            <option value="decimal">Decimal</option>
+                            <option value="date">Date</option>
+                            <option value="datetime">DateTime</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="array">Array</option>
+                            <option value="object">Object</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>QuickBooks Field *</label>
+                        <select name="qbo_field" id="qbo_field" required onchange="updateQboFieldInfo()">
+                            <option value="">-- Select QBO Field --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>QBO Field Type</label>
+                        <select name="qbo_field_type">
+                            <option value="string">String</option>
+                            <option value="number">Number</option>
+                            <option value="decimal">Decimal</option>
+                            <option value="date">Date</option>
+                            <option value="datetime">DateTime</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="object">Object</option>
+                            <option value="reference">Reference</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Transformation Type</label>
+                        <select name="transformation_type">
+                            <option value="direct">Direct Copy</option>
+                            <option value="lookup">Lookup/Reference</option>
+                            <option value="calculation">Calculation</option>
+                            <option value="concatenation">Concatenation</option>
+                            <option value="conditional">Conditional</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority (Lower = First)</label>
+                        <input type="number" name="priority" value="100" min="1" max="999">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Default Value (if DevPos field is empty)</label>
+                    <input type="text" name="default_value" placeholder="Optional default value">
+                </div>
+
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" placeholder="Add notes about this mapping..."></textarea>
+                </div>
+
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" name="is_required" id="is_required">
+                        <label for="is_required" style="margin: 0;">Required Field</label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" name="is_active" id="is_active" checked>
+                        <label for="is_active" style="margin: 0;">Active</label>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('mappingModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Mapping</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Auto-detect base path
+        const currentPath = window.location.pathname;
+        const BASE_PATH = currentPath.includes('/public/') 
+            ? currentPath.substring(0, currentPath.indexOf('/public/')) 
+            : '';
+
+        let currentEntityType = 'invoice';
+        let currentTemplateId = null;
+        let devposFields = {};
+        let qboFields = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTemplates();
+            setupTabs();
+        });
+
+        // Setup tabs
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    currentEntityType = tab.dataset.entity;
+                    currentTemplateId = null;
+                    loadTemplates();
+                    hideTemplateView();
+                });
+            });
+        }
+
+        // Load templates
+        async function loadTemplates() {
+            const container = document.getElementById('templates-container');
+            container.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i><p>Loading templates...</p></div>';
+
+            try {
+                const response = await fetch(`${BASE_PATH}/api/field-mappings/templates?entity_type=${currentEntityType}`, {
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderTemplates(data.templates);
+                } else {
+                    showAlert('Failed to load templates: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error loading templates: ' + error.message, 'error');
+            }
+        }
+
+        // Render templates
+        function renderTemplates(templates) {
+            const container = document.getElementById('templates-container');
+            
+            if (templates.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <h3>No Templates Found</h3>
+                        <p>Create your first mapping template to get started</p>
+                        <button class="btn btn-primary" onclick="showCreateTemplateModal()" style="margin-top: 20px;">
+                            <i class="fas fa-plus"></i> Create Template
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '<div class="template-grid"></div>';
+            const grid = container.querySelector('.template-grid');
+
+            templates.forEach(template => {
+                const card = document.createElement('div');
+                card.className = 'template-card';
+                card.onclick = () => loadTemplate(template.id);
+                
+                card.innerHTML = `
+                    <h3>
+                        ${template.template_name}
+                        ${template.is_default ? '<span class="badge badge-default">Default</span>' : ''}
+                    </h3>
+                    <p>${template.description || 'No description'}</p>
+                    <div class="stats">
+                        <span><i class="fas fa-link"></i> ${template.mapping_count} mappings</span>
+                        <span class="badge ${template.is_active ? 'badge-active' : 'badge-inactive'}">
+                            ${template.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // Load template details
+        async function loadTemplate(templateId) {
+            currentTemplateId = templateId;
+            
+            try {
+                const response = await fetch(`${BASE_PATH}/api/field-mappings/templates/${templateId}`, {
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderTemplateMappings(data.template);
+                    await loadFieldOptions();
+                } else {
+                    showAlert('Failed to load template: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error loading template: ' + error.message, 'error');
+            }
+        }
+
+        // Render template mappings
+        function renderTemplateMappings(template) {
+            document.getElementById('templates-container').style.display = 'none';
+            document.getElementById('mappings-container').style.display = 'block';
+            
+            document.getElementById('selected-template-name').textContent = template.template_name;
+            document.getElementById('selected-template-desc').textContent = template.description || 'No description';
+            
+            const tbody = document.getElementById('mappings-tbody');
+            tbody.innerHTML = '';
+            
+            if (template.mappings.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #718096;">
+                            <i class="fas fa-info-circle" style="font-size: 32px; margin-bottom: 10px; display: block;"></i>
+                            No field mappings yet. Click "Add Field Mapping" to create one.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            template.mappings.forEach(mapping => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${mapping.priority}</td>
+                    <td>
+                        <strong>${mapping.devpos_field}</strong><br>
+                        <small style="color: #718096;">${mapping.devpos_field_type}</small>
+                    </td>
+                    <td style="text-align: center; color: #667eea; font-size: 18px;">
+                        <i class="fas fa-arrow-right"></i>
+                    </td>
+                    <td>
+                        <strong>${mapping.qbo_field}</strong><br>
+                        <small style="color: #718096;">${mapping.qbo_field_type}</small>
+                    </td>
+                    <td>
+                        <span class="transformation-type type-${mapping.transformation_type}">
+                            ${mapping.transformation_type}
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        ${mapping.is_required ? '<i class="fas fa-check" style="color: #48bb78;"></i>' : ''}
+                    </td>
+                    <td style="text-align: center;">
+                        ${mapping.is_active ? '<i class="fas fa-check" style="color: #48bb78;"></i>' : '<i class="fas fa-times" style="color: #cbd5e0;"></i>'}
+                    </td>
+                    <td class="actions">
+                        <button class="btn btn-secondary" onclick="editMapping(${mapping.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteMapping(${mapping.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Load field options
+        async function loadFieldOptions() {
+            try {
+                const [devposRes, qboRes] = await Promise.all([
+                    fetch(`${BASE_PATH}/api/field-mappings/devpos-fields/${currentEntityType}`, { credentials: 'include' }),
+                    fetch(`${BASE_PATH}/api/field-mappings/qbo-fields/${currentEntityType}`, { credentials: 'include' })
+                ]);
+                
+                const devposData = await devposRes.json();
+                const qboData = await qboRes.json();
+                
+                if (devposData.success && qboData.success) {
+                    devposFields = devposData.fields;
+                    qboFields = qboData.fields;
+                    populateFieldSelects();
+                }
+            } catch (error) {
+                console.error('Error loading field options:', error);
+            }
+        }
+
+        // Populate field selects
+        function populateFieldSelects() {
+            const devposSelect = document.getElementById('devpos_field');
+            const qboSelect = document.getElementById('qbo_field');
+            
+            devposSelect.innerHTML = '<option value="">-- Select DevPos Field --</option>';
+            devposFields.forEach(field => {
+                devposSelect.innerHTML += `
+                    <option value="${field.field}" data-type="${field.type}">
+                        ${field.field} (${field.type}) - ${field.description}
+                    </option>
+                `;
+            });
+            
+            qboSelect.innerHTML = '<option value="">-- Select QBO Field --</option>';
+            qboFields.forEach(field => {
+                qboSelect.innerHTML += `
+                    <option value="${field.field}" data-type="${field.type}" data-entity="${field.entity || ''}">
+                        ${field.field} (${field.type}) - ${field.description}
+                    </option>
+                `;
+            });
+        }
+
+        // Show create template modal
+        function showCreateTemplateModal() {
+            document.getElementById('createTemplateForm').reset();
+            document.getElementById('createTemplateModal').classList.add('show');
+        }
+
+        // Create template
+        async function createTemplate(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const data = {
+                entity_type: currentEntityType,
+                template_name: formData.get('template_name'),
+                description: formData.get('description'),
+                is_default: formData.get('is_default') === 'on'
+            };
+            
+            try {
+                const response = await fetch(`${BASE_PATH}/api/field-mappings/templates`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('Template created successfully!', 'success');
+                    closeModal('createTemplateModal');
+                    loadTemplates();
+                } else {
+                    showAlert('Failed to create template: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error creating template: ' + error.message, 'error');
+            }
+        }
+
+        // Show add mapping modal
+        function showAddMappingModal() {
+            document.getElementById('mappingForm').reset();
+            document.querySelector('[name="mapping_id"]').value = '';
+            document.getElementById('mapping-modal-title').innerHTML = '<i class="fas fa-plus"></i> Add Field Mapping';
+            document.getElementById('is_active').checked = true;
+            document.getElementById('mappingModal').classList.add('show');
+        }
+
+        // Save mapping
+        async function saveMapping(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const mappingId = formData.get('mapping_id');
+            const isEdit = mappingId !== '';
+            
+            const data = {
+                devpos_field: formData.get('devpos_field'),
+                devpos_field_type: formData.get('devpos_field_type'),
+                qbo_field: formData.get('qbo_field'),
+                qbo_field_type: formData.get('qbo_field_type'),
+                transformation_type: formData.get('transformation_type'),
+                default_value: formData.get('default_value'),
+                priority: parseInt(formData.get('priority')),
+                notes: formData.get('notes'),
+                is_required: formData.get('is_required') === 'on',
+                is_active: formData.get('is_active') === 'on'
+            };
+            
+            try {
+                const url = isEdit 
+                    ? `${BASE_PATH}/api/field-mappings/mappings/${mappingId}`
+                    : `${BASE_PATH}/api/field-mappings/templates/${currentTemplateId}/mappings`;
+                
+                const response = await fetch(url, {
+                    method: isEdit ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('Field mapping saved successfully!', 'success');
+                    closeModal('mappingModal');
+                    loadTemplate(currentTemplateId);
+                } else {
+                    showAlert('Failed to save mapping: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error saving mapping: ' + error.message, 'error');
+            }
+        }
+
+        // Edit mapping
+        async function editMapping(mappingId) {
+            // Load mapping data and populate form
+            const row = document.querySelector(`button[onclick="editMapping(${mappingId})"]`).closest('tr');
+            // You would fetch the full mapping data here
+            showAddMappingModal();
+            document.querySelector('[name="mapping_id"]').value = mappingId;
+            document.getElementById('mapping-modal-title').innerHTML = '<i class="fas fa-edit"></i> Edit Field Mapping';
+        }
+
+        // Delete mapping
+        async function deleteMapping(mappingId) {
+            if (!confirm('Are you sure you want to delete this field mapping?')) return;
+            
+            try {
+                const response = await fetch(`${BASE_PATH}/api/field-mappings/mappings/${mappingId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('Field mapping deleted successfully!', 'success');
+                    loadTemplate(currentTemplateId);
+                } else {
+                    showAlert('Failed to delete mapping: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error deleting mapping: ' + error.message, 'error');
+            }
+        }
+
+        // Clone template
+        async function cloneTemplate() {
+            const newName = prompt('Enter name for the cloned template:');
+            if (!newName) return;
+            
+            try {
+                const response = await fetch(`${BASE_PATH}/api/field-mappings/templates/${currentTemplateId}/clone`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ new_name: newName })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('Template cloned successfully!', 'success');
+                    closeTemplateView();
+                    loadTemplates();
+                } else {
+                    showAlert('Failed to clone template: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error cloning template: ' + error.message, 'error');
+            }
+        }
+
+        // Close template view
+        function closeTemplateView() {
+            hideTemplateView();
+            loadTemplates();
+        }
+
+        function hideTemplateView() {
+            document.getElementById('templates-container').style.display = 'block';
+            document.getElementById('mappings-container').style.display = 'none';
+        }
+
+        // Refresh templates
+        function refreshTemplates() {
+            if (currentTemplateId) {
+                loadTemplate(currentTemplateId);
+            } else {
+                loadTemplates();
+            }
+        }
+
+        // Close modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        // Show alert
+        function showAlert(message, type) {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <strong>${type === 'success' ? 'Success!' : 'Error:'}</strong> ${message}
+            `;
+            container.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // Auto-fill field type when field is selected
+        function updateDevPosFieldInfo() {
+            const select = document.getElementById('devpos_field');
+            const selectedOption = select.options[select.selectedIndex];
+            if (selectedOption.dataset.type) {
+                document.querySelector('[name="devpos_field_type"]').value = selectedOption.dataset.type;
+            }
+        }
+
+        function updateQboFieldInfo() {
+            const select = document.getElementById('qbo_field');
+            const selectedOption = select.options[select.selectedIndex];
+            if (selectedOption.dataset.type) {
+                document.querySelector('[name="qbo_field_type"]').value = selectedOption.dataset.type;
+            }
+        }
+    </script>
+</body>
+</html>
