@@ -8,6 +8,8 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteCollectorProxy;
 
+return function ($app, $container = null) {
+
 // ============================================================================
 // Field Mapping Templates Routes
 // ============================================================================
@@ -570,4 +572,6 @@ $app->group('/api/field-mappings', function (RouteCollectorProxy $group) {
         return $response->withHeader('Content-Type', 'application/json');
     });
     
-})->add($container->get('AuthMiddleware'));
+});
+
+}; // End of return function
