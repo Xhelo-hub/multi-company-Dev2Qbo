@@ -829,62 +829,75 @@ $app->get('/api/sync/{companyId}/jobs', function (Request $request, Response $re
 
 // Get synced transactions for company
 $app->get('/api/sync/{companyId}/transactions', function (Request $request, Response $response, array $args) use ($pdo) {
-    $companyId = (int)$args['companyId'];
-    $params = $request->getQueryParams();
-    $limit = (int)($params['limit'] ?? 100);
-    $offset = (int)($params['offset'] ?? 0);
-    $type = $params['type'] ?? 'all'; // all, invoice, purchase, bill
-    
-    // Build WHERE clause based on type
-    $whereClause = 'WHERE im.company_id = ?';
-    $queryParams = [$companyId];
-    
-    if ($type !== 'all') {
-        $whereClause .= ' AND im.transaction_type = ?';
-        $queryParams[] = $type;
+    try {
+        $companyId = (int)$args['companyId'];
+        $params = $request->getQueryParams();
+        $limit = (int)($params['limit'] ?? 100);
+        $offset = (int)($params['offset'] ?? 0);
+        $type = $params['type'] ?? 'all'; // all, invoice, purchase, bill
+        
+        // Build WHERE clause based on type
+        $whereClause = 'WHERE im.company_id = ?';
+        $queryParams = [$companyId];
+        
+        if ($type !== 'all') {
+            $whereClause .= ' AND im.transaction_type = ?';
+            $queryParams[] = $type;
+        }
+        
+        // Get total count
+        $countStmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM invoice_mappings im
+            $whereClause
+        ");
+        $countStmt->execute($queryParams);
+        $totalCount = (int)$countStmt->fetchColumn();
+        
+        // Get transactions
+        $stmt = $pdo->prepare("
+            SELECT 
+                im.id,
+                im.devpos_eic,
+                im.devpos_document_number,
+                im.transaction_type,
+                im.qbo_invoice_id,
+                im.qbo_doc_number,
+                im.amount,
+                im.customer_name,
+                im.synced_at,
+                im.last_synced_at
+            FROM invoice_mappings im
+            $whereClause
+            ORDER BY im.synced_at DESC
+            LIMIT ? OFFSET ?
+        ");
+        $queryParams[] = $limit;
+        $queryParams[] = $offset;
+        $stmt->execute($queryParams);
+        $transactions = $stmt->fetchAll();
+        
+        $response->getBody()->write(json_encode([
+            'transactions' => $transactions,
+            'total' => $totalCount,
+            'limit' => $limit,
+            'offset' => $offset,
+            'has_more' => ($offset + $limit) < $totalCount
+        ]));
+        
+        return $response->withHeader('Content-Type', 'application/json');
+    } catch (PDOException $e) {
+        $response->getBody()->write(json_encode([
+            'error' => 'Database error',
+            'message' => $e->getMessage(),
+            'transactions' => [],
+            'total' => 0,
+            'limit' => $limit ?? 100,
+            'offset' => $offset ?? 0,
+            'has_more' => false
+        ]));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
     }
-    
-    // Get total count
-    $countStmt = $pdo->prepare("
-        SELECT COUNT(*) 
-        FROM invoice_mappings im
-        $whereClause
-    ");
-    $countStmt->execute($queryParams);
-    $totalCount = (int)$countStmt->fetchColumn();
-    
-    // Get transactions
-    $stmt = $pdo->prepare("
-        SELECT 
-            im.id,
-            im.devpos_eic,
-            im.devpos_document_number,
-            im.transaction_type,
-            im.qbo_invoice_id,
-            im.qbo_doc_number,
-            im.amount,
-            im.customer_name,
-            im.synced_at,
-            im.last_synced_at
-        FROM invoice_mappings im
-        $whereClause
-        ORDER BY im.synced_at DESC
-        LIMIT ? OFFSET ?
-    ");
-    $queryParams[] = $limit;
-    $queryParams[] = $offset;
-    $stmt->execute($queryParams);
-    $transactions = $stmt->fetchAll();
-    
-    $response->getBody()->write(json_encode([
-        'transactions' => $transactions,
-        'total' => $totalCount,
-        'limit' => $limit,
-        'offset' => $offset,
-        'has_more' => ($offset + $limit) < $totalCount
-    ]));
-    
-    return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 
 // Get sync statistics for company
