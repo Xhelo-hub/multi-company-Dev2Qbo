@@ -889,62 +889,71 @@ $app->get('/api/sync/{companyId}/transactions', function (Request $request, Resp
 
 // Get sync statistics for company
 $app->get('/api/sync/{companyId}/stats', function (Request $request, Response $response, array $args) use ($pdo) {
-    $companyId = (int)$args['companyId'];
-    
-    // Get counts by transaction type
-    $stmt = $pdo->prepare("
-        SELECT 
-            transaction_type,
-            COUNT(*) as count,
-            SUM(amount) as total_amount,
-            MAX(synced_at) as last_synced
-        FROM invoice_mappings
-        WHERE company_id = ?
-        GROUP BY transaction_type
-    ");
-    $stmt->execute([$companyId]);
-    $stats = $stmt->fetchAll();
-    
-    // Get recent sync jobs summary
-    $jobsStmt = $pdo->prepare("
-        SELECT 
-            status,
-            COUNT(*) as count
-        FROM sync_jobs
-        WHERE company_id = ?
-        GROUP BY status
-    ");
-    $jobsStmt->execute([$companyId]);
-    $jobStats = $jobsStmt->fetchAll();
-    
-    // Format response
-    $statsByType = [];
-    $totalTransactions = 0;
-    $totalAmount = 0;
-    
-    foreach ($stats as $stat) {
-        $statsByType[$stat['transaction_type']] = [
-            'count' => (int)$stat['count'],
-            'total_amount' => (float)$stat['total_amount'],
-            'last_synced' => $stat['last_synced']
-        ];
-        $totalTransactions += (int)$stat['count'];
-        $totalAmount += (float)$stat['total_amount'];
+    try {
+        $companyId = (int)$args['companyId'];
+        
+        // Get counts by transaction type
+        $stmt = $pdo->prepare("
+            SELECT 
+                transaction_type,
+                COUNT(*) as count,
+                SUM(amount) as total_amount,
+                MAX(synced_at) as last_synced
+            FROM invoice_mappings
+            WHERE company_id = ?
+            GROUP BY transaction_type
+        ");
+        $stmt->execute([$companyId]);
+        $stats = $stmt->fetchAll();
+        
+        // Get recent sync jobs summary
+        $jobsStmt = $pdo->prepare("
+            SELECT 
+                status,
+                COUNT(*) as count
+            FROM sync_jobs
+            WHERE company_id = ?
+            GROUP BY status
+        ");
+        $jobsStmt->execute([$companyId]);
+        $jobStats = $jobsStmt->fetchAll();
+        
+        // Format response
+        $statsByType = [];
+        $totalTransactions = 0;
+        $totalAmount = 0;
+        
+        foreach ($stats as $stat) {
+            $statsByType[$stat['transaction_type']] = [
+                'count' => (int)$stat['count'],
+                'total_amount' => (float)$stat['total_amount'],
+                'last_synced' => $stat['last_synced']
+            ];
+            $totalTransactions += (int)$stat['count'];
+            $totalAmount += (float)$stat['total_amount'];
+        }
+        
+        $jobStatusCounts = [];
+        foreach ($jobStats as $js) {
+            $jobStatusCounts[$js['status']] = (int)$js['count'];
+        }
+        
+        $response->getBody()->write(json_encode([
+            'total_transactions' => $totalTransactions,
+            'total_amount' => $totalAmount,
+            'by_type' => $statsByType,
+            'job_stats' => $jobStatusCounts
+        ]));
+        
+        return $response->withHeader('Content-Type', 'application/json');
+    } catch (PDOException $e) {
+        error_log("Stats API error: " . $e->getMessage());
+        $response->getBody()->write(json_encode([
+            'error' => 'Database error',
+            'message' => $e->getMessage()
+        ]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
-    
-    $jobStatusCounts = [];
-    foreach ($jobStats as $js) {
-        $jobStatusCounts[$js['status']] = (int)$js['count'];
-    }
-    
-    $response->getBody()->write(json_encode([
-        'total_transactions' => $totalTransactions,
-        'total_amount' => $totalAmount,
-        'by_type' => $statsByType,
-        'job_stats' => $jobStatusCounts
-    ]));
-    
-    return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 
 // ============================================================================
