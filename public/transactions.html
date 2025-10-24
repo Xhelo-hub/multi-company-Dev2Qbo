@@ -358,9 +358,17 @@
     </div>
 
     <script>
+        console.log('=== TRANSACTIONS PAGE SCRIPT LOADED ===');
+        console.log('Location:', window.location.href);
+        
         const isLocal = window.location.hostname === 'localhost' && window.location.pathname.includes('multi-company-Dev2Qbo');
         const API_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '';
         const PAGE_BASE = isLocal ? '/multi-company-Dev2Qbo/public' : '';
+        
+        console.log('isLocal:', isLocal);
+        console.log('API_BASE:', API_BASE);
+        console.log('PAGE_BASE:', PAGE_BASE);
+        
         let currentCompany = null;
         let currentPage = 0;
         let currentLimit = 100;
