@@ -473,10 +473,14 @@
         async function loadData() {
             if (!currentCompany) return;
 
-            await Promise.all([
-                loadStats(),
-                loadTransactions()
-            ]);
+            try {
+                await Promise.all([
+                    loadStats().catch(err => console.error('Stats load failed:', err)),
+                    loadTransactions().catch(err => console.error('Transactions load failed:', err))
+                ]);
+            } catch (error) {
+                console.error('Error in loadData:', error);
+            }
         }
 
         async function loadStats() {
@@ -521,48 +525,60 @@
         }
 
         async function loadTransactions() {
-            document.getElementById('loadingIndicator').style.display = 'block';
-            document.getElementById('transactionsTable').style.display = 'none';
-            document.getElementById('pagination').style.display = 'none';
+            try {
+                document.getElementById('loadingIndicator').style.display = 'block';
+                document.getElementById('transactionsTable').style.display = 'none';
+                document.getElementById('pagination').style.display = 'none';
 
-            const offset = currentPage * currentLimit;
-            const response = await fetch(`${API_BASE}/api/sync/${currentCompany}/transactions?limit=${currentLimit}&offset=${offset}&type=${currentType}`, {
-                credentials: 'include'
-            });
-
-            const data = await response.json();
-            
-            const tbody = document.getElementById('transactionsBody');
-            tbody.innerHTML = '';
-
-            if (data.transactions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">No transactions synced yet</td></tr>';
-            } else {
-                data.transactions.forEach(tx => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td><span class="type-badge type-${tx.transaction_type}">${tx.transaction_type.replace('_', ' ').toUpperCase()}</span></td>
-                        <td>${tx.devpos_eic || '-'}</td>
-                        <td>${tx.devpos_document_number || '-'}</td>
-                        <td>${tx.qbo_doc_number || '-'}</td>
-                        <td>${tx.customer_name || '-'}</td>
-                        <td class="amount">${parseFloat(tx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} ALL</td>
-                        <td>${new Date(tx.synced_at).toLocaleString()}</td>
-                        <td>${tx.last_synced_at ? new Date(tx.last_synced_at).toLocaleString() : '-'}</td>
-                    `;
-                    tbody.appendChild(row);
+                const offset = currentPage * currentLimit;
+                const response = await fetch(`${API_BASE}/api/sync/${currentCompany}/transactions?limit=${currentLimit}&offset=${offset}&type=${currentType}`, {
+                    credentials: 'include'
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                const tbody = document.getElementById('transactionsBody');
+                tbody.innerHTML = '';
+
+                if (!data.transactions || data.transactions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">No transactions synced yet</td></tr>';
+                } else {
+                    data.transactions.forEach(tx => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><span class="type-badge type-${tx.transaction_type}">${tx.transaction_type.replace('_', ' ').toUpperCase()}</span></td>
+                            <td>${tx.devpos_eic || '-'}</td>
+                            <td>${tx.devpos_document_number || '-'}</td>
+                            <td>${tx.qbo_doc_number || '-'}</td>
+                            <td>${tx.customer_name || '-'}</td>
+                            <td class="amount">${parseFloat(tx.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} ALL</td>
+                            <td>${new Date(tx.synced_at).toLocaleString()}</td>
+                            <td>${tx.last_synced_at ? new Date(tx.last_synced_at).toLocaleString() : '-'}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('transactionsTable').style.display = 'table';
+                document.getElementById('pagination').style.display = 'flex';
+
+                // Update pagination
+                const totalPages = Math.ceil((data.total || 0) / currentLimit);
+                document.getElementById('pageInfo').textContent = `Page ${currentPage + 1} of ${totalPages} (${data.total || 0} total)`;
+                document.getElementById('prevPage').disabled = currentPage === 0;
+                document.getElementById('nextPage').disabled = !data.has_more;
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+                document.getElementById('loadingIndicator').style.display = 'none';
+                const tbody = document.getElementById('transactionsBody');
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #f44336;">Error loading transactions. Please try again.</td></tr>';
+                document.getElementById('transactionsTable').style.display = 'table';
             }
-
-            document.getElementById('loadingIndicator').style.display = 'none';
-            document.getElementById('transactionsTable').style.display = 'table';
-            document.getElementById('pagination').style.display = 'flex';
-
-            // Update pagination
-            const totalPages = Math.ceil(data.total / currentLimit);
-            document.getElementById('pageInfo').textContent = `Page ${currentPage + 1} of ${totalPages} (${data.total} total)`;
-            document.getElementById('prevPage').disabled = currentPage === 0;
-            document.getElementById('nextPage').disabled = !data.has_more;
         }
 
         // Event listeners
