@@ -486,31 +486,71 @@ class SyncExecutor
      */
     private function convertDevPosToQBOInvoice(array $devposInvoice): array
     {
-        // Simplified conversion - you'll need to map all fields properly
-        return [
-            'CustomerRef' => [
-                'value' => '1' // Default customer, should lookup/create customer
-            ],
+        $documentNumber = $devposInvoice['documentNumber'] 
+            ?? $devposInvoice['doc_no'] 
+            ?? $devposInvoice['DocNumber'] 
+            ?? null;
+            
+        $issueDate = $devposInvoice['issueDate'] 
+            ?? $devposInvoice['dateCreated'] 
+            ?? $devposInvoice['created_at'] 
+            ?? date('Y-m-d');
+            
+        $totalAmount = (float)($devposInvoice['totalAmount'] 
+            ?? $devposInvoice['total'] 
+            ?? $devposInvoice['amount'] 
+            ?? 0);
+            
+        $buyerName = $devposInvoice['buyerName'] 
+            ?? $devposInvoice['buyer_name'] 
+            ?? $devposInvoice['customerName'] 
+            ?? 'Walk-in Customer';
+            
+        $eic = $devposInvoice['eic'] 
+            ?? $devposInvoice['EIC'] 
+            ?? '';
+
+        // Build QuickBooks invoice payload
+        $payload = [
             'Line' => [
                 [
+                    'Amount' => $totalAmount,
                     'DetailType' => 'SalesItemLineDetail',
-                    'Amount' => $devposInvoice['totalAmount'] ?? 0,
                     'SalesItemLineDetail' => [
-                        'ItemRef' => ['value' => '1'], // Default item
-                        'Qty' => 1,
-                        'UnitPrice' => $devposInvoice['totalAmount'] ?? 0
-                    ]
+                        'ItemRef' => [
+                            'value' => '1', // Default sales item (must exist in QBO)
+                            'name' => 'Services'
+                        ],
+                        'UnitPrice' => $totalAmount,
+                        'Qty' => 1
+                    ],
+                    'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
                 ]
             ],
-            'CustomField' => [
+            'CustomerRef' => [
+                'value' => '1' // Default customer (must exist in QBO)
+            ],
+            'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
+        ];
+
+        // Add document number if available
+        if ($documentNumber) {
+            $payload['DocNumber'] = (string)$documentNumber;
+        }
+
+        // Add EIC as custom field ONLY if configured
+        if ($eic && !empty($_ENV['QBO_CF_EIC_DEF_ID'])) {
+            $payload['CustomField'] = [
                 [
-                    'DefinitionId' => $_ENV['QBO_CF_EIC_DEF_ID'] ?? '1',
+                    'DefinitionId' => $_ENV['QBO_CF_EIC_DEF_ID'],
                     'Name' => 'EIC',
                     'Type' => 'StringType',
-                    'StringValue' => $devposInvoice['eic'] ?? $devposInvoice['EIC'] ?? ''
+                    'StringValue' => $eic
                 ]
-            ]
-        ];
+            ];
+        }
+
+        return $payload;
     }
     
     /**
