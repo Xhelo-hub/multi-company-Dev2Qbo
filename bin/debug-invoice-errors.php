@@ -1,6 +1,9 @@
 <?php
 require __DIR__ . '/../bootstrap/app.php';
 
+// Get PDO from container
+$pdo = $container->get('pdo');
+
 // Get the latest sync job with invoice errors
 $stmt = $pdo->query("
     SELECT results_json 
