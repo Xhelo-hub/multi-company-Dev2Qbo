@@ -641,6 +641,9 @@
                         <button class="btn btn-primary" onclick="editDevPosCredentials(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')">
                             <i class="fas fa-key"></i> DevPos
                         </button>
+                        <button class="btn btn-primary" onclick="openFieldMappings(${company.company_id})" title="Map Fields between systems">
+                            <i class="fas fa-code-branch"></i>
+                        </button>
                         <button class="btn btn-primary" onclick="viewCompany(${company.company_id})">
                             <i class="fas fa-eye"></i> View
                         </button>
@@ -787,6 +790,10 @@
 
         function viewCompany(companyId) {
             window.location.href = `${PAGE_BASE}/app.html`;
+        }
+
+        function openFieldMappings(companyId) {
+            window.location.href = `${PAGE_BASE}/admin-field-mappings.html?company=${companyId}`;
         }
 
         function editCompanyName(companyId, currentName) {
