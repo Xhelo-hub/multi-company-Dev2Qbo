@@ -924,58 +924,84 @@ $app->get('/api/sync/{companyId}/stats', function (Request $request, Response $r
 
 // Get QuickBooks OAuth authorization URL
 $app->get('/api/companies/{companyId}/qbo/auth-url', function (Request $request, Response $response, array $args) use ($pdo) {
-    $companyId = (int)$args['companyId'];
-    
-    // Get company info
-    $stmt = $pdo->prepare("SELECT company_code FROM companies WHERE id = ?");
-    $stmt->execute([$companyId]);
-    $company = $stmt->fetch();
-    
-    if (!$company) {
-        $response->getBody()->write(json_encode(['error' => 'Company not found']));
-        return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+    try {
+        $companyId = (int)$args['companyId'];
+        
+        // Get company info
+        $stmt = $pdo->prepare("SELECT company_code FROM companies WHERE id = ?");
+        $stmt->execute([$companyId]);
+        $company = $stmt->fetch();
+        
+        if (!$company) {
+            $response->getBody()->write(json_encode(['error' => 'Company not found']));
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+        }
+        
+        // Build OAuth URL
+        $clientId = $_ENV['QBO_CLIENT_ID'] ?? '';
+        $redirectUri = ($_ENV['QBO_REDIRECT_URI'] ?? 'http://localhost/multi-company-Dev2Qbo/public/oauth/callback');
+        
+        if (empty($clientId)) {
+            $response->getBody()->write(json_encode(['error' => 'QBO_CLIENT_ID not configured']));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+        }
+        
+        // Generate state token with company ID
+        $state = base64_encode(json_encode([
+            'company_id' => $companyId,
+            'timestamp' => time(),
+            'token' => bin2hex(random_bytes(16))
+        ]));
+        
+        // Store state in session for verification (create table if not exists)
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS oauth_state_tokens (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                company_id INT NOT NULL,
+                state_token TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                INDEX idx_company (company_id),
+                INDEX idx_expires (expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            
+            $stmt = $pdo->prepare("
+                INSERT INTO oauth_state_tokens (company_id, state_token, created_at, expires_at)
+                VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 10 MINUTE))
+                ON DUPLICATE KEY UPDATE state_token = ?, created_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+            ");
+            $stmt->execute([$companyId, $state, $state]);
+        } catch (PDOException $e) {
+            error_log("OAuth state token storage failed: " . $e->getMessage());
+            // Continue anyway - state verification is optional
+        }
+        
+        // Use sandbox URL for development, production URL for production
+        $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+        $authBaseUrl = $isSandbox 
+            ? 'https://appcenter.intuit.com/connect/oauth2' 
+            : 'https://appcenter.intuit.com/connect/oauth2';
+        
+        $authUrl = $authBaseUrl . '?' . http_build_query([
+            'client_id' => $clientId,
+            'scope' => 'com.intuit.quickbooks.accounting',
+            'redirect_uri' => $redirectUri,
+            'response_type' => 'code',
+            'state' => $state
+        ]);
+        
+        $response->getBody()->write(json_encode([
+            'auth_url' => $authUrl,
+            'state' => $state,
+            'environment' => $isSandbox ? 'sandbox' : 'production'
+        ]));
+        
+        return $response->withHeader('Content-Type', 'application/json');
+    } catch (Exception $e) {
+        error_log("QBO auth-url error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => 'Internal server error: ' . $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
-    
-    // Build OAuth URL
-    $clientId = $_ENV['QBO_CLIENT_ID'] ?? '';
-    $redirectUri = ($_ENV['QBO_REDIRECT_URI'] ?? 'http://localhost/multi-company-Dev2Qbo/public/oauth/callback');
-    
-    // Generate state token with company ID
-    $state = base64_encode(json_encode([
-        'company_id' => $companyId,
-        'timestamp' => time(),
-        'token' => bin2hex(random_bytes(16))
-    ]));
-    
-    // Store state in session for verification
-    $stmt = $pdo->prepare("
-        INSERT INTO oauth_state_tokens (company_id, state_token, created_at, expires_at)
-        VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 10 MINUTE))
-        ON DUPLICATE KEY UPDATE state_token = ?, created_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 10 MINUTE)
-    ");
-    $stmt->execute([$companyId, $state, $state]);
-    
-    // Use sandbox URL for development, production URL for production
-    $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
-    $authBaseUrl = $isSandbox 
-        ? 'https://appcenter.intuit.com/connect/oauth2' 
-        : 'https://appcenter.intuit.com/connect/oauth2';
-    
-    $authUrl = $authBaseUrl . '?' . http_build_query([
-        'client_id' => $clientId,
-        'scope' => 'com.intuit.quickbooks.accounting',
-        'redirect_uri' => $redirectUri,
-        'response_type' => 'code',
-        'state' => $state
-    ]);
-    
-    $response->getBody()->write(json_encode([
-        'auth_url' => $authUrl,
-        'state' => $state,
-        'environment' => $isSandbox ? 'sandbox' : 'production'
-    ]));
-    
-    return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 
 // QuickBooks OAuth callback (public, no auth required)
