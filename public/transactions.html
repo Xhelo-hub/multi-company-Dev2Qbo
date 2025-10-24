@@ -375,18 +375,25 @@
                 });
 
                 if (!userResponse.ok) {
-                    window.location.href = `${PAGE_BASE}/login.html`;
+                    console.error('Auth check failed:', userResponse.status, userResponse.statusText);
+                    // Add a small delay to see error in console before redirect
+                    setTimeout(() => {
+                        window.location.href = `${PAGE_BASE}/login.html`;
+                    }, 100);
                     return;
                 }
 
                 const { user } = await userResponse.json();
+                console.log('User authenticated:', user);
                 
                 // Load companies
                 await loadCompanies();
 
             } catch (error) {
                 console.error('Initialization error:', error);
-                window.location.href = `${PAGE_BASE}/login.html`;
+                setTimeout(() => {
+                    window.location.href = `${PAGE_BASE}/login.html`;
+                }, 100);
             }
         }
 
