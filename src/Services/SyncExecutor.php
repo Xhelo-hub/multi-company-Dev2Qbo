@@ -547,6 +547,7 @@ class SyncExecutor
             ?? '';
 
         // Build QuickBooks invoice payload
+        // Using total amount with VAT included, marked as non-taxable to avoid VAT calculations
         $payload = [
             'Line' => [
                 [
@@ -558,7 +559,10 @@ class SyncExecutor
                             'name' => 'Services'
                         ],
                         'UnitPrice' => $totalAmount,
-                        'Qty' => 1
+                        'Qty' => 1,
+                        'TaxCodeRef' => [
+                            'value' => 'NON' // Non-taxable - total already includes VAT
+                        ]
                     ],
                     'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
                 ]
@@ -566,7 +570,7 @@ class SyncExecutor
             'CustomerRef' => [
                 'value' => '1' // Default customer (must exist in QBO)
             ],
-            'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
+            'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
         ];
 
         // Add document number if available
