@@ -973,6 +973,25 @@ $app->get('/api/sync/{companyId}/stats', function (Request $request, Response $r
 // QUICKBOOKS OAUTH ENDPOINTS
 // ============================================================================
 
+// Clean up expired OAuth state tokens (run periodically or on-demand)
+$app->delete('/api/oauth/cleanup-tokens', function (Request $request, Response $response) use ($pdo) {
+    try {
+        $stmt = $pdo->prepare("DELETE FROM oauth_state_tokens WHERE expires_at < NOW()");
+        $stmt->execute();
+        $deleted = $stmt->rowCount();
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'deleted' => $deleted,
+            'message' => "Cleaned up $deleted expired state tokens"
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+    } catch (Exception $e) {
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
 // Get QuickBooks OAuth authorization URL
 $app->get('/api/companies/{companyId}/qbo/auth-url', function (Request $request, Response $response, array $args) use ($pdo) {
     try {
@@ -1012,16 +1031,20 @@ $app->get('/api/companies/{companyId}/qbo/auth-url', function (Request $request,
                 state_token TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at TIMESTAMP NOT NULL,
-                INDEX idx_company (company_id),
+                UNIQUE KEY unique_company (company_id),
                 INDEX idx_expires (expires_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
             
+            // Delete any existing state tokens for this company (important for reconnection)
+            $stmt = $pdo->prepare("DELETE FROM oauth_state_tokens WHERE company_id = ?");
+            $stmt->execute([$companyId]);
+            
+            // Insert new state token
             $stmt = $pdo->prepare("
                 INSERT INTO oauth_state_tokens (company_id, state_token, created_at, expires_at)
                 VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 10 MINUTE))
-                ON DUPLICATE KEY UPDATE state_token = ?, created_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 10 MINUTE)
             ");
-            $stmt->execute([$companyId, $state, $state]);
+            $stmt->execute([$companyId, $state]);
         } catch (PDOException $e) {
             error_log("OAuth state token storage failed: " . $e->getMessage());
             // Continue anyway - state verification is optional
@@ -1073,15 +1096,29 @@ $app->get('/oauth/callback', function (Request $request, Response $response) use
         $companyId = $stateData['company_id'] ?? null;
         
         if (!$companyId) {
-            throw new Exception('Invalid state token');
+            throw new Exception('Invalid state token: company ID not found');
         }
         
-        $stmt = $pdo->prepare("SELECT state_token FROM oauth_state_tokens WHERE company_id = ? AND expires_at > NOW()");
+        // Get stored state token for this company
+        $stmt = $pdo->prepare("
+            SELECT state_token, created_at 
+            FROM oauth_state_tokens 
+            WHERE company_id = ? AND expires_at > NOW()
+            ORDER BY created_at DESC
+            LIMIT 1
+        ");
         $stmt->execute([$companyId]);
-        $storedState = $stmt->fetchColumn();
+        $storedStateRow = $stmt->fetch();
+        
+        if (!$storedStateRow) {
+            throw new Exception('State token expired or not found. Please try connecting again.');
+        }
+        
+        $storedState = $storedStateRow['state_token'];
         
         if ($storedState !== $state) {
-            throw new Exception('State token mismatch');
+            error_log("OAuth state mismatch - Expected: " . substr($storedState, 0, 50) . "... Got: " . substr($state, 0, 50) . "...");
+            throw new Exception('State token mismatch. Please close this window and try connecting again.');
         }
         
         // Exchange code for tokens
