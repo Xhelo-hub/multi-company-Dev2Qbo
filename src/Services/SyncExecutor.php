@@ -238,11 +238,18 @@ class SyncExecutor
                     continue;
                 }
                 
-                // Check if bill already exists
-                $existingBill = $this->findBillByDocNumber($companyId, $docNumber);
-                if ($existingBill) {
-                    $skipped++;
-                    continue;
+                // Check if bill already exists in QuickBooks (not just local mapping)
+                $existingBillId = $this->findBillByDocNumber($companyId, $docNumber);
+                if ($existingBillId) {
+                    // Verify it actually exists in QuickBooks
+                    $billExistsInQBO = $this->verifyBillExistsInQBO($existingBillId, $qboCreds);
+                    if ($billExistsInQBO) {
+                        $skipped++;
+                        continue;
+                    } else {
+                        // Bill was deleted from QuickBooks or mapping is stale, remove mapping
+                        $this->removeBillMapping($companyId, $docNumber);
+                    }
                 }
                 
                 // Create bill in QuickBooks
@@ -439,8 +446,15 @@ class SyncExecutor
         $existingId = $this->findQBOInvoiceByEIC($eic, $companyId);
         
         if ($existingId) {
-            // Invoice already synced, skip
-            return;
+            // Verify it actually exists in QuickBooks
+            $invoiceExistsInQBO = $this->verifyInvoiceExistsInQBO($existingId, $qboCreds);
+            if ($invoiceExistsInQBO) {
+                // Invoice already synced and exists in QBO, skip
+                return;
+            } else {
+                // Invoice was deleted from QuickBooks or mapping is stale, remove mapping
+                $this->removeInvoiceMapping($companyId, $eic);
+            }
         }
         
         // Create invoice in QuickBooks
@@ -589,6 +603,90 @@ class SyncExecutor
         
         $result = $stmt->fetchColumn();
         return $result ? (int)$result : null;
+    }
+    
+    /**
+     * Verify if an invoice actually exists in QuickBooks
+     */
+    private function verifyInvoiceExistsInQBO(int $invoiceId, array $qboCreds): bool
+    {
+        try {
+            $client = new Client();
+            $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+            $baseUrl = $isSandbox 
+                ? 'https://sandbox-quickbooks.api.intuit.com'
+                : 'https://quickbooks.api.intuit.com';
+            
+            $response = $client->get(
+                "{$baseUrl}/v3/company/{$qboCreds['realm_id']}/invoice/{$invoiceId}",
+                [
+                    'headers' => [
+                        'Authorization' => "Bearer {$qboCreds['access_token']}",
+                        'Accept' => 'application/json',
+                    ],
+                    'query' => ['minorversion' => 65]
+                ]
+            );
+            
+            return $response->getStatusCode() === 200;
+        } catch (Exception $e) {
+            // If we get 404 or any error, assume invoice doesn't exist
+            return false;
+        }
+    }
+    
+    /**
+     * Remove invoice mapping from database
+     */
+    private function removeInvoiceMapping(int $companyId, string $eic): void
+    {
+        $stmt = $this->pdo->prepare("
+            DELETE FROM invoice_mappings
+            WHERE company_id = ? AND devpos_eic = ?
+        ");
+        $stmt->execute([$companyId, $eic]);
+    }
+    
+    /**
+     * Verify if a bill actually exists in QuickBooks
+     */
+    private function verifyBillExistsInQBO(int $billId, array $qboCreds): bool
+    {
+        try {
+            $client = new Client();
+            $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+            $baseUrl = $isSandbox 
+                ? 'https://sandbox-quickbooks.api.intuit.com'
+                : 'https://quickbooks.api.intuit.com';
+            
+            $response = $client->get(
+                "{$baseUrl}/v3/company/{$qboCreds['realm_id']}/bill/{$billId}",
+                [
+                    'headers' => [
+                        'Authorization' => "Bearer {$qboCreds['access_token']}",
+                        'Accept' => 'application/json',
+                    ],
+                    'query' => ['minorversion' => 65]
+                ]
+            );
+            
+            return $response->getStatusCode() === 200;
+        } catch (Exception $e) {
+            // If we get 404 or any error, assume bill doesn't exist
+            return false;
+        }
+    }
+    
+    /**
+     * Remove bill mapping from database
+     */
+    private function removeBillMapping(int $companyId, string $docNumber): void
+    {
+        $stmt = $this->pdo->prepare("
+            DELETE FROM invoice_mappings
+            WHERE company_id = ? AND devpos_document_number = ? AND transaction_type = 'bill'
+        ");
+        $stmt->execute([$companyId, $docNumber]);
     }
     
     /**
