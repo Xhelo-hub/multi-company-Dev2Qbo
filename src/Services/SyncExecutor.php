@@ -551,8 +551,9 @@ class SyncExecutor
         $totalWithVat = floatval($totalAmount);
 
         // Build QuickBooks invoice payload
-        // For non-VAT companies: Use TaxCodeRef='NON' to post totals without tax tracking
-        // For VAT companies: Use TaxCodeRef='TAX' to let QuickBooks calculate and track VAT
+        // IMPORTANT: If QuickBooks company has VAT enabled, we MUST provide TaxCodeRef
+        // For non-VAT tracking companies: Use 'TAX' but the amount already includes VAT
+        // For VAT tracking companies: Use 'TAX' and QBO will calculate VAT
         $payload = [
             'Line' => [
                 [
@@ -566,9 +567,10 @@ class SyncExecutor
                         'UnitPrice' => $totalWithVat,
                         'Qty' => 1,
                         'TaxCodeRef' => [
-                            // NON = Non-taxable (for companies not tracking VAT)
-                            // TAX = Taxable (for VAT-registered companies)
-                            'value' => $tracksVat ? 'TAX' : 'NON'
+                            // Always use 'TAX' since QBO company requires VAT rate
+                            // For non-VAT companies, this satisfies QBO's requirement
+                            // For VAT companies, this enables proper VAT calculation
+                            'value' => 'TAX'
                         ]
                     ],
                     'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
@@ -577,7 +579,12 @@ class SyncExecutor
             'CustomerRef' => [
                 'value' => '1' // Default customer (must exist in QBO)
             ],
-            'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
+            'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
+            'TxnTaxDetail' => [
+                'TxnTaxCodeRef' => [
+                    'value' => $tracksVat ? 'TAX' : '2' // Use tax code 2 (0% or standard rate)
+                ]
+            ]
         ];
 
         // Add document number if available
