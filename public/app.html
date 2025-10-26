@@ -583,15 +583,15 @@
                 <div class="sync-grid">
                     <div class="sync-button" onclick="runSync('sales')">
                         <span class="icon-circle"><i class="fas fa-file-invoice"></i></span>
-                        Sync Sales Invoices
+                        Sync Non-Cash Invoices
                     </div>
                     <div class="sync-button" onclick="runSync('purchases')">
                         <span class="icon-circle"><i class="fas fa-shopping-cart"></i></span>
-                        Sync Purchase Invoices
+                        Sync Receipts
                     </div>
                     <div class="sync-button" onclick="runSync('bills')">
                         <span class="icon-circle"><i class="fas fa-dollar-sign"></i></span>
-                        Sync Bills
+                        Sync eBills
                     </div>
                     <div class="sync-button" onclick="runSync('full')">
                         <span class="icon-circle"><i class="fas fa-sync-alt"></i></span>
@@ -693,9 +693,9 @@
                             <label style="display: block; margin-bottom: 5px; font-weight: 600;">Job Type *</label>
                             <select id="customJobType" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
                                 <option value="full">Full Sync (All)</option>
-                                <option value="sales">Sales Invoices Only</option>
-                                <option value="purchases">Purchase Invoices Only</option>
-                                <option value="bills">Bills Only</option>
+                                <option value="sales">Non-Cash Invoices Only</option>
+                                <option value="purchases">Receipts Only</option>
+                                <option value="bills">eBills Only</option>
                             </select>
                         </div>
                     </div>
@@ -1122,6 +1122,17 @@
             }
         }
 
+        // Helper function to format job type labels
+        function formatJobType(jobType) {
+            const labels = {
+                'sales': 'Non-Cash Invoices',
+                'purchases': 'Receipts',
+                'bills': 'eBills',
+                'full': 'Full Sync'
+            };
+            return labels[jobType] || jobType.toUpperCase();
+        }
+
         // Run sync
         async function runSync(type) {
             if (!currentCompany) {
@@ -1195,7 +1206,7 @@
                     return `
                         <div class="sync-job">
                             <div class="job-info">
-                                <h4>${job.job_type.toUpperCase()} - ${dateRange}</h4>
+                                <h4>${formatJobType(job.job_type)} - ${dateRange}</h4>
                                 <p>Started: ${startedAt}</p>
                                 ${job.completed_at ? `<p>Completed: ${new Date(job.completed_at).toLocaleString()}</p>` : ''}
                                 ${results ? `<p>Total: ${results.total}, Synced: ${results.synced}, Errors: ${results.errors}</p>` : ''}
@@ -1249,7 +1260,7 @@
                 if (!results || !results.error_details) {
                     container.innerHTML = `
                         <div style="background: #d1fae5; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
-                            <strong>✅ Last Sync: ${latestJob.job_type.toUpperCase()}</strong><br>
+                            <strong>✅ Last Sync: ${formatJobType(latestJob.job_type)}</strong><br>
                             <p style="margin: 8px 0 0 0;">Total: ${results?.total || 0}, Successfully Synced: ${results?.synced || 0}, Errors: ${results?.errors || 0}</p>
                             <p style="margin: 8px 0 0 0; font-size: 12px; color: #065f46;">Date Range: ${latestJob.from_date} to ${latestJob.to_date}</p>
                         </div>
@@ -1265,7 +1276,7 @@
                 
                 let html = `
                     <div style="background: ${errorCount > 0 ? '#fee2e2' : '#d1fae5'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${errorCount > 0 ? '#ef4444' : '#10b981'}; margin-bottom: 15px;">
-                        <strong>${errorCount > 0 ? '⚠️' : '✅'} Last Sync: ${latestJob.job_type.toUpperCase()}</strong><br>
+                        <strong>${errorCount > 0 ? '⚠️' : '✅'} Last Sync: ${formatJobType(latestJob.job_type)}</strong><br>
                         <p style="margin: 8px 0 0 0;">Total Transactions: ${totalTransactions}, Successfully Synced: ${syncedCount}, Errors: ${errorCount}</p>
                         <p style="margin: 8px 0 0 0; font-size: 12px; color: ${errorCount > 0 ? '#991b1b' : '#065f46'};">Date Range: ${latestJob.from_date} to ${latestJob.to_date}</p>
                         <p style="margin: 8px 0 0 0; font-size: 12px; color: ${errorCount > 0 ? '#991b1b' : '#065f46'};">Completed: ${new Date(latestJob.completed_at).toLocaleString()}</p>
