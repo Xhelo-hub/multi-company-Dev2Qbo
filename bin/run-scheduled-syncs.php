@@ -2,14 +2,13 @@
 /**
  * Scheduled Sync Runner
  * Run this via cron every hour: 0 * * * * php /path/to/run-scheduled-syncs.php
- * Or every 15 minutes for more frequent checks: */15 * * * * php /path/to/run-scheduled-syncs.php
  */
 
 declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-use App\Services\MultiCompanySyncService;
+use App\Services\SyncExecutor;
 
 // Load environment
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
@@ -23,7 +22,7 @@ $pdo = new PDO(
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
 );
 
-$syncService = new MultiCompanySyncService($pdo);
+$syncExecutor = new SyncExecutor($pdo);
 
 echo "[" . date('Y-m-d H:i:s') . "] Starting scheduled sync check...\n";
 
@@ -69,19 +68,19 @@ foreach ($schedules as $schedule) {
         
         echo "Syncing from {$fromDate} to {$toDate}...\n";
         
-        // Queue the sync job (this will use auto-refresh token logic)
-        $jobId = $syncService->queueSync(
-            $companyId,
-            $jobType,
-            $fromDate,
-            $toDate
-        );
+        // Create sync job in database
+        $stmt = $pdo->prepare("
+            INSERT INTO sync_jobs (company_id, job_type, from_date, to_date, status, trigger_source, created_at)
+            VALUES (?, ?, ?, ?, 'pending', 'scheduled', NOW())
+        ");
+        $stmt->execute([$companyId, $jobType, $fromDate, $toDate]);
+        $jobId = $pdo->lastInsertId();
         
-        echo "✓ Sync job #{$jobId} queued successfully\n";
+        echo "✓ Sync job #{$jobId} created\n";
         
-        // Execute the job immediately
+        // Execute the job (this will use auto-refresh token logic)
         echo "Executing sync job...\n";
-        $result = $syncService->executeJob($jobId);
+        $result = $syncExecutor->executeJob((int)$jobId);
         
         if ($result['success']) {
             echo "✓ Sync completed successfully!\n";
