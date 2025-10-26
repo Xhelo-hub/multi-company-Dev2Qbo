@@ -1,5 +1,20 @@
 # Production Deployment Guide
 
+## ⚠️ IMPORTANT: File Path Mapping
+
+**To avoid confusion, remember this mapping:**
+
+| Local Repository | Production Server | Web URL |
+|-----------------|-------------------|---------|
+| `public/app.html` | `/home/converter/web/devsync.konsulence.al/public_html/app.html` | `https://devsync.konsulence.al/app.html` |
+| `public/index.php` | `/home/converter/web/devsync.konsulence.al/public_html/index.php` | `https://devsync.konsulence.al/` |
+| `public/dashboard.html` | `/home/converter/web/devsync.konsulence.al/public_html/dashboard.html` | `https://devsync.konsulence.al/dashboard.html` |
+
+**Key Rule:** The local `public/` folder maps directly to `public_html/` on the server.  
+**NOT** `public_html/public/` ❌
+
+---
+
 ## Quick Deployment
 
 ### From Windows (PowerShell)
