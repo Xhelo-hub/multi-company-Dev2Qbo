@@ -876,9 +876,6 @@
         async function loadVatTracking(companyId) {
             try {
                 const response = await fetch(`${API_BASE}/api/companies/${companyId}/vat-tracking`, {
-                    headers: {
-                        'X-API-Key': API_KEY  // Add API key for authentication
-                    },
                     credentials: 'include'
                 });
 
@@ -911,8 +908,7 @@
                 const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/vat-tracking`, {
                     method: 'PATCH',
                     headers: { 
-                        'Content-Type': 'application/json',
-                        'X-API-Key': API_KEY  // Add API key for authentication
+                        'Content-Type': 'application/json'
                     },
                     credentials: 'include',
                     body: JSON.stringify({ tracks_vat: tracksVat })
