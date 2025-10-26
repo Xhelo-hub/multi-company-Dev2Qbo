@@ -516,6 +516,7 @@ class SyncExecutor
     /**
      * Convert DevPos invoice to QuickBooks format
      * Handles both VAT-tracking and non-VAT companies
+     * For VAT companies, uses configurable VAT rate mappings
      */
     private function convertDevPosToQBOInvoice(array $devposInvoice, int $companyId): array
     {
@@ -547,15 +548,21 @@ class SyncExecutor
         $eic = $devposInvoice['eic'] 
             ?? $devposInvoice['EIC'] 
             ?? '';
+            
+        // Extract VAT rate from DevPos invoice (if available)
+        $vatRate = (float)($devposInvoice['vatRate'] 
+            ?? $devposInvoice['vat_rate'] 
+            ?? $devposInvoice['taxRate'] 
+            ?? 0);
 
         $totalWithVat = floatval($totalAmount);
 
         // Build QuickBooks invoice payload based on company VAT tracking preference
-        // For NON-VAT companies: Use TaxCodeRef='NON' to post total without QBO adding tax
-        // For VAT companies: Use TaxCodeRef='TAX' to let QBO calculate VAT breakdown
         
         if ($tracksVat) {
-            // VAT-registered company: Enable tax calculation
+            // VAT-registered company: Use VAT rate mappings to determine tax code
+            $taxCode = $this->getQBOTaxCodeForVATRate($companyId, $vatRate);
+            
             $payload = [
                 'Line' => [
                     [
@@ -569,10 +576,10 @@ class SyncExecutor
                             'UnitPrice' => $totalWithVat,
                             'Qty' => 1,
                             'TaxCodeRef' => [
-                                'value' => 'TAX' // Taxable - QBO will calculate VAT
+                                'value' => $taxCode // Mapped tax code from VAT rate
                             ]
                         ],
-                        'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
+                        'Description' => $documentNumber ? "Invoice: $documentNumber - VAT: {$vatRate}%" : 'Sales Invoice'
                     ]
                 ],
                 'CustomerRef' => [
@@ -626,6 +633,47 @@ class SyncExecutor
         }
 
         return $payload;
+    }
+    
+    /**
+     * Get QuickBooks tax code for a given DevPos VAT rate
+     * Uses the vat_rate_mappings table for company-specific configuration
+     * Falls back to 'TAX' if no mapping exists
+     */
+    private function getQBOTaxCodeForVATRate(int $companyId, float $vatRate): string
+    {
+        // Look up the tax code mapping for this company and VAT rate
+        $stmt = $this->pdo->prepare("
+            SELECT qbo_tax_code, is_excluded
+            FROM vat_rate_mappings
+            WHERE company_id = ? AND devpos_vat_rate = ?
+        ");
+        $stmt->execute([$companyId, $vatRate]);
+        $mapping = $stmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if ($mapping) {
+            // Found a specific mapping for this VAT rate
+            return $mapping['qbo_tax_code'];
+        }
+        
+        // No mapping found - use intelligent defaults
+        if ($vatRate == 0) {
+            // 0% VAT could be exempt or excluded
+            // Check if company has any "excluded" mappings configured
+            $stmt = $this->pdo->prepare("
+                SELECT qbo_tax_code
+                FROM vat_rate_mappings
+                WHERE company_id = ? AND is_excluded = TRUE
+                LIMIT 1
+            ");
+            $stmt->execute([$companyId]);
+            $excludedCode = $stmt->fetchColumn();
+            
+            return $excludedCode ?: 'NON'; // Default to 'NON' (non-taxable)
+        }
+        
+        // Default to 'TAX' for non-zero VAT rates
+        return 'TAX';
     }
     
     /**

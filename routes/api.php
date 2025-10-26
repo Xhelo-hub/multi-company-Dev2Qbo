@@ -1477,6 +1477,115 @@ $app->patch('/companies/{id}/vat-tracking', function (Request $request, Response
 })->add($authMiddleware);
 
 // ============================================================================
+// VAT RATE MAPPING ENDPOINTS
+// ============================================================================
+
+// Get VAT rate mappings for a company
+$app->get('/companies/{id}/vat-mappings', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['id'];
+        
+        $stmt = $pdo->prepare("
+            SELECT * FROM vat_rate_mappings
+            WHERE company_id = ?
+            ORDER BY devpos_vat_rate ASC
+        ");
+        $stmt->execute([$companyId]);
+        $mappings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Convert is_excluded to boolean
+        foreach ($mappings as &$mapping) {
+            $mapping['is_excluded'] = (bool)$mapping['is_excluded'];
+        }
+        
+        $response->getBody()->write(json_encode($mappings));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Get VAT mappings error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// Create or update VAT rate mapping
+$app->post('/companies/{id}/vat-mappings', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['id'];
+        $data = json_decode($request->getBody()->getContents(), true);
+        
+        $devposVatRate = (float)($data['devpos_vat_rate'] ?? 0);
+        $qboTaxCode = $data['qbo_tax_code'] ?? 'TAX';
+        $qboTaxCodeName = $data['qbo_tax_code_name'] ?? null;
+        $isExcluded = isset($data['is_excluded']) ? (bool)$data['is_excluded'] : false;
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO vat_rate_mappings 
+            (company_id, devpos_vat_rate, qbo_tax_code, qbo_tax_code_name, is_excluded)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                qbo_tax_code = VALUES(qbo_tax_code),
+                qbo_tax_code_name = VALUES(qbo_tax_code_name),
+                is_excluded = VALUES(is_excluded)
+        ");
+        $stmt->execute([
+            $companyId, 
+            $devposVatRate, 
+            $qboTaxCode, 
+            $qboTaxCodeName, 
+            $isExcluded ? 1 : 0
+        ]);
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'VAT rate mapping saved',
+            'mapping' => [
+                'company_id' => $companyId,
+                'devpos_vat_rate' => $devposVatRate,
+                'qbo_tax_code' => $qboTaxCode,
+                'is_excluded' => $isExcluded
+            ]
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Create VAT mapping error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// Delete VAT rate mapping
+$app->delete('/companies/{id}/vat-mappings/{mappingId}', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['id'];
+        $mappingId = (int)$args['mappingId'];
+        
+        $stmt = $pdo->prepare("
+            DELETE FROM vat_rate_mappings
+            WHERE id = ? AND company_id = ?
+        ");
+        $stmt->execute([$mappingId, $companyId]);
+        
+        if ($stmt->rowCount() === 0) {
+            $response->getBody()->write(json_encode(['error' => 'Mapping not found']));
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+        }
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'VAT rate mapping deleted'
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Delete VAT mapping error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// ============================================================================
 // SCHEDULED SYNC ENDPOINTS
 // ============================================================================
 
