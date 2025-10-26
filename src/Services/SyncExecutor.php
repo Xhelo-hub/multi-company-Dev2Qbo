@@ -1006,6 +1006,21 @@ class SyncExecutor
     {
         $amount = (float)($devposBill['amount'] ?? $devposBill['total'] ?? $devposBill['totalAmount'] ?? 0);
         
+        // Extract bill date - try multiple possible field names
+        $billDate = $devposBill['issueDate'] 
+            ?? $devposBill['dateIssued'] 
+            ?? $devposBill['date']
+            ?? $devposBill['transactionDate']
+            ?? null;
+        
+        if (!$billDate) {
+            error_log("WARNING: No date found in DevPos bill. Available fields: " . implode(', ', array_keys($devposBill)));
+            $billDate = 'now';
+        }
+        
+        $txnDate = date('Y-m-d', strtotime($billDate));
+        error_log("Bill date: " . $txnDate . " (from field value: " . ($billDate === 'now' ? 'MISSING' : $billDate) . ")");
+        
         return [
             'VendorRef' => [
                 'value' => $vendorId
@@ -1023,7 +1038,7 @@ class SyncExecutor
                 ]
             ],
             'DocNumber' => $devposBill['documentNumber'] ?? '',
-            'TxnDate' => date('Y-m-d', strtotime($devposBill['issueDate'] ?? $devposBill['dateIssued'] ?? 'now'))
+            'TxnDate' => $txnDate
         ];
     }
     
