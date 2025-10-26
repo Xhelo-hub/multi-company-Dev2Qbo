@@ -581,7 +581,8 @@ class SyncExecutor
                 'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
             ];
         } else {
-            // Non-VAT company: Post total without tax calculation
+            // Non-VAT company: Use explicit 0% tax rate or exempt status
+            // QuickBooks requires tax information even for non-VAT companies
             $payload = [
                 'Line' => [
                     [
@@ -595,7 +596,7 @@ class SyncExecutor
                             'UnitPrice' => $totalWithVat,
                             'Qty' => 1,
                             'TaxCodeRef' => [
-                                'value' => 'NON' // Non-taxable - post amount as-is
+                                'value' => 'TAX' // Use TAX code (QuickBooks requires it)
                             ]
                         ],
                         'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
@@ -604,7 +605,24 @@ class SyncExecutor
                 'CustomerRef' => [
                     'value' => '1' // Default customer (must exist in QBO)
                 ],
-                'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
+                'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
+                'TxnTaxDetail' => [
+                    'TotalTax' => 0, // No tax for non-VAT companies
+                    'TaxLine' => [
+                        [
+                            'Amount' => 0,
+                            'DetailType' => 'TaxLineDetail',
+                            'TaxLineDetail' => [
+                                'TaxRateRef' => [
+                                    'value' => '1' // Reference to 0% or exempt tax rate in QBO
+                                ],
+                                'PercentBased' => true,
+                                'TaxPercent' => 0,
+                                'NetAmountTaxable' => $totalWithVat
+                            ]
+                        ]
+                    ]
+                ]
             ];
         }
 
