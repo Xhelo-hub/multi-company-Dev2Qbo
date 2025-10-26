@@ -1375,6 +1375,37 @@ $app->post('/oauth/refresh/{company_id}', function (Request $request, Response $
     }
 })->add($authMiddleware);
 
+// Disconnect QuickBooks for a company
+$app->delete('/api/companies/{id}/qbo/disconnect', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['id'];
+        
+        // Delete QuickBooks OAuth tokens
+        $stmt = $pdo->prepare("DELETE FROM oauth_tokens_qbo WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        // Delete QuickBooks credentials
+        $stmt = $pdo->prepare("DELETE FROM company_credentials_qbo WHERE company_id = ?");
+        $stmt->execute([$companyId]);
+        
+        error_log("Disconnected QuickBooks for company $companyId");
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'QuickBooks disconnected successfully'
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("QuickBooks disconnect error: " . $e->getMessage());
+        $response->getBody()->write(json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
 // Get company connection status
 $app->get('/companies/{id}/status', function (Request $request, Response $response, array $args) use ($pdo) {
     try {
