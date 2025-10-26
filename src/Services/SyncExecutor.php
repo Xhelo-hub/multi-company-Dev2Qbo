@@ -380,21 +380,43 @@ class SyncExecutor
         $client = new Client();
         $apiBase = $_ENV['DEVPOS_API_BASE'] ?? 'https://online.devpos.al/api/v3';
         
-        $response = $client->get($apiBase . '/EInvoice/GetSalesInvoice', [
-            'query' => [
-                'fromDate' => $fromDate,
-                'toDate' => $toDate
-            ],
-            'headers' => [
-                'Authorization' => 'Bearer ' . $token,
-                'tenant' => $tenant,
-                'Accept' => 'application/json'
-            ]
-        ]);
+        error_log("Fetching DevPos sales invoices: fromDate=$fromDate, toDate=$toDate, tenant=$tenant");
         
-        $invoices = json_decode($response->getBody()->getContents(), true);
-        
-        return is_array($invoices) ? $invoices : [];
+        try {
+            $response = $client->get($apiBase . '/EInvoice/GetSalesInvoice', [
+                'query' => [
+                    'fromDate' => $fromDate,
+                    'toDate' => $toDate
+                ],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'tenant' => $tenant,
+                    'Accept' => 'application/json'
+                ]
+            ]);
+            
+            $body = $response->getBody()->getContents();
+            error_log("DevPos API Response (first 500 chars): " . substr($body, 0, 500));
+            
+            $invoices = json_decode($body, true);
+            
+            if (!is_array($invoices)) {
+                error_log("DevPos API did not return an array. Response type: " . gettype($invoices));
+                return [];
+            }
+            
+            error_log("DevPos returned " . count($invoices) . " sales invoices");
+            
+            return $invoices;
+            
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            error_log("DevPos API Client Error: " . $e->getMessage());
+            error_log("DevPos API Error Response: " . $e->getResponse()->getBody()->getContents());
+            throw $e;
+        } catch (Exception $e) {
+            error_log("DevPos API Error: " . $e->getMessage());
+            throw $e;
+        }
     }
     
     /**
@@ -405,21 +427,43 @@ class SyncExecutor
         $client = new Client();
         $apiBase = $_ENV['DEVPOS_API_BASE'] ?? 'https://online.devpos.al/api/v3';
         
-        $response = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
-            'query' => [
-                'fromDate' => $fromDate,
-                'toDate' => $toDate
-            ],
-            'headers' => [
-                'Authorization' => 'Bearer ' . $token,
-                'tenant' => $tenant,
-                'Accept' => 'application/json'
-            ]
-        ]);
+        error_log("Fetching DevPos purchase invoices: fromDate=$fromDate, toDate=$toDate, tenant=$tenant");
         
-        $invoices = json_decode($response->getBody()->getContents(), true);
-        
-        return is_array($invoices) ? $invoices : [];
+        try {
+            $response = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
+                'query' => [
+                    'fromDate' => $fromDate,
+                    'toDate' => $toDate
+                ],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'tenant' => $tenant,
+                    'Accept' => 'application/json'
+                ]
+            ]);
+            
+            $body = $response->getBody()->getContents();
+            error_log("DevPos Purchase API Response (first 500 chars): " . substr($body, 0, 500));
+            
+            $invoices = json_decode($body, true);
+            
+            if (!is_array($invoices)) {
+                error_log("DevPos Purchase API did not return an array. Response type: " . gettype($invoices));
+                return [];
+            }
+            
+            error_log("DevPos returned " . count($invoices) . " purchase invoices");
+            
+            return $invoices;
+            
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            error_log("DevPos Purchase API Client Error: " . $e->getMessage());
+            error_log("DevPos Purchase API Error Response: " . $e->getResponse()->getBody()->getContents());
+            throw $e;
+        } catch (Exception $e) {
+            error_log("DevPos Purchase API Error: " . $e->getMessage());
+            throw $e;
+        }
     }
     
     /**
