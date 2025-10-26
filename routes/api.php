@@ -723,12 +723,55 @@ $app->get('/api/companies/{companyId}/credentials/devpos/test', function (Reques
         $authData = json_decode($authResponse->getBody()->getContents(), true);
         
         if (isset($authData['access_token'])) {
+            // Store the token in the database for future use
+            $expiresAt = time() + (int)($authData['expires_in'] ?? 28800);
+            
+            try {
+                // Check if token already exists for this company
+                $checkStmt = $pdo->prepare("SELECT id FROM oauth_tokens_devpos WHERE company_id = ?");
+                $checkStmt->execute([$companyId]);
+                $existingToken = $checkStmt->fetch();
+                
+                if ($existingToken) {
+                    // Update existing token
+                    $stmt = $pdo->prepare("
+                        UPDATE oauth_tokens_devpos 
+                        SET access_token = ?, token_type = ?, expires_at = FROM_UNIXTIME(?), updated_at = CURRENT_TIMESTAMP
+                        WHERE company_id = ?
+                    ");
+                    $stmt->execute([
+                        $authData['access_token'],
+                        $authData['token_type'] ?? 'Bearer',
+                        $expiresAt,
+                        $companyId
+                    ]);
+                } else {
+                    // Insert new token
+                    $stmt = $pdo->prepare("
+                        INSERT INTO oauth_tokens_devpos (company_id, access_token, token_type, expires_at)
+                        VALUES (?, ?, ?, FROM_UNIXTIME(?))
+                    ");
+                    $stmt->execute([
+                        $companyId,
+                        $authData['access_token'],
+                        $authData['token_type'] ?? 'Bearer',
+                        $expiresAt
+                    ]);
+                }
+                
+                $debugInfo['token_stored'] = true;
+                $debugInfo['token_action'] = $existingToken ? 'updated' : 'inserted';
+            } catch (PDOException $e) {
+                $debugInfo['token_storage_error'] = $e->getMessage();
+            }
+            
             $expiresIn = $authData['expires_in'] ?? 3600;
             $response->getBody()->write(json_encode([
                 'success' => true,
-                'message' => '✅ DevPos connection successful!',
+                'message' => '✅ DevPos connection successful! Token stored.',
                 'expires_in' => $expiresIn,
-                'expires_in_hours' => round($expiresIn / 3600, 1)
+                'expires_in_hours' => round($expiresIn / 3600, 1),
+                'debug' => $debugInfo
             ]));
         } else {
             $response->getBody()->write(json_encode(['success' => false, 'message' => 'Invalid response from DevPos']));
