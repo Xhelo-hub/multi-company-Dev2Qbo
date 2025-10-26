@@ -454,7 +454,7 @@ class SyncExecutor
         }
         
         // Create invoice in QuickBooks
-        $qboInvoice = $this->convertDevPosToQBOInvoice($invoice);
+        $qboInvoice = $this->convertDevPosToQBOInvoice($invoice, $companyId);
         
         try {
             $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/invoice', [
@@ -515,9 +515,15 @@ class SyncExecutor
     
     /**
      * Convert DevPos invoice to QuickBooks format
+     * Handles both VAT-tracking and non-VAT companies
      */
-    private function convertDevPosToQBOInvoice(array $devposInvoice): array
+    private function convertDevPosToQBOInvoice(array $devposInvoice, int $companyId): array
     {
+        // Check if company tracks VAT separately
+        $stmt = $this->pdo->prepare("SELECT tracks_vat FROM companies WHERE id = ?");
+        $stmt->execute([$companyId]);
+        $tracksVat = (bool)$stmt->fetchColumn();
+        
         $documentNumber = $devposInvoice['documentNumber'] 
             ?? $devposInvoice['doc_no'] 
             ?? $devposInvoice['DocNumber'] 
@@ -542,27 +548,27 @@ class SyncExecutor
             ?? $devposInvoice['EIC'] 
             ?? '';
 
-        // Calculate amounts without VAT for proper tax handling
-        $vatRate = isset($devposInvoice['vatRate']) ? floatval($devposInvoice['vatRate']) : 20.0;
         $totalWithVat = floatval($totalAmount);
-        $totalWithoutVat = $totalWithVat / (1 + ($vatRate / 100));
-        $vatAmount = $totalWithVat - $totalWithoutVat;
 
-        // Build QuickBooks invoice payload with proper tax details
+        // Build QuickBooks invoice payload
+        // For non-VAT companies: Use TaxCodeRef='NON' to post totals without tax tracking
+        // For VAT companies: Use TaxCodeRef='TAX' to let QuickBooks calculate and track VAT
         $payload = [
             'Line' => [
                 [
-                    'Amount' => round($totalWithoutVat, 2),
+                    'Amount' => $totalWithVat,
                     'DetailType' => 'SalesItemLineDetail',
                     'SalesItemLineDetail' => [
                         'ItemRef' => [
                             'value' => '1', // Default sales item (must exist in QBO)
                             'name' => 'Services'
                         ],
-                        'UnitPrice' => round($totalWithoutVat, 2),
+                        'UnitPrice' => $totalWithVat,
                         'Qty' => 1,
                         'TaxCodeRef' => [
-                            'value' => 'TAX' // Taxable item
+                            // NON = Non-taxable (for companies not tracking VAT)
+                            // TAX = Taxable (for VAT-registered companies)
+                            'value' => $tracksVat ? 'TAX' : 'NON'
                         ]
                     ],
                     'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
@@ -571,24 +577,7 @@ class SyncExecutor
             'CustomerRef' => [
                 'value' => '1' // Default customer (must exist in QBO)
             ],
-            'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
-            'TxnTaxDetail' => [
-                'TotalTax' => round($vatAmount, 2),
-                'TaxLine' => [
-                    [
-                        'Amount' => round($vatAmount, 2),
-                        'DetailType' => 'TaxLineDetail',
-                        'TaxLineDetail' => [
-                            'TaxRateRef' => [
-                                'value' => '3' // Default tax rate (20% VAT - must exist in QBO)
-                            ],
-                            'PercentBased' => true,
-                            'TaxPercent' => $vatRate,
-                            'NetAmountTaxable' => round($totalWithoutVat, 2)
-                        ]
-                    ]
-                ]
-            ]
+            'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
         ];
 
         // Add document number if available
