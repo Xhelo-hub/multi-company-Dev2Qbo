@@ -711,12 +711,15 @@ class SyncExecutor
 
         // Add EIC as custom field ONLY if configured
         if ($eic && !empty($_ENV['QBO_CF_EIC_DEF_ID'])) {
+            // QuickBooks custom fields have 31 char limit - truncate EIC if needed
+            $eicValue = strlen($eic) > 31 ? substr($eic, 0, 31) : $eic;
+            
             $payload['CustomField'] = [
                 [
                     'DefinitionId' => $_ENV['QBO_CF_EIC_DEF_ID'],
                     'Name' => 'EIC',
                     'Type' => 'StringType',
-                    'StringValue' => $eic
+                    'StringValue' => $eicValue
                 ]
             ];
         }
