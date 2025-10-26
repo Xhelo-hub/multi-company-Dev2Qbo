@@ -29,7 +29,10 @@ class QboClient
         $this->baseUrl = $isSandbox
             ? 'https://sandbox-quickbooks.api.intuit.com'
             : 'https://quickbooks.api.intuit.com';
-        $this->httpClient = new Client();
+        $this->httpClient = new Client([
+            'timeout' => 30,  // 30 second timeout for API calls
+            'connect_timeout' => 10  // 10 second connection timeout
+        ]);
     }
     
     /**

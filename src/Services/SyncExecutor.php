@@ -114,21 +114,34 @@ class SyncExecutor
             $job['to_date']
         );
         
+        $totalInvoices = count($invoices);
+        error_log("Starting sales sync for company $companyId: $totalInvoices invoices to process");
+        
         $synced = 0;
         $errors = [];
         
-        foreach ($invoices as $invoice) {
+        foreach ($invoices as $index => $invoice) {
+            $invoiceId = $invoice['eic'] ?? $invoice['documentNumber'] ?? 'unknown';
+            $progress = ($index + 1) . "/$totalInvoices";
+            
             try {
+                error_log("[$progress] Syncing invoice $invoiceId to QuickBooks...");
+                
                 // Sync to QuickBooks
                 $this->syncInvoiceToQBO($invoice, $qboCreds, $companyId);
                 $synced++;
+                
+                error_log("[$progress] ✓ Invoice $invoiceId synced successfully");
             } catch (Exception $e) {
+                error_log("[$progress] ✗ Invoice $invoiceId failed: " . $e->getMessage());
                 $errors[] = [
-                    'invoice' => $invoice['eic'] ?? $invoice['documentNumber'] ?? 'unknown',
+                    'invoice' => $invoiceId,
                     'error' => $e->getMessage()
                 ];
             }
         }
+        
+        error_log("Sales sync completed for company $companyId: $synced/$totalInvoices synced, " . count($errors) . " errors");
         
         return [
             'total' => count($invoices),
@@ -164,20 +177,33 @@ class SyncExecutor
             $job['to_date']
         );
         
+        $totalInvoices = count($invoices);
+        error_log("Starting purchases sync for company $companyId: $totalInvoices invoices to process");
+        
         $synced = 0;
         $errors = [];
         
-        foreach ($invoices as $invoice) {
+        foreach ($invoices as $index => $invoice) {
+            $invoiceId = $invoice['eic'] ?? 'unknown';
+            $progress = ($index + 1) . "/$totalInvoices";
+            
             try {
+                error_log("[$progress] Syncing purchase invoice $invoiceId to QuickBooks...");
+                
                 $this->syncPurchaseToQBO($invoice, $qboCreds, $companyId);
                 $synced++;
+                
+                error_log("[$progress] ✓ Purchase invoice $invoiceId synced successfully");
             } catch (Exception $e) {
+                error_log("[$progress] ✗ Purchase invoice $invoiceId failed: " . $e->getMessage());
                 $errors[] = [
-                    'invoice' => $invoice['eic'] ?? 'unknown',
+                    'invoice' => $invoiceId,
                     'error' => $e->getMessage()
                 ];
             }
         }
+        
+        error_log("Purchases sync completed for company $companyId: $synced/$totalInvoices synced, " . count($errors) . " errors");
         
         return [
             'total' => count($invoices),
@@ -218,15 +244,24 @@ class SyncExecutor
             $job['to_date']
         );
         
+        $totalBills = count($bills);
+        error_log("Starting bills sync for company $companyId: $totalBills bills to process");
+        
         $synced = 0;
         $skipped = 0;
         $errors = [];
         
-        foreach ($bills as $bill) {
+        foreach ($bills as $index => $bill) {
+            $billId = $bill['documentNumber'] ?? $bill['eic'] ?? 'unknown';
+            $progress = ($index + 1) . "/$totalBills";
+            
             try {
+                error_log("[$progress] Processing bill $billId...");
+                
                 // Check if amount is valid
                 $amount = (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0);
                 if ($amount <= 0) {
+                    error_log("[$progress] Skipping bill $billId: Invalid amount");
                     $skipped++;
                     continue;
                 }
@@ -236,6 +271,7 @@ class SyncExecutor
                 $docNumber = $bill['documentNumber'] ?? $bill['id'] ?? null;
                 
                 if (!$docNumber) {
+                    error_log("[$progress] Skipping bill $billId: No document number");
                     $skipped++;
                     continue;
                 }
@@ -246,25 +282,34 @@ class SyncExecutor
                     // Verify it actually exists in QuickBooks
                     $billExistsInQBO = $this->verifyBillExistsInQBO($existingBillId, $qboCreds);
                     if ($billExistsInQBO) {
+                        error_log("[$progress] Skipping bill $billId: Already exists in QuickBooks");
                         $skipped++;
                         continue;
                     } else {
                         // Bill was deleted from QuickBooks or mapping is stale, remove mapping
+                        error_log("[$progress] Removing stale mapping for bill $billId");
                         $this->removeBillMapping($companyId, $docNumber);
                     }
                 }
+                
+                error_log("[$progress] Creating bill $billId in QuickBooks...");
                 
                 // Create bill in QuickBooks
                 $this->syncBillToQBO($bill, $qboCreds, $companyId);
                 $synced++;
                 
+                error_log("[$progress] ✓ Bill $billId synced successfully");
+                
             } catch (Exception $e) {
+                error_log("[$progress] ✗ Bill $billId failed: " . $e->getMessage());
                 $errors[] = [
-                    'bill' => $bill['documentNumber'] ?? $bill['eic'] ?? 'unknown',
+                    'bill' => $billId,
                     'error' => $e->getMessage()
                 ];
             }
         }
+        
+        error_log("Bills sync completed for company $companyId: $synced/$totalBills synced, $skipped skipped, " . count($errors) . " errors");
         
         return [
             'total' => count($bills),
