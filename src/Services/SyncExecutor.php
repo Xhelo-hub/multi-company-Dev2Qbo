@@ -581,9 +581,8 @@ class SyncExecutor
                 'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
             ];
         } else {
-            // Non-VAT company: Send amount with tax already included
-            // QuickBooks company requires tax, so we must provide it but mark as "TaxInclusive"
-            // This means: the amount ALREADY includes any VAT, don't add more
+            // Non-VAT company: QuickBooks has tax OFF - send amount without any tax information
+            // Completely omit TaxCodeRef and any tax-related fields
             $payload = [
                 'Line' => [
                     [
@@ -595,10 +594,8 @@ class SyncExecutor
                                 'name' => 'Services'
                             ],
                             'UnitPrice' => $totalWithVat,
-                            'Qty' => 1,
-                            'TaxCodeRef' => [
-                                'value' => 'TAX' // Taxable (required by QBO)
-                            ]
+                            'Qty' => 1
+                            // NO TaxCodeRef when tax tracking is OFF in QuickBooks
                         ],
                         'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
                     ]
@@ -606,8 +603,8 @@ class SyncExecutor
                 'CustomerRef' => [
                     'value' => '1' // Default customer (must exist in QBO)
                 ],
-                'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
-                'GlobalTaxCalculation' => 'TaxInclusive' // Amount already includes tax
+                'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
+                // NO GlobalTaxCalculation or TxnTaxDetail when tax is OFF
             ];
         }
 
