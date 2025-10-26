@@ -28,7 +28,12 @@ $pdo = new PDO(
 );
 
 // Fetch company credentials
-$stmt = $pdo->prepare("SELECT * FROM companies WHERE id = ?");
+$stmt = $pdo->prepare("
+    SELECT c.*, dc.tenant, dc.api_key, dc.api_secret 
+    FROM companies c 
+    LEFT JOIN company_credentials_devpos dc ON c.id = dc.company_id 
+    WHERE c.id = ?
+");
 $stmt->execute([$companyId]);
 $company = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -37,11 +42,16 @@ if (!$company) {
     exit(1);
 }
 
+if (!$company['tenant']) {
+    echo "❌ No DevPos tenant configured for company: {$company['company_name']}\n";
+    exit(1);
+}
+
 echo "✅ Company found: {$company['company_name']}\n";
-echo "   Tenant: {$company['devpos_tenant']}\n\n";
+echo "   Tenant: {$company['tenant']}\n\n";
 
 // Fetch DevPos token
-$stmt = $pdo->prepare("SELECT access_token FROM devpos_tokens WHERE company_id = ? ORDER BY created_at DESC LIMIT 1");
+$stmt = $pdo->prepare("SELECT access_token FROM oauth_tokens_devpos WHERE company_id = ? ORDER BY created_at DESC LIMIT 1");
 $stmt->execute([$companyId]);
 $tokenRow = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -74,7 +84,7 @@ try {
         ],
         'headers' => [
             'Authorization' => 'Bearer ' . $token,
-            'tenant' => $company['devpos_tenant'],
+            'tenant' => $company['tenant'],
             'Accept' => 'application/json'
         ]
     ]);
