@@ -542,22 +542,27 @@ class SyncExecutor
             ?? $devposInvoice['EIC'] 
             ?? '';
 
-        // Build QuickBooks invoice payload
-        // Using total amount with VAT included, marked as non-taxable to avoid VAT calculations
+        // Calculate amounts without VAT for proper tax handling
+        $vatRate = isset($devposInvoice['vatRate']) ? floatval($devposInvoice['vatRate']) : 20.0;
+        $totalWithVat = floatval($totalAmount);
+        $totalWithoutVat = $totalWithVat / (1 + ($vatRate / 100));
+        $vatAmount = $totalWithVat - $totalWithoutVat;
+
+        // Build QuickBooks invoice payload with proper tax details
         $payload = [
             'Line' => [
                 [
-                    'Amount' => $totalAmount,
+                    'Amount' => round($totalWithoutVat, 2),
                     'DetailType' => 'SalesItemLineDetail',
                     'SalesItemLineDetail' => [
                         'ItemRef' => [
                             'value' => '1', // Default sales item (must exist in QBO)
                             'name' => 'Services'
                         ],
-                        'UnitPrice' => $totalAmount,
+                        'UnitPrice' => round($totalWithoutVat, 2),
                         'Qty' => 1,
                         'TaxCodeRef' => [
-                            'value' => 'NON' // Non-taxable - total already includes VAT
+                            'value' => 'TAX' // Taxable item
                         ]
                     ],
                     'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
@@ -566,7 +571,24 @@ class SyncExecutor
             'CustomerRef' => [
                 'value' => '1' // Default customer (must exist in QBO)
             ],
-            'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
+            'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
+            'TxnTaxDetail' => [
+                'TotalTax' => round($vatAmount, 2),
+                'TaxLine' => [
+                    [
+                        'Amount' => round($vatAmount, 2),
+                        'DetailType' => 'TaxLineDetail',
+                        'TaxLineDetail' => [
+                            'TaxRateRef' => [
+                                'value' => '3' // Default tax rate (20% VAT - must exist in QBO)
+                            ],
+                            'PercentBased' => true,
+                            'TaxPercent' => $vatRate,
+                            'NetAmountTaxable' => round($totalWithoutVat, 2)
+                        ]
+                    ]
+                ]
+            ]
         ];
 
         // Add document number if available
