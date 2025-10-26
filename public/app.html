@@ -536,6 +536,27 @@
                     <span class="icon-circle"><i class="fas fa-link"></i></span>
                     Connect to QuickBooks Online
                 </button>
+
+                <hr>
+
+                <!-- VAT Tracking Settings -->
+                <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <span class="icon-circle" style="width: 32px; height: 32px; font-size: 14px;"><i class="fas fa-percent"></i></span>
+                    VAT Tracking Configuration
+                </h3>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="tracksVatCheckbox" onchange="updateVatTracking()" style="width: 20px; height: 20px; cursor: pointer;">
+                        <div>
+                            <strong>Company is VAT-registered</strong>
+                            <div style="font-size: 13px; color: #666; margin-top: 5px;">
+                                ✅ <strong>Enabled:</strong> VAT will be calculated and tracked separately in QuickBooks<br>
+                                ❌ <strong>Disabled:</strong> Totals posted without VAT tracking (recommended for non-VAT companies)
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                <div id="vatTrackingStatus" style="font-size: 13px; padding: 10px; border-radius: 6px; display: none;"></div>
             </div>
 
             <!-- Sync Controls Card -->
@@ -845,6 +866,85 @@
 
             } catch (error) {
                 console.error('Error loading credentials:', error);
+            }
+            
+            // Load VAT tracking setting
+            await loadVatTracking(companyId);
+        }
+
+        // Load VAT tracking setting
+        async function loadVatTracking(companyId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}/vat-tracking`, {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const checkbox = document.getElementById('tracksVatCheckbox');
+                    checkbox.checked = data.tracks_vat === 1 || data.tracks_vat === true;
+                    
+                    // Update status display
+                    updateVatTrackingDisplay(checkbox.checked);
+                }
+            } catch (error) {
+                console.error('Error loading VAT tracking:', error);
+            }
+        }
+
+        // Update VAT tracking setting
+        async function updateVatTracking() {
+            if (!currentCompany) {
+                showAlert('⚠️ Please select a company first', 'error');
+                return;
+            }
+
+            const checkbox = document.getElementById('tracksVatCheckbox');
+            const tracksVat = checkbox.checked;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/vat-tracking`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ tracks_vat: tracksVat })
+                });
+
+                if (response.ok) {
+                    updateVatTrackingDisplay(tracksVat);
+                    showAlert(
+                        tracksVat 
+                            ? '✅ VAT tracking enabled - QuickBooks will calculate and track VAT separately' 
+                            : '✅ VAT tracking disabled - Totals will be posted without VAT breakdown',
+                        'success'
+                    );
+                } else {
+                    const error = await response.json();
+                    showAlert('❌ Failed to update VAT setting: ' + error.message, 'error');
+                    // Revert checkbox on error
+                    checkbox.checked = !tracksVat;
+                }
+            } catch (error) {
+                console.error('Error updating VAT tracking:', error);
+                showAlert('❌ Failed to update VAT setting', 'error');
+                // Revert checkbox on error
+                checkbox.checked = !tracksVat;
+            }
+        }
+
+        // Update VAT tracking status display
+        function updateVatTrackingDisplay(tracksVat) {
+            const statusDiv = document.getElementById('vatTrackingStatus');
+            statusDiv.style.display = 'block';
+            
+            if (tracksVat) {
+                statusDiv.style.background = '#d1fae5';
+                statusDiv.style.color = '#065f46';
+                statusDiv.innerHTML = '<strong>✅ VAT Tracking Enabled</strong><br>Invoices will use TaxCodeRef="TAX" and QuickBooks will calculate VAT breakdown.';
+            } else {
+                statusDiv.style.background = '#e0e7ff';
+                statusDiv.style.color = '#3730a3';
+                statusDiv.innerHTML = '<strong>ℹ️ VAT Tracking Disabled</strong><br>Invoices will use TaxCodeRef="NON" and post totals without VAT calculation.';
             }
         }
 

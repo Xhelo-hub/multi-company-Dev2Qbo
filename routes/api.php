@@ -1411,6 +1411,72 @@ $app->get('/companies/{id}/status', function (Request $request, Response $respon
 })->add($authMiddleware);
 
 // ============================================================================
+// VAT TRACKING CONFIGURATION
+// ============================================================================
+
+// Get VAT tracking setting for a company
+$app->get('/companies/{id}/vat-tracking', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['id'];
+        
+        $stmt = $pdo->prepare("SELECT tracks_vat FROM companies WHERE id = ?");
+        $stmt->execute([$companyId]);
+        $tracksVat = $stmt->fetchColumn();
+        
+        if ($tracksVat === false) {
+            $response->getBody()->write(json_encode(['error' => 'Company not found']));
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+        }
+        
+        $response->getBody()->write(json_encode([
+            'company_id' => $companyId,
+            'tracks_vat' => (bool)$tracksVat
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Get VAT tracking error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// Update VAT tracking setting for a company
+$app->patch('/companies/{id}/vat-tracking', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['id'];
+        $data = json_decode($request->getBody()->getContents(), true);
+        
+        $tracksVat = isset($data['tracks_vat']) ? (bool)$data['tracks_vat'] : false;
+        
+        $stmt = $pdo->prepare("UPDATE companies SET tracks_vat = ? WHERE id = ?");
+        $stmt->execute([$tracksVat ? 1 : 0, $companyId]);
+        
+        if ($stmt->rowCount() === 0) {
+            $response->getBody()->write(json_encode(['error' => 'Company not found']));
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
+        }
+        
+        error_log("Updated company $companyId VAT tracking to: " . ($tracksVat ? 'TRUE' : 'FALSE'));
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'company_id' => $companyId,
+            'tracks_vat' => $tracksVat,
+            'message' => $tracksVat 
+                ? 'VAT tracking enabled - QuickBooks will calculate and track VAT separately'
+                : 'VAT tracking disabled - Totals will be posted without VAT breakdown'
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Update VAT tracking error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// ============================================================================
 // SCHEDULED SYNC ENDPOINTS
 // ============================================================================
 
