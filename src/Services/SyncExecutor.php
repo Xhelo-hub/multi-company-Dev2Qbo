@@ -543,7 +543,7 @@ class SyncExecutor
         }
         
         // Create invoice in QuickBooks
-        $qboInvoice = $this->convertDevPosToQBOInvoice($invoice, $companyId);
+        $qboInvoice = $this->convertDevPosToQBOInvoice($invoice, $companyId, $qboCreds);
         
         try {
             $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/invoice', [
@@ -607,7 +607,7 @@ class SyncExecutor
      * Handles both VAT-tracking and non-VAT companies
      * For VAT companies, uses configurable VAT rate mappings
      */
-    private function convertDevPosToQBOInvoice(array $devposInvoice, int $companyId): array
+    private function convertDevPosToQBOInvoice(array $devposInvoice, int $companyId, array $qboCreds): array
     {
         // Check if company tracks VAT separately
         $stmt = $this->pdo->prepare("SELECT tracks_vat FROM companies WHERE id = ?");
@@ -634,6 +634,11 @@ class SyncExecutor
             ?? $devposInvoice['customerName'] 
             ?? 'Walk-in Customer';
             
+        $buyerNuis = $devposInvoice['buyerNuis'] 
+            ?? $devposInvoice['buyer_nuis'] 
+            ?? $devposInvoice['customerNuis'] 
+            ?? null;
+            
         $eic = $devposInvoice['eic'] 
             ?? $devposInvoice['EIC'] 
             ?? '';
@@ -645,6 +650,9 @@ class SyncExecutor
             ?? 0);
 
         $totalWithVat = floatval($totalAmount);
+        
+        // Get or create customer in QuickBooks
+        $customerId = $this->getOrCreateQBOCustomer($buyerName, $buyerNuis, $companyId, $qboCreds);
 
         // Build QuickBooks invoice payload based on company VAT tracking preference
         
@@ -672,7 +680,7 @@ class SyncExecutor
                     ]
                 ],
                 'CustomerRef' => [
-                    'value' => '1' // Default customer (must exist in QBO)
+                    'value' => $customerId // Dynamic customer lookup
                 ],
                 'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
             ];
@@ -697,7 +705,7 @@ class SyncExecutor
                     ]
                 ],
                 'CustomerRef' => [
-                    'value' => '1' // Default customer (must exist in QBO)
+                    'value' => $customerId // Dynamic customer lookup
                 ],
                 'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
                 // NO GlobalTaxCalculation or TxnTaxDetail when tax is OFF
@@ -1269,5 +1277,240 @@ class SyncExecutor
             WHERE id = ?
         ");
         $stmt->execute([$error, $jobId]);
+    }
+    
+    /**
+     * Get or create QuickBooks customer from DevPos buyer information
+     * 
+     * @param string $buyerName Buyer/customer name from DevPos
+     * @param string|null $buyerNuis Buyer tax ID (NUIS) from DevPos
+     * @param int $companyId Company ID
+     * @param array $qboCreds QuickBooks credentials
+     * @return string QuickBooks customer ID
+     */
+    private function getOrCreateQBOCustomer(string $buyerName, ?string $buyerNuis, int $companyId, array $qboCreds): string
+    {
+        // First, check if we have a cached mapping
+        $customerId = $this->findCachedCustomer($companyId, $buyerName, $buyerNuis);
+        if ($customerId) {
+            return $customerId;
+        }
+        
+        // Search for customer in QuickBooks by NUIS or name
+        $customerId = $this->findQBOCustomerByNuis($buyerNuis, $qboCreds);
+        if (!$customerId) {
+            $customerId = $this->findQBOCustomerByName($buyerName, $qboCreds);
+        }
+        
+        // If not found, create new customer in QuickBooks
+        if (!$customerId) {
+            $customerId = $this->createQBOCustomer($buyerName, $buyerNuis, $qboCreds);
+        }
+        
+        // Cache the mapping
+        if ($customerId) {
+            $this->cacheCustomerMapping($companyId, $buyerName, $buyerNuis, $customerId);
+        }
+        
+        return $customerId ?: '1'; // Fallback to default customer
+    }
+    
+    /**
+     * Find cached customer mapping in database
+     */
+    private function findCachedCustomer(int $companyId, string $buyerName, ?string $buyerNuis): ?string
+    {
+        if ($buyerNuis) {
+            // Try lookup by NUIS first (most reliable)
+            $stmt = $this->pdo->prepare("
+                SELECT qbo_customer_id 
+                FROM customer_mappings 
+                WHERE company_id = ? AND buyer_nuis = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$companyId, $buyerNuis]);
+            $result = $stmt->fetchColumn();
+            if ($result) {
+                return $result;
+            }
+        }
+        
+        // Fallback to name lookup
+        $stmt = $this->pdo->prepare("
+            SELECT qbo_customer_id 
+            FROM customer_mappings 
+            WHERE company_id = ? AND buyer_name = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$companyId, $buyerName]);
+        $result = $stmt->fetchColumn();
+        
+        return $result ?: null;
+    }
+    
+    /**
+     * Find QuickBooks customer by NUIS (tax ID)
+     */
+    private function findQBOCustomerByNuis(?string $buyerNuis, array $qboCreds): ?string
+    {
+        if (!$buyerNuis) {
+            return null;
+        }
+        
+        $client = new Client([
+            'timeout' => 30,
+            'connect_timeout' => 10
+        ]);
+        
+        $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+        $baseUrl = $isSandbox 
+            ? 'https://sandbox-quickbooks.api.intuit.com'
+            : 'https://quickbooks.api.intuit.com';
+        
+        try {
+            // Query customers by ResaleNum (tax ID field in QuickBooks)
+            $query = "SELECT * FROM Customer WHERE ResaleNum = '{$buyerNuis}'";
+            
+            $response = $client->get($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/query', [
+                'query' => ['query' => $query],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                    'Accept' => 'application/json'
+                ]
+            ]);
+            
+            $data = json_decode($response->getBody()->getContents(), true);
+            
+            if (!empty($data['QueryResponse']['Customer'][0]['Id'])) {
+                return $data['QueryResponse']['Customer'][0]['Id'];
+            }
+        } catch (Exception $e) {
+            error_log("Error finding QBO customer by NUIS: " . $e->getMessage());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Find QuickBooks customer by name
+     */
+    private function findQBOCustomerByName(string $buyerName, array $qboCreds): ?string
+    {
+        $client = new Client([
+            'timeout' => 30,
+            'connect_timeout' => 10
+        ]);
+        
+        $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+        $baseUrl = $isSandbox 
+            ? 'https://sandbox-quickbooks.api.intuit.com'
+            : 'https://quickbooks.api.intuit.com';
+        
+        try {
+            // Escape single quotes in name for query
+            $safeName = str_replace("'", "\\'", $buyerName);
+            $query = "SELECT * FROM Customer WHERE DisplayName = '{$safeName}'";
+            
+            $response = $client->get($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/query', [
+                'query' => ['query' => $query],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                    'Accept' => 'application/json'
+                ]
+            ]);
+            
+            $data = json_decode($response->getBody()->getContents(), true);
+            
+            if (!empty($data['QueryResponse']['Customer'][0]['Id'])) {
+                return $data['QueryResponse']['Customer'][0]['Id'];
+            }
+        } catch (Exception $e) {
+            error_log("Error finding QBO customer by name: " . $e->getMessage());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Create new customer in QuickBooks
+     */
+    private function createQBOCustomer(string $buyerName, ?string $buyerNuis, array $qboCreds): ?string
+    {
+        $client = new Client([
+            'timeout' => 30,
+            'connect_timeout' => 10
+        ]);
+        
+        $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+        $baseUrl = $isSandbox 
+            ? 'https://sandbox-quickbooks.api.intuit.com'
+            : 'https://quickbooks.api.intuit.com';
+        
+        $payload = [
+            'DisplayName' => $buyerName
+        ];
+        
+        // Add tax ID if available
+        if ($buyerNuis) {
+            $payload['ResaleNum'] = $buyerNuis; // Tax ID field
+        }
+        
+        try {
+            error_log("Creating new QBO customer: $buyerName" . ($buyerNuis ? " (NUIS: $buyerNuis)" : ""));
+            
+            $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/customer', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json'
+                ],
+                'json' => $payload
+            ]);
+            
+            $data = json_decode($response->getBody()->getContents(), true);
+            
+            if (!empty($data['Customer']['Id'])) {
+                $customerId = $data['Customer']['Id'];
+                error_log("✓ Created QBO customer ID: $customerId for $buyerName");
+                return $customerId;
+            }
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $errorBody = $e->getResponse()->getBody()->getContents();
+            error_log("QuickBooks Customer Creation Failed: " . $e->getMessage());
+            error_log("Error Response: " . $errorBody);
+            
+            // Check if error is duplicate name
+            if (strpos($errorBody, 'already exists') !== false) {
+                // Try to find the existing customer
+                return $this->findQBOCustomerByName($buyerName, $qboCreds);
+            }
+        } catch (Exception $e) {
+            error_log("Error creating QBO customer: " . $e->getMessage());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Cache customer mapping in database
+     */
+    private function cacheCustomerMapping(int $companyId, string $buyerName, ?string $buyerNuis, string $qboCustomerId): void
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                INSERT INTO customer_mappings 
+                (company_id, buyer_name, buyer_nuis, qbo_customer_id, last_synced_at)
+                VALUES (?, ?, ?, ?, NOW())
+                ON DUPLICATE KEY UPDATE
+                    qbo_customer_id = VALUES(qbo_customer_id),
+                    last_synced_at = NOW()
+            ");
+            $stmt->execute([$companyId, $buyerName, $buyerNuis, $qboCustomerId]);
+            
+            error_log("Cached customer mapping: $buyerName → QBO ID $qboCustomerId");
+        } catch (Exception $e) {
+            error_log("Warning: Failed to cache customer mapping: " . $e->getMessage());
+            // Non-fatal error - continue without caching
+        }
     }
 }
