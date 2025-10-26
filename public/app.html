@@ -876,6 +876,9 @@
         async function loadVatTracking(companyId) {
             try {
                 const response = await fetch(`${API_BASE}/api/companies/${companyId}/vat-tracking`, {
+                    headers: {
+                        'X-API-Key': API_KEY  // Add API key for authentication
+                    },
                     credentials: 'include'
                 });
 
@@ -886,6 +889,8 @@
                     
                     // Update status display
                     updateVatTrackingDisplay(checkbox.checked);
+                } else {
+                    console.error('Failed to load VAT tracking:', await response.text());
                 }
             } catch (error) {
                 console.error('Error loading VAT tracking:', error);
@@ -905,12 +910,16 @@
             try {
                 const response = await fetch(`${API_BASE}/api/companies/${currentCompany}/vat-tracking`, {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY  // Add API key for authentication
+                    },
                     credentials: 'include',
                     body: JSON.stringify({ tracks_vat: tracksVat })
                 });
 
                 if (response.ok) {
+                    const result = await response.json();
                     updateVatTrackingDisplay(tracksVat);
                     showAlert(
                         tracksVat 
@@ -920,13 +929,15 @@
                     );
                 } else {
                     const error = await response.json();
-                    showAlert('❌ Failed to update VAT setting: ' + error.message, 'error');
+                    const errorMsg = error.error || error.message || 'Unknown error';
+                    showAlert('❌ Failed to update VAT setting: ' + errorMsg, 'error');
+                    console.error('VAT update error:', error);
                     // Revert checkbox on error
                     checkbox.checked = !tracksVat;
                 }
             } catch (error) {
                 console.error('Error updating VAT tracking:', error);
-                showAlert('❌ Failed to update VAT setting', 'error');
+                showAlert('❌ Failed to update VAT setting: ' + error.message, 'error');
                 // Revert checkbox on error
                 checkbox.checked = !tracksVat;
             }
