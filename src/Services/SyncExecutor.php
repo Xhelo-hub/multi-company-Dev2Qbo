@@ -294,6 +294,10 @@ class SyncExecutor
                 
                 error_log("[$progress] Creating bill $billId in QuickBooks...");
                 
+                // DEBUG: Log all bill fields to identify date field
+                error_log("[$progress] Bill fields: " . json_encode(array_keys($bill)));
+                error_log("[$progress] Bill data sample: " . json_encode(array_slice($bill, 0, 15)));
+                
                 // Create bill in QuickBooks
                 $this->syncBillToQBO($bill, $qboCreds, $companyId);
                 $synced++;
