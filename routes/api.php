@@ -1137,32 +1137,57 @@ $app->get('/oauth/callback', function (Request $request, Response $response) use
         
         $tokens = json_decode($tokenResponse->getBody()->getContents(), true);
         
-        // Save tokens to database
-        $stmt = $pdo->prepare("
-            INSERT INTO company_credentials_qbo (company_id, realm_id, created_at, updated_at)
-            VALUES (?, ?, NOW(), NOW())
-            ON DUPLICATE KEY UPDATE realm_id = ?, updated_at = NOW()
-        ");
-        $stmt->execute([$companyId, $realmId, $realmId]);
+        // Save tokens to database (both tables for compatibility)
+        // Calculate token expiration timestamp
+        $expiresIn = $tokens['expires_in'] ?? 3600; // Default 1 hour
         
+        // Update company_credentials_qbo with tokens and expiration
         $stmt = $pdo->prepare("
-            INSERT INTO oauth_tokens_qbo (company_id, access_token, refresh_token, expires_at, created_at)
-            VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND), NOW())
+            INSERT INTO company_credentials_qbo (company_id, realm_id, access_token, refresh_token, token_expires_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND), NOW(), NOW())
             ON DUPLICATE KEY UPDATE 
-                access_token = ?, 
-                refresh_token = ?, 
-                expires_at = DATE_ADD(NOW(), INTERVAL ? SECOND),
-                created_at = NOW()
+                realm_id = ?, 
+                access_token = ?,
+                refresh_token = ?,
+                token_expires_at = DATE_ADD(NOW(), INTERVAL ? SECOND),
+                updated_at = NOW()
         ");
         $stmt->execute([
             $companyId,
+            $realmId,
             $tokens['access_token'],
             $tokens['refresh_token'],
-            $tokens['expires_in'] ?? 3600,
+            $expiresIn,
+            $realmId,
             $tokens['access_token'],
             $tokens['refresh_token'],
-            $tokens['expires_in'] ?? 3600
+            $expiresIn
         ]);
+        
+        // Also store in oauth_tokens_qbo if that table exists
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO oauth_tokens_qbo (company_id, access_token, refresh_token, expires_at, created_at)
+                VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND), NOW())
+                ON DUPLICATE KEY UPDATE 
+                    access_token = ?, 
+                    refresh_token = ?, 
+                    expires_at = DATE_ADD(NOW(), INTERVAL ? SECOND),
+                    created_at = NOW()
+            ");
+            $stmt->execute([
+                $companyId,
+                $tokens['access_token'],
+                $tokens['refresh_token'],
+                $expiresIn,
+                $tokens['access_token'],
+                $tokens['refresh_token'],
+                $expiresIn
+            ]);
+        } catch (Exception $e) {
+            // Table might not exist, that's okay
+            error_log("oauth_tokens_qbo table insert failed (might not exist): " . $e->getMessage());
+        }
         
         // Clean up state token
         $stmt = $pdo->prepare("DELETE FROM oauth_state_tokens WHERE company_id = ?");
@@ -1210,6 +1235,180 @@ $app->get('/oauth/callback', function (Request $request, Response $response) use
         return $response->withHeader('Content-Type', 'text/html');
     }
 });
+
+// OAuth Refresh Token endpoint (with auth)
+$app->post('/oauth/refresh/{company_id}', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['company_id'];
+        
+        // Get current refresh token
+        $stmt = $pdo->prepare("
+            SELECT refresh_token, token_expires_at
+            FROM company_credentials_qbo
+            WHERE company_id = ?
+        ");
+        $stmt->execute([$companyId]);
+        $creds = $stmt->fetch();
+        
+        if (!$creds || !$creds['refresh_token']) {
+            throw new Exception('No refresh token found. Please reconnect QuickBooks.');
+        }
+        
+        // Check if token is already valid for more than 10 minutes
+        if ($creds['token_expires_at']) {
+            $expiresAt = strtotime($creds['token_expires_at']);
+            $now = time();
+            $timeRemaining = $expiresAt - $now;
+            
+            if ($timeRemaining > 600) { // More than 10 minutes remaining
+                $response->getBody()->write(json_encode([
+                    'success' => true,
+                    'message' => 'Token still valid',
+                    'expires_in' => $timeRemaining
+                ]));
+                return $response->withHeader('Content-Type', 'application/json');
+            }
+        }
+        
+        // Refresh the token
+        $client = new \GuzzleHttp\Client();
+        $tokenResponse = $client->post('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', [
+            'form_params' => [
+                'grant_type' => 'refresh_token',
+                'refresh_token' => $creds['refresh_token']
+            ],
+            'headers' => [
+                'Authorization' => 'Basic ' . base64_encode(($_ENV['QBO_CLIENT_ID'] ?? '') . ':' . ($_ENV['QBO_CLIENT_SECRET'] ?? '')),
+                'Content-Type' => 'application/x-www-form-urlencoded'
+            ]
+        ]);
+        
+        $tokens = json_decode($tokenResponse->getBody()->getContents(), true);
+        $expiresIn = $tokens['expires_in'] ?? 3600;
+        
+        // Update tokens in database
+        $stmt = $pdo->prepare("
+            UPDATE company_credentials_qbo
+            SET access_token = ?,
+                refresh_token = ?,
+                token_expires_at = DATE_ADD(NOW(), INTERVAL ? SECOND),
+                updated_at = NOW()
+            WHERE company_id = ?
+        ");
+        $stmt->execute([
+            $tokens['access_token'],
+            $tokens['refresh_token'],
+            $expiresIn,
+            $companyId
+        ]);
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'Token refreshed successfully',
+            'expires_in' => $expiresIn
+        ]));
+        
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (\GuzzleHttp\Exception\ClientException $e) {
+        $statusCode = $e->getResponse()->getStatusCode();
+        $errorBody = $e->getResponse()->getBody()->getContents();
+        error_log("OAuth refresh failed: " . $errorBody);
+        
+        $response->getBody()->write(json_encode([
+            'success' => false,
+            'error' => 'Token refresh failed. Please reconnect QuickBooks.',
+            'details' => $errorBody
+        ]));
+        return $response->withStatus($statusCode)->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("OAuth refresh error: " . $e->getMessage());
+        $response->getBody()->write(json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// Get company connection status
+$app->get('/companies/{id}/status', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['id'];
+        
+        $status = [
+            'quickbooks' => [
+                'connected' => false,
+                'status' => 'disconnected',
+                'expires_at' => null,
+                'expires_in_days' => null,
+                'realm_id' => null
+            ],
+            'devpos' => [
+                'connected' => false,
+                'status' => 'disconnected'
+            ]
+        ];
+        
+        // Check QuickBooks connection
+        $stmt = $pdo->prepare("
+            SELECT realm_id, access_token, token_expires_at
+            FROM company_credentials_qbo
+            WHERE company_id = ?
+        ");
+        $stmt->execute([$companyId]);
+        $qboCreds = $stmt->fetch();
+        
+        if ($qboCreds && $qboCreds['access_token']) {
+            $status['quickbooks']['connected'] = true;
+            $status['quickbooks']['realm_id'] = $qboCreds['realm_id'];
+            
+            if ($qboCreds['token_expires_at']) {
+                $expiresAt = strtotime($qboCreds['token_expires_at']);
+                $now = time();
+                $timeRemaining = $expiresAt - $now;
+                $daysRemaining = floor($timeRemaining / 86400);
+                
+                $status['quickbooks']['expires_at'] = $qboCreds['token_expires_at'];
+                $status['quickbooks']['expires_in_days'] = $daysRemaining;
+                
+                if ($timeRemaining <= 0) {
+                    $status['quickbooks']['status'] = 'expired';
+                } elseif ($daysRemaining <= 7) {
+                    $status['quickbooks']['status'] = 'expiring_soon';
+                } else {
+                    $status['quickbooks']['status'] = 'connected';
+                }
+            } else {
+                $status['quickbooks']['status'] = 'connected';
+            }
+        }
+        
+        // Check DevPos connection
+        $stmt = $pdo->prepare("
+            SELECT tenant, username
+            FROM company_credentials_devpos
+            WHERE company_id = ?
+        ");
+        $stmt->execute([$companyId]);
+        $devposCreds = $stmt->fetch();
+        
+        if ($devposCreds && $devposCreds['tenant'] && $devposCreds['username']) {
+            $status['devpos']['connected'] = true;
+            $status['devpos']['status'] = 'connected';
+            $status['devpos']['tenant'] = $devposCreds['tenant'];
+        }
+        
+        $response->getBody()->write(json_encode($status));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Connection status error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
 
 // ============================================================================
 // DASHBOARD ENDPOINT

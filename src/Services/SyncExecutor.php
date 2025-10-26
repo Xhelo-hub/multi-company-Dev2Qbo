@@ -96,11 +96,12 @@ class SyncExecutor
             throw new Exception('DevPos credentials not configured');
         }
         
-        // Get QuickBooks credentials
+        // Get QuickBooks credentials and auto-refresh if needed
         $qboCreds = $this->getQBOCredentials($companyId);
         if (!$qboCreds) {
             throw new Exception('QuickBooks not connected');
         }
+        $qboCreds = $this->ensureFreshToken($qboCreds, $companyId);
         
         // Get DevPos access token
         $devposToken = $this->getDevPosToken($devposCreds);
@@ -199,11 +200,12 @@ class SyncExecutor
             throw new Exception('DevPos credentials not configured');
         }
         
-        // Get QuickBooks credentials
+        // Get QuickBooks credentials and auto-refresh if needed
         $qboCreds = $this->getQBOCredentials($companyId);
         if (!$qboCreds) {
             throw new Exception('QuickBooks not connected');
         }
+        $qboCreds = $this->ensureFreshToken($qboCreds, $companyId);
         
         // Get DevPos access token
         $devposToken = $this->getDevPosToken($devposCreds);
@@ -313,13 +315,12 @@ class SyncExecutor
     {
         $stmt = $this->pdo->prepare("
             SELECT 
-                c.realm_id,
-                t.access_token,
-                t.refresh_token,
-                t.expires_at
-            FROM company_credentials_qbo c
-            LEFT JOIN oauth_tokens_qbo t ON c.company_id = t.company_id
-            WHERE c.company_id = ?
+                realm_id,
+                access_token,
+                refresh_token,
+                token_expires_at
+            FROM company_credentials_qbo
+            WHERE company_id = ?
         ");
         $stmt->execute([$companyId]);
         $creds = $stmt->fetch();
@@ -328,17 +329,12 @@ class SyncExecutor
             return null;
         }
         
-        // Check if token needs refresh
-        if (strtotime($creds['expires_at']) < time() + 300) {
-            // Token expires in less than 5 minutes, refresh it
-            $this->refreshQBOToken($companyId, $creds['refresh_token']);
-            
-            // Re-fetch credentials
-            $stmt->execute([$companyId]);
-            $creds = $stmt->fetch();
-        }
-        
-        return $creds;
+        return [
+            'realm_id' => $creds['realm_id'],
+            'access_token' => $creds['access_token'],
+            'refresh_token' => $creds['refresh_token'],
+            'token_expires_at' => $creds['token_expires_at']
+        ];
     }
     
     /**
@@ -992,6 +988,78 @@ class SyncExecutor
             WHERE id = ?
         ");
         $stmt->execute([$status, $status, $jobId]);
+    }
+    
+    /**
+     * Ensure QuickBooks token is fresh (auto-refresh if needed)
+     */
+    private function ensureFreshToken(array $qboCreds, int $companyId): array
+    {
+        // Check if token expires soon (within 10 minutes)
+        if (isset($qboCreds['token_expires_at'])) {
+            $expiresAt = strtotime($qboCreds['token_expires_at']);
+            $now = time();
+            $timeRemaining = $expiresAt - $now;
+            
+            // If more than 10 minutes remaining, token is still good
+            if ($timeRemaining > 600) {
+                return $qboCreds;
+            }
+            
+            error_log("QuickBooks token expiring soon for company {$companyId}, refreshing...");
+        }
+        
+        // Token expired or expiring soon, refresh it
+        if (!isset($qboCreds['refresh_token']) || empty($qboCreds['refresh_token'])) {
+            throw new Exception('No refresh token available. Please reconnect QuickBooks.');
+        }
+        
+        try {
+            $client = new Client();
+            $tokenResponse = $client->post('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', [
+                'form_params' => [
+                    'grant_type' => 'refresh_token',
+                    'refresh_token' => $qboCreds['refresh_token']
+                ],
+                'headers' => [
+                    'Authorization' => 'Basic ' . base64_encode(($_ENV['QBO_CLIENT_ID'] ?? '') . ':' . ($_ENV['QBO_CLIENT_SECRET'] ?? '')),
+                    'Content-Type' => 'application/x-www-form-urlencoded'
+                ]
+            ]);
+            
+            $tokens = json_decode($tokenResponse->getBody()->getContents(), true);
+            $expiresIn = $tokens['expires_in'] ?? 3600;
+            
+            // Update tokens in database
+            $stmt = $this->pdo->prepare("
+                UPDATE company_credentials_qbo
+                SET access_token = ?,
+                    refresh_token = ?,
+                    token_expires_at = DATE_ADD(NOW(), INTERVAL ? SECOND),
+                    updated_at = NOW()
+                WHERE company_id = ?
+            ");
+            $stmt->execute([
+                $tokens['access_token'],
+                $tokens['refresh_token'],
+                $expiresIn,
+                $companyId
+            ]);
+            
+            error_log("QuickBooks token refreshed successfully for company {$companyId}");
+            
+            // Return updated credentials
+            return [
+                'realm_id' => $qboCreds['realm_id'],
+                'access_token' => $tokens['access_token'],
+                'refresh_token' => $tokens['refresh_token'],
+                'token_expires_at' => date('Y-m-d H:i:s', time() + $expiresIn)
+            ];
+            
+        } catch (Exception $e) {
+            error_log("Failed to refresh QuickBooks token for company {$companyId}: " . $e->getMessage());
+            throw new Exception('Failed to refresh QuickBooks token. Please reconnect QuickBooks.');
+        }
     }
     
     /**
