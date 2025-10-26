@@ -4,7 +4,26 @@
  */
 
 require __DIR__ . '/vendor/autoload.php';
-require __DIR__ . '/bootstrap/app.php';
+
+// Load environment variables
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
+// Database connection
+$pdo = new PDO(
+    sprintf(
+        'mysql:host=%s;dbname=%s;charset=utf8mb4',
+        $_ENV['DB_HOST'] ?? 'localhost',
+        $_ENV['DB_NAME'] ?? 'Xhelo_qbo_devpos'
+    ),
+    $_ENV['DB_USER'] ?? 'Xhelo_qbo_user',
+    $_ENV['DB_PASS'] ?? 'Albania@2030',
+    [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]
+);
 
 $jobId = $argv[1] ?? null;
 
