@@ -215,8 +215,33 @@
             box-shadow: 0 0 10px #10b981;
         }
 
+        .status-expiring {
+            background: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+            animation: pulse 2s infinite;
+        }
+
         .status-disconnected {
             background: #ef4444;
+        }
+
+        .status-expired {
+            background: #991b1b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .connection-warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #92400e;
         }
 
         /* Forms */
@@ -505,6 +530,7 @@
                     </span>
                     <span id="qboRealmId" style="font-size: 12px; color: #666;"></span>
                 </div>
+                <div id="qboWarning" class="connection-warning" style="display: none;"></div>
 
                 <button class="btn btn-primary" onclick="connectQuickBooks()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;">
                     <span class="icon-circle"><i class="fas fa-link"></i></span>
@@ -765,7 +791,47 @@
         // Load company credentials
         async function loadCompanyCredentials(companyId) {
             try {
-                // Load DevPos credentials
+                // Use the new status endpoint for comprehensive status
+                const statusResponse = await fetch(`${API_BASE}/api/companies/${companyId}/status`, {
+                    credentials: 'include'
+                });
+
+                if (statusResponse.ok) {
+                    const status = await statusResponse.json();
+                    
+                    // Update DevPos status
+                    if (status.devpos.connected) {
+                        document.getElementById('devposStatus').className = 'status-indicator status-connected';
+                    } else {
+                        document.getElementById('devposStatus').className = 'status-indicator status-disconnected';
+                    }
+                    
+                    // Update QuickBooks status with expiration warnings
+                    const qboWarning = document.getElementById('qboWarning');
+                    if (status.quickbooks.connected) {
+                        if (status.quickbooks.status === 'expired') {
+                            document.getElementById('qboStatus').className = 'status-indicator status-expired';
+                            document.getElementById('qboRealmId').textContent = `Realm: ${status.quickbooks.realm_id} (EXPIRED)`;
+                            qboWarning.style.display = 'block';
+                            qboWarning.textContent = '⚠️ QuickBooks connection has expired. Please reconnect to continue syncing.';
+                        } else if (status.quickbooks.status === 'expiring_soon') {
+                            document.getElementById('qboStatus').className = 'status-indicator status-expiring';
+                            document.getElementById('qboRealmId').textContent = `Realm: ${status.quickbooks.realm_id} (Expires in ${status.quickbooks.expires_in_days} days)`;
+                            qboWarning.style.display = 'block';
+                            qboWarning.textContent = `⚠️ QuickBooks connection expires in ${status.quickbooks.expires_in_days} days. Please reconnect soon.`;
+                        } else {
+                            document.getElementById('qboStatus').className = 'status-indicator status-connected';
+                            document.getElementById('qboRealmId').textContent = `Realm: ${status.quickbooks.realm_id}`;
+                            qboWarning.style.display = 'none';
+                        }
+                    } else {
+                        document.getElementById('qboStatus').className = 'status-indicator status-disconnected';
+                        document.getElementById('qboRealmId').textContent = 'Not connected';
+                        qboWarning.style.display = 'none';
+                    }
+                }
+
+                // Also load DevPos credentials for the form
                 const devposResponse = await fetch(`${API_BASE}/api/companies/${companyId}/credentials/devpos`, {
                     credentials: 'include'
                 });
@@ -775,28 +841,6 @@
                     document.getElementById('devposTenant').value = devpos.tenant || '';
                     document.getElementById('devposUsername').value = devpos.username || '';
                     document.getElementById('devposPassword').value = '';
-                    document.getElementById('devposStatus').className = 'status-indicator status-connected';
-                } else {
-                    document.getElementById('devposStatus').className = 'status-indicator status-disconnected';
-                }
-
-                // Load QuickBooks status
-                const qboResponse = await fetch(`${API_BASE}/api/companies/${companyId}/credentials/qbo`, {
-                    credentials: 'include'
-                });
-
-                if (qboResponse.ok) {
-                    const qbo = await qboResponse.json();
-                    if (qbo.realm_id) {
-                        document.getElementById('qboStatus').className = 'status-indicator status-connected';
-                        document.getElementById('qboRealmId').textContent = `Realm: ${qbo.realm_id}`;
-                    } else {
-                        document.getElementById('qboStatus').className = 'status-indicator status-disconnected';
-                        document.getElementById('qboRealmId').textContent = 'Not connected';
-                    }
-                } else {
-                    document.getElementById('qboStatus').className = 'status-indicator status-disconnected';
-                    document.getElementById('qboRealmId').textContent = 'Not connected';
                 }
 
             } catch (error) {
