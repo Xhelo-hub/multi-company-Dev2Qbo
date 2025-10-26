@@ -29,7 +29,7 @@ $pdo = new PDO(
 
 // Fetch company credentials
 $stmt = $pdo->prepare("
-    SELECT c.*, dc.tenant, dc.api_key, dc.api_secret 
+    SELECT c.*, dc.tenant, dc.username 
     FROM companies c 
     LEFT JOIN company_credentials_devpos dc ON c.id = dc.company_id 
     WHERE c.id = ?
