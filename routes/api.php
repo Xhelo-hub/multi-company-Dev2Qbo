@@ -1415,7 +1415,7 @@ $app->get('/companies/{id}/status', function (Request $request, Response $respon
 // ============================================================================
 
 // Get VAT tracking setting for a company
-$app->get('/companies/{id}/vat-tracking', function (Request $request, Response $response, array $args) use ($pdo) {
+$app->get('/api/companies/{id}/vat-tracking', function (Request $request, Response $response, array $args) use ($pdo) {
     try {
         $companyId = (int)$args['id'];
         
@@ -1442,7 +1442,7 @@ $app->get('/companies/{id}/vat-tracking', function (Request $request, Response $
 })->add($authMiddleware);
 
 // Update VAT tracking setting for a company
-$app->patch('/companies/{id}/vat-tracking', function (Request $request, Response $response, array $args) use ($pdo) {
+$app->patch('/api/companies/{id}/vat-tracking', function (Request $request, Response $response, array $args) use ($pdo) {
     try {
         $companyId = (int)$args['id'];
         $data = json_decode($request->getBody()->getContents(), true);
@@ -1481,7 +1481,7 @@ $app->patch('/companies/{id}/vat-tracking', function (Request $request, Response
 // ============================================================================
 
 // Get VAT rate mappings for a company
-$app->get('/companies/{id}/vat-mappings', function (Request $request, Response $response, array $args) use ($pdo) {
+$app->get('/api/companies/{id}/vat-mappings', function (Request $request, Response $response, array $args) use ($pdo) {
     try {
         $companyId = (int)$args['id'];
         
@@ -1509,7 +1509,7 @@ $app->get('/companies/{id}/vat-mappings', function (Request $request, Response $
 })->add($authMiddleware);
 
 // Create or update VAT rate mapping
-$app->post('/companies/{id}/vat-mappings', function (Request $request, Response $response, array $args) use ($pdo) {
+$app->post('/api/companies/{id}/vat-mappings', function (Request $request, Response $response, array $args) use ($pdo) {
     try {
         $companyId = (int)$args['id'];
         $data = json_decode($request->getBody()->getContents(), true);
@@ -1556,7 +1556,7 @@ $app->post('/companies/{id}/vat-mappings', function (Request $request, Response 
 })->add($authMiddleware);
 
 // Delete VAT rate mapping
-$app->delete('/companies/{id}/vat-mappings/{mappingId}', function (Request $request, Response $response, array $args) use ($pdo) {
+$app->delete('/api/companies/{id}/vat-mappings/{mappingId}', function (Request $request, Response $response, array $args) use ($pdo) {
     try {
         $companyId = (int)$args['id'];
         $mappingId = (int)$args['mappingId'];
