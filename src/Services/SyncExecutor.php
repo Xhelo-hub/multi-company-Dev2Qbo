@@ -550,42 +550,63 @@ class SyncExecutor
 
         $totalWithVat = floatval($totalAmount);
 
-        // Build QuickBooks invoice payload
-        // IMPORTANT: If QuickBooks company has VAT enabled, we MUST provide TaxCodeRef
-        // For non-VAT tracking companies: Use 'TAX' but the amount already includes VAT
-        // For VAT tracking companies: Use 'TAX' and QBO will calculate VAT
-        $payload = [
-            'Line' => [
-                [
-                    'Amount' => $totalWithVat,
-                    'DetailType' => 'SalesItemLineDetail',
-                    'SalesItemLineDetail' => [
-                        'ItemRef' => [
-                            'value' => '1', // Default sales item (must exist in QBO)
-                            'name' => 'Services'
+        // Build QuickBooks invoice payload based on company VAT tracking preference
+        // For NON-VAT companies: Use TaxCodeRef='NON' to post total without QBO adding tax
+        // For VAT companies: Use TaxCodeRef='TAX' to let QBO calculate VAT breakdown
+        
+        if ($tracksVat) {
+            // VAT-registered company: Enable tax calculation
+            $payload = [
+                'Line' => [
+                    [
+                        'Amount' => $totalWithVat,
+                        'DetailType' => 'SalesItemLineDetail',
+                        'SalesItemLineDetail' => [
+                            'ItemRef' => [
+                                'value' => '1', // Default sales item (must exist in QBO)
+                                'name' => 'Services'
+                            ],
+                            'UnitPrice' => $totalWithVat,
+                            'Qty' => 1,
+                            'TaxCodeRef' => [
+                                'value' => 'TAX' // Taxable - QBO will calculate VAT
+                            ]
                         ],
-                        'UnitPrice' => $totalWithVat,
-                        'Qty' => 1,
-                        'TaxCodeRef' => [
-                            // Always use 'TAX' since QBO company requires VAT rate
-                            // For non-VAT companies, this satisfies QBO's requirement
-                            // For VAT companies, this enables proper VAT calculation
-                            'value' => 'TAX'
-                        ]
-                    ],
-                    'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
-                ]
-            ],
-            'CustomerRef' => [
-                'value' => '1' // Default customer (must exist in QBO)
-            ],
-            'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
-            'TxnTaxDetail' => [
-                'TxnTaxCodeRef' => [
-                    'value' => $tracksVat ? 'TAX' : '2' // Use tax code 2 (0% or standard rate)
-                ]
-            ]
-        ];
+                        'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
+                    ]
+                ],
+                'CustomerRef' => [
+                    'value' => '1' // Default customer (must exist in QBO)
+                ],
+                'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
+            ];
+        } else {
+            // Non-VAT company: Post total without tax calculation
+            $payload = [
+                'Line' => [
+                    [
+                        'Amount' => $totalWithVat,
+                        'DetailType' => 'SalesItemLineDetail',
+                        'SalesItemLineDetail' => [
+                            'ItemRef' => [
+                                'value' => '1', // Default sales item (must exist in QBO)
+                                'name' => 'Services'
+                            ],
+                            'UnitPrice' => $totalWithVat,
+                            'Qty' => 1,
+                            'TaxCodeRef' => [
+                                'value' => 'NON' // Non-taxable - post amount as-is
+                            ]
+                        ],
+                        'Description' => $documentNumber ? "Invoice: $documentNumber" : 'Sales Invoice'
+                    ]
+                ],
+                'CustomerRef' => [
+                    'value' => '1' // Default customer (must exist in QBO)
+                ],
+                'TxnDate' => substr($issueDate, 0, 10) // YYYY-MM-DD format
+            ];
+        }
 
         // Add document number if available
         if ($documentNumber) {
