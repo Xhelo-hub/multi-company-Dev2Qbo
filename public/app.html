@@ -615,6 +615,35 @@
                 <div class="spinner"></div>
             </div>
         </div>
+
+        <!-- Synced Transactions Details Card -->
+        <div class="card" style="margin-top: 20px;">
+            <h2 style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="display: flex; align-items: center; gap: 10px;">
+                    <span class="icon-circle"><i class="fas fa-file-invoice"></i></span>
+                    Synced Transactions
+                </span>
+                <button onclick="loadTransactionDetails()" class="btn btn-primary" style="padding: 8px 16px; font-size: 13px;">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+            </h2>
+            <div id="transactionDetails" style="margin-top: 15px;">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Details Modal -->
+    <div id="transactionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+        <div style="max-width: 600px; margin: 50px auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 50px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #ef4444; margin: 0;"><i class="fas fa-exclamation-triangle"></i> Sync Error Details</h2>
+                <button onclick="closeTransactionModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
+            </div>
+            <div id="transactionModalContent">
+                <!-- Error details will be populated here -->
+            </div>
+        </div>
     </div>
 
     <!-- Schedule Management Modal -->
@@ -1142,22 +1171,199 @@
                     const dateRange = `${job.from_date} to ${job.to_date}`;
                     const startedAt = job.started_at ? new Date(job.started_at).toLocaleString() : new Date(job.created_at).toLocaleString();
                     
+                    // Parse results if available
+                    let results = null;
+                    if (job.results_json) {
+                        try {
+                            results = typeof job.results_json === 'string' ? JSON.parse(job.results_json) : job.results_json;
+                        } catch (e) {
+                            console.error('Failed to parse results_json:', e);
+                        }
+                    }
+                    
+                    const statusLabel = job.status === 'completed' && results && results.synced < results.total 
+                        ? `${job.status} (${results.synced}/${results.total} synced)` 
+                        : job.status;
+                    
                     return `
                         <div class="sync-job">
                             <div class="job-info">
                                 <h4>${job.job_type.toUpperCase()} - ${dateRange}</h4>
                                 <p>Started: ${startedAt}</p>
                                 ${job.completed_at ? `<p>Completed: ${new Date(job.completed_at).toLocaleString()}</p>` : ''}
+                                ${results ? `<p>Total: ${results.total}, Synced: ${results.synced}, Errors: ${results.errors}</p>` : ''}
                                 ${job.error_message ? `<p style="color: #ef4444;">Error: ${job.error_message}</p>` : ''}
                             </div>
-                            <span class="job-status status-${job.status}">${job.status}</span>
+                            <span class="job-status status-${job.status}">${statusLabel}</span>
                         </div>
                     `;
                 }).join('');
+                
+                // Load transaction details after sync history
+                loadTransactionDetails();
 
             } catch (error) {
                 console.error('Error loading sync history:', error);
             }
+        }
+
+        // Load detailed transaction sync status
+        async function loadTransactionDetails() {
+            if (!currentCompany) {
+                return;
+            }
+            
+            try {
+                const container = document.getElementById('transactionDetails');
+                container.innerHTML = '<div class="spinner"></div>';
+                
+                // Get the latest sync job
+                const jobsResponse = await fetch(`${API_BASE}/api/sync/${currentCompany}/jobs`, {
+                    credentials: 'include'
+                });
+                const jobs = await jobsResponse.json();
+                
+                if (jobs.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No sync jobs yet. Run a sync to see transaction details.</p>';
+                    return;
+                }
+                
+                const latestJob = jobs[0];
+                let results = null;
+                
+                if (latestJob.results_json) {
+                    try {
+                        results = typeof latestJob.results_json === 'string' ? JSON.parse(latestJob.results_json) : latestJob.results_json;
+                    } catch (e) {
+                        console.error('Failed to parse results_json:', e);
+                    }
+                }
+                
+                if (!results || !results.error_details) {
+                    container.innerHTML = `
+                        <div style="background: #d1fae5; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
+                            <strong>✅ Last Sync: ${latestJob.job_type.toUpperCase()}</strong><br>
+                            <p style="margin: 8px 0 0 0;">Total: ${results?.total || 0}, Successfully Synced: ${results?.synced || 0}, Errors: ${results?.errors || 0}</p>
+                            <p style="margin: 8px 0 0 0; font-size: 12px; color: #065f46;">Date Range: ${latestJob.from_date} to ${latestJob.to_date}</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Display detailed transaction status
+                const errorDetails = results.error_details || [];
+                const totalTransactions = results.total || 0;
+                const syncedCount = results.synced || 0;
+                const errorCount = results.errors || 0;
+                
+                let html = `
+                    <div style="background: ${errorCount > 0 ? '#fee2e2' : '#d1fae5'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${errorCount > 0 ? '#ef4444' : '#10b981'}; margin-bottom: 15px;">
+                        <strong>${errorCount > 0 ? '⚠️' : '✅'} Last Sync: ${latestJob.job_type.toUpperCase()}</strong><br>
+                        <p style="margin: 8px 0 0 0;">Total Transactions: ${totalTransactions}, Successfully Synced: ${syncedCount}, Errors: ${errorCount}</p>
+                        <p style="margin: 8px 0 0 0; font-size: 12px; color: ${errorCount > 0 ? '#991b1b' : '#065f46'};">Date Range: ${latestJob.from_date} to ${latestJob.to_date}</p>
+                        <p style="margin: 8px 0 0 0; font-size: 12px; color: ${errorCount > 0 ? '#991b1b' : '#065f46'};">Completed: ${new Date(latestJob.completed_at).toLocaleString()}</p>
+                    </div>
+                `;
+                
+                if (errorDetails.length > 0) {
+                    html += `
+                        <div style="margin-top: 15px;">
+                            <h3 style="margin-bottom: 10px; color: #333;">Transaction Status:</h3>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb;">
+                                        <th style="padding: 10px; text-align: left;">Invoice ID</th>
+                                        <th style="padding: 10px; text-align: center; width: 100px;">Status</th>
+                                        <th style="padding: 10px; text-align: left;">Error Message</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    errorDetails.forEach(detail => {
+                        const invoiceId = detail.invoice || detail.bill || detail.transaction || 'Unknown';
+                        const error = detail.error || detail.message || 'Unknown error';
+                        
+                        html += `
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 10px; font-family: monospace; font-size: 11px;">${invoiceId}</td>
+                                <td style="padding: 10px; text-align: center;">
+                                    <span style="color: #ef4444; font-size: 18px; cursor: pointer;" onclick="showTransactionError('${invoiceId}', \`${error.replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`)" title="Click for details">
+                                        ❌
+                                    </span>
+                                </td>
+                                <td style="padding: 10px; color: #ef4444; font-size: 12px;">
+                                    ${error.length > 80 ? error.substring(0, 80) + '...' : error}
+                                    ${error.length > 80 ? `<a href="#" onclick="showTransactionError('${invoiceId}', \`${error.replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`); return false;" style="color: #3b82f6; text-decoration: underline; margin-left: 5px;">View Full</a>` : ''}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                // Show successful transactions count
+                if (syncedCount > 0) {
+                    html += `
+                        <div style="margin-top: 15px; background: #d1fae5; padding: 12px; border-radius: 8px; text-align: center;">
+                            <strong style="color: #065f46;">✅ ${syncedCount} transaction${syncedCount > 1 ? 's' : ''} successfully posted to QuickBooks</strong>
+                        </div>
+                    `;
+                }
+                
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error loading transaction details:', error);
+                document.getElementById('transactionDetails').innerHTML = `
+                    <div style="background: #fee2e2; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444;">
+                        <strong>❌ Error loading transaction details</strong><br>
+                        <p style="margin: 8px 0 0 0;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Show transaction error details in modal
+        function showTransactionError(invoiceId, error) {
+            const modal = document.getElementById('transactionModal');
+            const content = document.getElementById('transactionModalContent');
+            
+            content.innerHTML = `
+                <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <strong style="color: #374151;">Invoice/Transaction ID:</strong>
+                    <div style="font-family: monospace; font-size: 12px; background: white; padding: 10px; border-radius: 5px; margin-top: 5px; word-break: break-all;">
+                        ${invoiceId}
+                    </div>
+                </div>
+                <div style="background: #fee2e2; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444;">
+                    <strong style="color: #991b1b;">Error Message:</strong>
+                    <div style="color: #7f1d1d; margin-top: 10px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;">
+                        ${error}
+                    </div>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                    <strong style="color: #92400e;">💡 Common Solutions:</strong>
+                    <ul style="margin: 10px 0 0 20px; color: #78350f; line-height: 1.8;">
+                        <li>Check if VAT tracking is configured correctly for this company</li>
+                        <li>Verify QuickBooks tax settings match your company's requirements</li>
+                        <li>Ensure QuickBooks connection is active and not expired</li>
+                        <li>Check if the customer/item references exist in QuickBooks</li>
+                    </ul>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // Close transaction error modal
+        function closeTransactionModal() {
+            document.getElementById('transactionModal').style.display = 'none';
         }
 
         // Admin functions
