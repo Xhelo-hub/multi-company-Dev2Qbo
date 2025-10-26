@@ -1411,6 +1411,188 @@ $app->get('/companies/{id}/status', function (Request $request, Response $respon
 })->add($authMiddleware);
 
 // ============================================================================
+// SCHEDULED SYNC ENDPOINTS
+// ============================================================================
+
+// Get scheduled syncs for a company
+$app->get('/companies/{id}/schedules', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['id'];
+        
+        $stmt = $pdo->prepare("
+            SELECT * FROM scheduled_syncs
+            WHERE company_id = ?
+            ORDER BY id ASC
+        ");
+        $stmt->execute([$companyId]);
+        $schedules = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $response->getBody()->write(json_encode($schedules));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Get schedules error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// Create or update scheduled sync
+$app->post('/companies/{id}/schedules', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $companyId = (int)$args['id'];
+        $data = json_decode($request->getBody()->getContents(), true);
+        
+        $jobType = $data['job_type'] ?? 'full';
+        $frequency = $data['frequency'] ?? 'daily';
+        $hourOfDay = $data['hour_of_day'] ?? 9;
+        $dayOfWeek = $data['day_of_week'] ?? null;
+        $dayOfMonth = $data['day_of_month'] ?? null;
+        $dateRangeDays = $data['date_range_days'] ?? 30;
+        $enabled = $data['enabled'] ?? true;
+        
+        // Calculate next run time
+        $nextRun = calculateNextRun($frequency, $hourOfDay, $dayOfWeek, $dayOfMonth);
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO scheduled_syncs 
+            (company_id, job_type, frequency, hour_of_day, day_of_week, day_of_month, date_range_days, enabled, next_run_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                job_type = VALUES(job_type),
+                frequency = VALUES(frequency),
+                hour_of_day = VALUES(hour_of_day),
+                day_of_week = VALUES(day_of_week),
+                day_of_month = VALUES(day_of_month),
+                date_range_days = VALUES(date_range_days),
+                enabled = VALUES(enabled),
+                next_run_at = VALUES(next_run_at)
+        ");
+        $stmt->execute([
+            $companyId, $jobType, $frequency, $hourOfDay, 
+            $dayOfWeek, $dayOfMonth, $dateRangeDays, $enabled ? 1 : 0, $nextRun
+        ]);
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'Scheduled sync configured',
+            'next_run' => $nextRun
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Create schedule error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// Enable/disable scheduled sync
+$app->patch('/schedules/{id}/toggle', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $scheduleId = (int)$args['id'];
+        $data = json_decode($request->getBody()->getContents(), true);
+        $enabled = $data['enabled'] ?? true;
+        
+        $stmt = $pdo->prepare("
+            UPDATE scheduled_syncs
+            SET enabled = ?
+            WHERE id = ?
+        ");
+        $stmt->execute([$enabled ? 1 : 0, $scheduleId]);
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => $enabled ? 'Schedule enabled' : 'Schedule disabled'
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Toggle schedule error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+// Delete scheduled sync
+$app->delete('/schedules/{id}', function (Request $request, Response $response, array $args) use ($pdo) {
+    try {
+        $scheduleId = (int)$args['id'];
+        
+        $stmt = $pdo->prepare("DELETE FROM scheduled_syncs WHERE id = ?");
+        $stmt->execute([$scheduleId]);
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'Schedule deleted'
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (Exception $e) {
+        error_log("Delete schedule error: " . $e->getMessage());
+        $response->getBody()->write(json_encode(['error' => $e->getMessage()]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
+/**
+ * Helper function to calculate next run time
+ */
+function calculateNextRun(string $frequency, int $hourOfDay, ?int $dayOfWeek, ?int $dayOfMonth): string
+{
+    $now = new DateTime();
+    
+    switch ($frequency) {
+        case 'hourly':
+            $next = clone $now;
+            $next->modify('+1 hour');
+            $next->setTime((int)$next->format('H'), 0, 0);
+            break;
+            
+        case 'daily':
+            $next = clone $now;
+            $next->modify('+1 day');
+            $next->setTime($hourOfDay, 0, 0);
+            
+            $today = clone $now;
+            $today->setTime($hourOfDay, 0, 0);
+            if ($today > $now) {
+                $next = $today;
+            }
+            break;
+            
+        case 'weekly':
+            $dayOfWeek = $dayOfWeek ?? 1;
+            $next = clone $now;
+            $next->modify('next ' . ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][$dayOfWeek]);
+            $next->setTime($hourOfDay, 0, 0);
+            break;
+            
+        case 'monthly':
+            $dayOfMonth = $dayOfMonth ?? 1;
+            $next = clone $now;
+            $next->modify('first day of next month');
+            $next->modify('+' . ($dayOfMonth - 1) . ' days');
+            $next->setTime($hourOfDay, 0, 0);
+            
+            $thisMonth = clone $now;
+            $thisMonth->setDate((int)$now->format('Y'), (int)$now->format('m'), $dayOfMonth);
+            $thisMonth->setTime($hourOfDay, 0, 0);
+            if ($thisMonth > $now) {
+                $next = $thisMonth;
+            }
+            break;
+            
+        default:
+            $next = clone $now;
+            $next->modify('+1 day');
+            $next->setTime(9, 0, 0);
+    }
+    
+    return $next->format('Y-m-d H:i:s');
+}
+
+// ============================================================================
 // DASHBOARD ENDPOINT
 // ============================================================================
 
