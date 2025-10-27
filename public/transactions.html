@@ -260,11 +260,9 @@
         <div class="header">
             <div>
                 <h1 style="color: #667eea;">Synced Transactions</h1>
+                <p id="companyName" style="color: #666; margin-top: 5px; font-size: 14px;">Loading...</p>
             </div>
             <div class="header-actions">
-                <select id="companySelector" class="btn">
-                    <option>Loading companies...</option>
-                </select>
                 <a href="/public/app.html" class="btn btn-primary">
                     <span class="icon-circle"><i class="fas fa-arrow-left"></i></span>
                     Back to Dashboard
@@ -374,6 +372,18 @@
         let currentLimit = 100;
         let currentType = 'all';
 
+        // Cookie management functions
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+
         // Initialize
         async function init() {
             try {
@@ -429,8 +439,8 @@
                 
                 console.log('User authenticated:', user);
                 
-                // Load companies
-                await loadCompanies();
+                // Load company from cookie
+                await loadCompanyFromCookie();
 
             } catch (error) {
                 console.error('Initialization error:', error);
@@ -441,33 +451,35 @@
             }
         }
 
-        async function loadCompanies() {
+        async function loadCompanyFromCookie() {
+            // Get company from cookie
+            const savedCompanyId = getCookie('selectedCompany');
+            
+            if (!savedCompanyId) {
+                alert('No company selected. Please select a company from the dashboard first.');
+                window.location.href = `${PAGE_BASE}/app.html`;
+                return;
+            }
+
+            // Verify company exists and get its details
             const response = await fetch(`${API_BASE}/api/companies`, {
                 credentials: 'include'
             });
 
             const companies = await response.json();
-            const selector = document.getElementById('companySelector');
+            const company = companies.find(c => c.company_id == savedCompanyId);
             
-            selector.innerHTML = '';
-            companies.forEach(company => {
-                const option = document.createElement('option');
-                option.value = company.company_id;
-                option.textContent = `${company.company_code} - ${company.company_name}`;
-                selector.appendChild(option);
-            });
-
-            if (companies.length > 0) {
-                currentCompany = companies[0].company_id;
-                selector.value = currentCompany;
-                await loadData();
+            if (!company) {
+                alert('Selected company not found. Please select a company from the dashboard.');
+                window.location.href = `${PAGE_BASE}/app.html`;
+                return;
             }
 
-            selector.addEventListener('change', async (e) => {
-                currentCompany = e.target.value;
-                currentPage = 0;
-                await loadData();
-            });
+            // Set company name in header
+            document.getElementById('companyName').textContent = `${company.company_code} - ${company.company_name}`;
+            
+            currentCompany = savedCompanyId;
+            await loadData();
         }
 
         async function loadData() {

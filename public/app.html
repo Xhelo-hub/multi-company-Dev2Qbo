@@ -778,6 +778,24 @@
             }
         }
 
+        // Cookie management functions
+        function setCookie(name, value, days = 365) {
+            const expires = new Date();
+            expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+        }
+
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+
         // Show alert message
         function showAlert(message, type = 'info') {
             const container = document.getElementById('alertContainer');
@@ -806,10 +824,21 @@
                 selector.appendChild(option);
             });
 
-            // Select first company by default
-            if (companies.length > 0) {
-                selector.value = companies[0].company_id;
-                await selectCompany(companies[0].company_id);
+            // Check for saved company in cookie
+            const savedCompanyId = getCookie('selectedCompany');
+            let companyToSelect = null;
+
+            if (savedCompanyId && companies.find(c => c.company_id == savedCompanyId)) {
+                // Use saved company if it exists
+                companyToSelect = savedCompanyId;
+            } else if (companies.length > 0) {
+                // Otherwise select first company
+                companyToSelect = companies[0].company_id;
+            }
+
+            if (companyToSelect) {
+                selector.value = companyToSelect;
+                await selectCompany(companyToSelect);
             }
 
             // Add change listener
@@ -821,6 +850,8 @@
         // Select company and load its data
         async function selectCompany(companyId) {
             currentCompany = companyId;
+            // Save to cookie
+            setCookie('selectedCompany', companyId);
             await loadCompanyCredentials(companyId);
             await loadSyncHistory(companyId);
         }
