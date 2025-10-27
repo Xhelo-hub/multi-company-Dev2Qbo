@@ -490,16 +490,16 @@
                 <h1>DevSync Dashboard</h1>
             </div>
             <div class="user-menu">
-                <select id="companySelector" class="company-selector">
-                    <option value="">Loading companies...</option>
-                </select>
                 <div class="user-info">
-                    <span id="userEmail"></span>
+                    <span id="userName"></span>
                     <span id="userRole" class="user-role"></span>
                     <button class="logout-icon" onclick="logout()" title="Logout">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
+                <select id="companySelector" class="company-selector">
+                    <option value="">Loading companies...</option>
+                </select>
             </div>
         </div>
 
@@ -809,7 +809,7 @@
                 currentUser = await userResponse.json();
                 
                 // Display user info
-                document.getElementById('userEmail').textContent = currentUser.email;
+                document.getElementById('userName').textContent = currentUser.name || currentUser.email;
                 document.getElementById('userRole').textContent = currentUser.role;
 
                 // Show admin panel if admin
