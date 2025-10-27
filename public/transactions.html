@@ -15,9 +15,10 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f8f9fb;
             min-height: 100vh;
             padding: 20px;
+            color: #1a1a1a;
         }
 
         .container {
@@ -26,7 +27,7 @@
         }
 
         .header {
-            background: white;
+            background: #333366;
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
@@ -39,14 +40,66 @@
         }
 
         .header h1 {
-            color: #667eea;
+            color: #ffffff;
             font-size: 24px;
+            margin: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .company-info {
+            color: #ffffff;
+            font-size: 14px;
+            opacity: 0.9;
         }
 
         .header-actions {
             display: flex;
             gap: 10px;
             align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ffffff;
+        }
+
+        .user-role {
+            background: #33cc66;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .logout-icon {
+            background: transparent;
+            border: none;
+            color: #33cc66;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 5px;
+        }
+
+        .logout-icon:hover {
+            color: #28a855;
+            transform: scale(1.15);
         }
 
         .btn {
@@ -62,12 +115,12 @@
         }
 
         .btn-primary {
-            background: #667eea;
+            background: #33cc66;
             color: white;
         }
 
         .btn-primary:hover {
-            background: #5568d3;
+            background: #28a855;
         }
 
         .icon-circle {
@@ -97,7 +150,7 @@
         }
 
         .stat-card {
-            background: white;
+            background: #ffffff;
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -131,7 +184,7 @@
         }
 
         .filters {
-            background: white;
+            background: #ffffff;
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
@@ -150,7 +203,7 @@
         }
 
         .transactions-table {
-            background: white;
+            background: #ffffff;
             border-radius: 10px;
             padding: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -223,7 +276,7 @@
         .pagination button {
             padding: 8px 16px;
             border: 2px solid #33cc66;
-            background: white;
+            background: #ffffff;
             border-radius: 5px;
             cursor: pointer;
             color: #33cc66;
@@ -244,7 +297,7 @@
         }
         
         .pagination button:disabled:hover {
-            background: white;
+            background: #ffffff;
             color: #9ca3af;
         }
 
@@ -253,16 +306,53 @@
             padding: 40px;
             color: #666;
         }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-left {
+                width: 100%;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .user-info {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div>
-                <h1 style="color: #667eea;">Synced Transactions</h1>
-                <p id="companyName" style="color: #666; margin-top: 5px; font-size: 14px;">Loading...</p>
+            <div class="header-left">
+                <div class="header-title">
+                    <img src="images/konsulence-logo.png" alt="DevSync Logo" style="width: 50px; height: 50px;">
+                    <h1>Synced Transactions</h1>
+                </div>
+                <p id="companyName" class="company-info">Loading...</p>
             </div>
             <div class="header-actions">
+                <div class="user-info">
+                    <span id="userName"></span>
+                    <span id="userRole" class="user-role"></span>
+                    <button class="logout-icon" onclick="logout()" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
                 <a href="/public/app.html" class="btn btn-primary">
                     <span class="icon-circle"><i class="fas fa-arrow-left"></i></span>
                     Back to Dashboard
@@ -384,6 +474,19 @@
             return null;
         }
 
+        // Logout
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/api/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            window.location.href = `${PAGE_BASE}/login.html`;
+        }
+
         // Initialize
         async function init() {
             try {
@@ -438,6 +541,14 @@
                 }
                 
                 console.log('User authenticated:', user);
+                
+                // Display user info
+                document.getElementById('userName').textContent = user.name || user.email;
+                if (user.role) {
+                    document.getElementById('userRole').textContent = user.role;
+                } else {
+                    document.getElementById('userRole').style.display = 'none';
+                }
                 
                 // Load company from cookie
                 await loadCompanyFromCookie();
@@ -623,3 +734,4 @@
     </script>
 </body>
 </html>
+
