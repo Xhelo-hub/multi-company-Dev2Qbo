@@ -487,11 +487,15 @@
         <div class="content">
             <!-- Credentials Card -->
             <div class="card">
-                <h2 style="display: flex; align-items: center; gap: 10px;">
-                    <span class="icon-circle"><i class="fas fa-key"></i></span>
-                    Credentials Management
+                <h2 style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleCredentials()">
+                    <span style="display: flex; align-items: center; gap: 10px;">
+                        <span class="icon-circle"><i class="fas fa-key"></i></span>
+                        Credentials Management
+                    </span>
+                    <i id="credentialsToggleIcon" class="fas fa-chevron-up" style="color: #667eea; font-size: 18px;"></i>
                 </h2>
                 
+                <div id="credentialsContent" style="margin-top: 15px;">
                 <!-- DevPos Credentials -->
                 <div class="connection-status">
                     <span>
@@ -560,6 +564,7 @@
                     </label>
                 </div>
                 <div id="vatTrackingStatus" style="font-size: 13px; padding: 10px; border-radius: 6px; display: none;"></div>
+                </div>
             </div>
 
             <!-- Sync Controls Card -->
@@ -1209,6 +1214,19 @@
 
         function viewAuditLog() {
             window.location.href = `${PAGE_BASE}/admin-audit.html`;
+        }
+
+        function toggleCredentials() {
+            const content = document.getElementById('credentialsContent');
+            const icon = document.getElementById('credentialsToggleIcon');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.className = 'fas fa-chevron-up';
+            } else {
+                content.style.display = 'none';
+                icon.className = 'fas fa-chevron-down';
+            }
         }
 
         function viewTransactions() {
