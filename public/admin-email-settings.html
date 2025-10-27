@@ -86,20 +86,32 @@
             transform: scale(1.15);
         }
 
-        .back-link {
-            color: #33cc66;
-            text-decoration: none;
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
             font-weight: 600;
+            text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 16px;
-            border-radius: 5px;
-            transition: all 0.3s;
         }
 
-        .back-link:hover {
-            background: #f3f4f6;
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: #33cc66;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #28a855;
         }
 
         .tabs {
@@ -647,8 +659,9 @@
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
-                <a href="/public/app.html" class="back-link">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                <a href="/public/app.html" class="btn btn-primary">
+                    <span class="icon-circle"><i class="fas fa-arrow-left"></i></span>
+                    Back to Dashboard
                 </a>
             </div>
         </div>

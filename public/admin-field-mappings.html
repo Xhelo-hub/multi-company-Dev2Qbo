@@ -81,26 +81,35 @@
             transform: scale(1.15);
         }
 
-        .back-button {
-            position: absolute;
-            top: 30px;
-            right: 30px;
+        .btn {
             padding: 10px 20px;
-            background: #33cc66;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 500;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
             transition: all 0.3s;
+            font-weight: 600;
+            text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            position: absolute;
+            top: 30px;
+            right: 30px;
         }
 
-        .back-button:hover {
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: #33cc66;
+            color: white;
+        }
+
+        .btn-primary:hover {
             background: #28a855;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
         .header h1 {
@@ -551,8 +560,8 @@
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
-                <a href="/public/app.html" class="back-button" id="backButton">
-                    <i class="fas fa-arrow-left"></i>
+                <a href="/public/app.html" class="btn btn-primary" id="backButton">
+                    <span class="icon-circle"><i class="fas fa-arrow-left"></i></span>
                     Back to Dashboard
                 </a>
             </div>
