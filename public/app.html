@@ -618,12 +618,17 @@
 
         <!-- Sync History Card -->
         <div class="card" style="margin-top: 20px;">
-            <h2 style="display: flex; align-items: center; gap: 10px;">
-                <span class="icon-circle"><i class="fas fa-history"></i></span>
-                Recent Sync Jobs
+            <h2 style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleSyncHistory()">
+                <span style="display: flex; align-items: center; gap: 10px;">
+                    <span class="icon-circle"><i class="fas fa-history"></i></span>
+                    Recent Sync Jobs
+                </span>
+                <i id="syncHistoryToggleIcon" class="fas fa-chevron-up"></i>
             </h2>
-            <div id="syncHistory" class="sync-history">
-                <div class="spinner"></div>
+            <div id="syncHistoryContent" style="margin-top: 15px;">
+                <div id="syncHistory" class="sync-history">
+                    <div class="spinner"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1222,6 +1227,19 @@
         function toggleCredentials() {
             const content = document.getElementById('credentialsContent');
             const icon = document.getElementById('credentialsToggleIcon');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.className = 'fas fa-chevron-up';
+            } else {
+                content.style.display = 'none';
+                icon.className = 'fas fa-chevron-down';
+            }
+        }
+
+        function toggleSyncHistory() {
+            const content = document.getElementById('syncHistoryContent');
+            const icon = document.getElementById('syncHistoryToggleIcon');
             
             if (content.style.display === 'none') {
                 content.style.display = 'block';
