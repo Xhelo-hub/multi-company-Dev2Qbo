@@ -976,6 +976,11 @@
                 selector.value = companyToSelect;
                 await selectCompany(companyToSelect);
             }
+
+            // Add change listener to handle manual dropdown selection
+            selector.addEventListener('change', function() {
+                selectCompany(this.value);
+            });
         }
 
         // Select company and load its data
@@ -1002,14 +1007,6 @@
                 view: window
             });
             selector.dispatchEvent(mousedownEvent);
-            
-            // Add change listener if not already added
-            if (!selector.hasAttribute('data-listener-added')) {
-                selector.addEventListener('change', function() {
-                    selectCompany(this.value);
-                });
-                selector.setAttribute('data-listener-added', 'true');
-            }
         }
 
         // Load company credentials
