@@ -80,6 +80,26 @@
             text-transform: uppercase;
         }
 
+        .logout-icon {
+            background: #ef4444;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            font-size: 18px;
+        }
+
+        .logout-icon:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+
         .btn {
             padding: 10px 20px;
             border: none;
@@ -481,7 +501,9 @@
                 <div class="user-info">
                     <span id="userEmail"></span>
                     <span id="userRole" class="user-role"></span>
-                    <button class="btn btn-danger" onclick="logout()">Logout</button>
+                    <button class="logout-icon" onclick="logout()" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
                 </div>
             </div>
         </div>
