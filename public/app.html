@@ -67,50 +67,50 @@
         }
 
         .company-selector-wrapper {
-            display: flex;
-            align-items: stretch;
             position: relative;
+            display: inline-block;
         }
 
         .company-selector {
-            padding: 10px 15px;
-            padding-right: 10px;
+            padding: 10px 120px 10px 15px;
             border: 2px solid #e0e0e0;
-            border-right: none;
-            border-radius: 5px 0 0 5px;
+            border-radius: 5px;
             font-size: 14px;
             cursor: pointer;
             outline: none;
-            min-width: 250px;
+            min-width: 300px;
             background: white;
             color: #1a1a1a;
             appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
+            width: 100%;
         }
 
         .switch-btn {
-            padding: 10px 20px;
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            padding: 0 20px;
             background: #33cc66;
             color: white;
-            border: 2px solid #33cc66;
-            border-left: none;
-            border-radius: 0 5px 5px 0;
+            border: none;
+            border-radius: 0 3px 3px 0;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             transition: all 0.3s;
             white-space: nowrap;
+            pointer-events: auto;
         }
 
         .switch-btn:hover {
             background: #28a855;
-            border-color: #28a855;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(51, 204, 102, 0.3);
         }
 
         .switch-btn i {
@@ -263,12 +263,11 @@
             }
 
             .company-selector {
-                flex: 1;
                 min-width: unset;
             }
 
             .switch-btn {
-                padding: 10px 15px;
+                padding: 0 15px;
             }
 
             .user-info {
@@ -574,7 +573,7 @@
                     <select id="companySelector" class="company-selector">
                         <option value="">Loading companies...</option>
                     </select>
-                    <button class="switch-btn" onclick="switchCompany()" title="Switch Company">
+                    <button class="switch-btn" onclick="switchCompany(event)" title="Switch Company">
                         <i class="fas fa-random"></i>
                         SWITCH
                     </button>
@@ -988,11 +987,17 @@
         }
 
         // Switch to selected company
-        function switchCompany() {
+        function switchCompany(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             const selector = document.getElementById('companySelector');
             const selectedCompanyId = selector.value;
             if (selectedCompanyId) {
                 selectCompany(selectedCompanyId);
+            } else {
+                alert('Please select a company first');
             }
         }
 
