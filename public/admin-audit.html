@@ -20,7 +20,7 @@
         }
 
         .container {
-            max-width: 1600px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -92,12 +92,31 @@
             transition: all 0.3s;
             font-weight: 600;
             text-decoration: none;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn-primary {
             background: #33cc66;
             color: white;
+        }
+
+        .btn-primary:hover {
+            background: #28a855;
+        }
+
+        .icon-circle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #33cc66;
+            color: white;
+            font-size: 16px;
+            flex-shrink: 0;
         }
 
         .card {

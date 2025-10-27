@@ -93,9 +93,6 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            position: absolute;
-            top: 30px;
-            right: 30px;
         }
 
         .btn:hover {
@@ -110,6 +107,19 @@
 
         .btn-primary:hover {
             background: #28a855;
+        }
+
+        .icon-circle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: #33cc66;
+            color: white;
+            font-size: 16px;
+            flex-shrink: 0;
         }
 
         .header h1 {
@@ -491,20 +501,6 @@
         .type-conditional { background: #fed7e2; color: #702459; }
         .type-custom { background: #e2e8f0; color: #2d3748; }
 
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: #33cc66;
-            text-decoration: none;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        .back-link:hover {
-            color: #764ba2;
-        }
-
         .loading {
             text-align: center;
             padding: 40px;
@@ -537,10 +533,6 @@
 </head>
 <body>
     <div class="container">
-        <a href="#" id="backLink" class="back-link">
-            <i class="fas fa-arrow-left"></i> <span id="backLinkText">Back to Dashboard</span>
-        </a>
-
         <div class="header">
             <div class="header-left">
                 <img src="images/konsulence-logo.png" alt="DevSync Logo" style="width: 50px; height: 50px;">
