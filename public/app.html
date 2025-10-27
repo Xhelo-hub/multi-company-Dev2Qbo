@@ -69,6 +69,7 @@
         .company-selector-wrapper {
             position: relative;
             display: inline-block;
+            cursor: pointer;
         }
 
         .company-selector {
@@ -106,7 +107,7 @@
             gap: 8px;
             transition: all 0.3s;
             white-space: nowrap;
-            pointer-events: auto;
+            pointer-events: none;
         }
 
         .switch-btn:hover {
@@ -569,11 +570,11 @@
                 </div>
             </div>
             <div class="company-selector-row">
-                <div class="company-selector-wrapper">
+                <div class="company-selector-wrapper" onclick="document.getElementById('companySelector').focus(); document.getElementById('companySelector').click();">
                     <select id="companySelector" class="company-selector">
                         <option value="">Loading companies...</option>
                     </select>
-                    <button class="switch-btn" onclick="switchCompany(event)" title="Click to select company">
+                    <button type="button" class="switch-btn" title="Click to select company">
                         <i class="fas fa-random"></i>
                         SWITCH
                     </button>
@@ -993,9 +994,14 @@
                 event.stopPropagation();
             }
             const selector = document.getElementById('companySelector');
-            // Trigger the dropdown to open
-            selector.focus();
-            selector.click();
+            
+            // Create and dispatch a mousedown event to open the dropdown
+            const mousedownEvent = new MouseEvent('mousedown', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            selector.dispatchEvent(mousedownEvent);
             
             // Add change listener if not already added
             if (!selector.hasAttribute('data-listener-added')) {
