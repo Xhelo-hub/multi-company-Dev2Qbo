@@ -13,9 +13,10 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #33cc66 0%, #764ba2 100%);
+            background: #f8f9fb;
             min-height: 100vh;
             padding: 20px;
+            color: #1a1a1a;
         }
 
         .container {
@@ -24,7 +25,7 @@
         }
 
         .header {
-            background: #ffffff;
+            background: #333366;
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
@@ -35,8 +36,51 @@
         }
 
         .header h1 {
+            color: #ffffff;
+            font-size: 24px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ffffff;
+        }
+
+        .user-role {
+            background: #33cc66;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .logout-icon {
+            background: transparent;
+            border: none;
             color: #33cc66;
             font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 5px;
+        }
+
+        .logout-icon:hover {
+            color: #28a855;
+            transform: scale(1.15);
         }
 
         .btn {
@@ -201,8 +245,20 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 Audit Log</h1>
-            <a href="/public/app.html" class="btn btn-primary">← Back to Dashboard</a>
+            <div class="header-left">
+                <img src="images/konsulence-logo.png" alt="DevSync Logo" style="width: 50px; height: 50px;">
+                <h1>📋 Audit Log</h1>
+            </div>
+            <div class="header-actions">
+                <div class="user-info">
+                    <span id="userName"></span>
+                    <span id="userRole" class="user-role"></span>
+                    <button class="logout-icon" onclick="logout()" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+                <a href="/public/app.html" class="btn btn-primary">← Back to Dashboard</a>
+            </div>
         </div>
 
         <div class="card">
@@ -250,6 +306,14 @@
                 }
 
                 const user = await userResponse.json(); // Changed from { user }
+                
+                // Display user info
+                document.getElementById('userName').textContent = user.name || user.email;
+                if (user.role) {
+                    document.getElementById('userRole').textContent = user.role;
+                } else {
+                    document.getElementById('userRole').style.display = 'none';
+                }
                 
                 if (user.role !== 'admin') {
                     alert('Access denied. Admin only.');
@@ -454,8 +518,22 @@
             }
         }
 
+        // Logout
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/api/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            window.location.href = `${PAGE_BASE}/login.html`;
+        }
+
         init();
     </script>
 </body>
 </html>
+
 

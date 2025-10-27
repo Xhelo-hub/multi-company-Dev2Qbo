@@ -14,7 +14,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #33cc66 0%, #764ba2 100%);
+            background: #f8f9fb;
             min-height: 100vh;
             padding: 20px;
         }
@@ -25,12 +25,60 @@
         }
 
         .header {
-            background: #ffffff;
+            background: #333366;
             border-radius: 12px;
             padding: 30px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ffffff;
+        }
+
+        .user-role {
+            background: #33cc66;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .logout-icon {
+            background: transparent;
+            border: none;
+            color: #33cc66;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 5px;
+        }
+
+        .logout-icon:hover {
+            color: #28a855;
+            transform: scale(1.15);
         }
 
         .back-button {
@@ -63,12 +111,18 @@
             gap: 15px;
         }
 
+        .header h1 {
+            color: #ffffff;
+            font-size: 24px;
+            margin: 0;
+        }
+
         .header h1 i {
             color: #33cc66;
         }
 
         .header p {
-            color: #718096;
+            color: #e0e0e0;
         }
 
         .tabs {
@@ -132,7 +186,7 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #33cc66 0%, #764ba2 100%);
+            background: #f8f9fb;
             color: white;
         }
 
@@ -479,15 +533,29 @@
         </a>
 
         <div class="header">
-            <a href="/public/app.html" class="back-button" id="backButton">
-                <i class="fas fa-arrow-left"></i>
-                Back to Dashboard
-            </a>
-            <h1>
-                <i class="fas fa-code-branch"></i>
-                Global Field Mapping Configuration
-            </h1>
-            <p>Configure global field mappings between DevPos and QuickBooks Online for all companies</p>
+            <div class="header-left">
+                <img src="images/konsulence-logo.png" alt="DevSync Logo" style="width: 50px; height: 50px;">
+                <div>
+                    <h1>
+                        <i class="fas fa-code-branch"></i>
+                        Field Mapping Configuration
+                    </h1>
+                    <p>Configure global field mappings between DevPos and QuickBooks Online</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="user-info">
+                    <span id="userName"></span>
+                    <span id="userRole" class="user-role"></span>
+                    <button class="logout-icon" onclick="logout()" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+                <a href="/public/app.html" class="back-button" id="backButton">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                </a>
+            </div>
         </div>
 
         <div class="tabs">
@@ -717,6 +785,38 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
+            // Check authentication
+            try {
+                const userResponse = await fetch(`${BASE_PATH}/api/auth/me`, {
+                    credentials: 'include'
+                });
+
+                if (!userResponse.ok) {
+                    window.location.href = `${BASE_PATH}/login.html`;
+                    return;
+                }
+
+                const user = await userResponse.json();
+                
+                // Display user info
+                document.getElementById('userName').textContent = user.name || user.email;
+                if (user.role) {
+                    document.getElementById('userRole').textContent = user.role;
+                } else {
+                    document.getElementById('userRole').style.display = 'none';
+                }
+                
+                if (user.role !== 'admin') {
+                    alert('Access denied. Admin only.');
+                    window.location.href = `${BASE_PATH}/app.html`;
+                    return;
+                }
+            } catch (error) {
+                console.error('Authentication error:', error);
+                window.location.href = `${BASE_PATH}/login.html`;
+                return;
+            }
+
             // Set correct base path for back button
             const backButton = document.getElementById('backButton');
             const isLocal = window.location.hostname === 'localhost';
@@ -1156,7 +1256,22 @@
                 document.querySelector('[name="qbo_field_type"]').value = selectedOption.dataset.type;
             }
         }
+
+        // Logout
+        async function logout() {
+            try {
+                await fetch(`${BASE_PATH}/api/auth/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            window.location.href = `${BASE_PATH}/login.html`;
+        }
     </script>
 </body>
 </html>
+
+
 
