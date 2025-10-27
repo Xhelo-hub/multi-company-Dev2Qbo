@@ -58,7 +58,18 @@ class BillsSync
       if ($amount <= 0) {
         $res['skipped']++;
         continue;
-      }      // Check duplicate by document number + vendor NUIS combination
+      }
+
+      // DEBUG: Log bill structure to see date fields
+      error_log("DevPos Bill Keys: ".json_encode(array_keys($doc)));
+      if(isset($doc['issueDate'])) error_log("  issueDate: ".$doc['issueDate']);
+      if(isset($doc['dateCreated'])) error_log("  dateCreated: ".$doc['dateCreated']);
+      if(isset($doc['created_at'])) error_log("  created_at: ".$doc['created_at']);
+      if(isset($doc['date'])) error_log("  date: ".$doc['date']);
+      if(isset($doc['invoiceDate'])) error_log("  invoiceDate: ".$doc['invoiceDate']);
+      if(isset($doc['documentDate'])) error_log("  documentDate: ".$doc['documentDate']);
+
+      // Check duplicate by document number + vendor NUIS combination
       $compositeKey = $docNumber . '|' . $sellerNuis;
       if ($this->maps->findDocument('devpos', 'purchase', $compositeKey)) {
         $res['skipped']++;

@@ -8,8 +8,14 @@ class SalesSync{ public function __construct(private QboClient $qbo, private Dev
   public function run(string $from,string $to): array{ $res=['invoices_created'=>0,'receipts_created'=>0,'skipped'=>0]; $fromIso=$from.'T00:00:00+02:00'; $toIso=$to.'T23:59:59+02:00';
     foreach($this->dev->fetchSalesEInvoices($fromIso,$toIso) as $doc){ $key=$doc['eic']??($doc['documentNumber']??$doc['id']??null); if(!$key){$res['skipped']++; continue;}
       if($this->maps->findDocument('devpos','sale',$key)){ $res['skipped']++; continue;} 
-      // DEBUG: Log first invoice structure to see what DevPos sends
-      static $logged=false; if(!$logged){ error_log("DEBUG DevPos Invoice: ".json_encode($doc,JSON_PRETTY_PRINT)); $logged=true; }
+      // DEBUG: Log invoice structure to see date fields
+      error_log("DevPos Invoice Keys: ".json_encode(array_keys($doc)));
+      if(isset($doc['issueDate'])) error_log("  issueDate: ".$doc['issueDate']);
+      if(isset($doc['dateCreated'])) error_log("  dateCreated: ".$doc['dateCreated']);
+      if(isset($doc['created_at'])) error_log("  created_at: ".$doc['created_at']);
+      if(isset($doc['date'])) error_log("  date: ".$doc['date']);
+      if(isset($doc['invoiceDate'])) error_log("  invoiceDate: ".$doc['invoiceDate']);
+      if(isset($doc['documentDate'])) error_log("  documentDate: ".$doc['documentDate']);
       $payload=InvoiceTransformer::fromDevpos($doc); $r=$this->qbo->createInvoice($payload);
       $id=(string)($r['Invoice']['Id']??$r['Invoice']['id']??''); if($id){ $this->attachPdfIfAvailable($doc,'Invoice',$id); $this->maps->mapDocument('devpos','sale',(string)$key,'Invoice',$id); $res['invoices_created']++; } }
     foreach($this->dev->fetchCashSales($fromIso,$toIso) as $doc){ $key=$doc['eic']??($doc['documentNumber']??$doc['id']??null); if(!$key){$res['skipped']++; continue;}
