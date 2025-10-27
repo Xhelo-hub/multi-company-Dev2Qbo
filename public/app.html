@@ -441,10 +441,6 @@
                 <select id="companySelector" class="company-selector">
                     <option value="">Loading companies...</option>
                 </select>
-                <button class="btn btn-primary" onclick="viewTransactions()" style="margin-left: 10px;">
-                    <span class="icon-circle"><i class="fas fa-chart-bar"></i></span>
-                    View All Synced Transactions
-                </button>
                 <div class="user-info">
                     <span id="userEmail"></span>
                     <span id="userRole" class="user-role"></span>
@@ -608,6 +604,13 @@
                     <button class="btn btn-primary" onclick="openScheduleManager()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;">
                         <span class="icon-circle"><i class="fas fa-clock"></i></span>
                         Manage Sync Schedules
+                    </button>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-primary" onclick="viewTransactions()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <span class="icon-circle"><i class="fas fa-chart-bar"></i></span>
+                        View All Synced Transactions
                     </button>
                 </div>
             </div>
