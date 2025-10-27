@@ -702,8 +702,9 @@
     <script>
         // Auto-detect base path
         const currentPath = window.location.pathname;
-        const BASE_PATH = currentPath.includes('/multi-company-Dev2Qbo/') 
-            ? currentPath.substring(0, currentPath.indexOf('/public/')) 
+        const isLocal = window.location.hostname === 'localhost' || currentPath.includes('/multi-company-Dev2Qbo/');
+        const BASE_PATH = isLocal 
+            ? (currentPath.includes('/public/') ? currentPath.substring(0, currentPath.indexOf('/public/')) : '')
             : '';
 
         // Global configuration - no company-specific logic needed
