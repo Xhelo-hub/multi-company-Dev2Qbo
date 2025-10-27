@@ -573,7 +573,7 @@
                     <select id="companySelector" class="company-selector">
                         <option value="">Loading companies...</option>
                     </select>
-                    <button class="switch-btn" onclick="switchCompany(event)" title="Switch Company">
+                    <button class="switch-btn" onclick="switchCompany(event)" title="Click to select company">
                         <i class="fas fa-random"></i>
                         SWITCH
                     </button>
@@ -986,18 +986,23 @@
             await loadSyncHistory(companyId);
         }
 
-        // Switch to selected company
+        // Open dropdown when SWITCH button is clicked
         function switchCompany(event) {
             if (event) {
                 event.preventDefault();
                 event.stopPropagation();
             }
             const selector = document.getElementById('companySelector');
-            const selectedCompanyId = selector.value;
-            if (selectedCompanyId) {
-                selectCompany(selectedCompanyId);
-            } else {
-                alert('Please select a company first');
+            // Trigger the dropdown to open
+            selector.focus();
+            selector.click();
+            
+            // Add change listener if not already added
+            if (!selector.hasAttribute('data-listener-added')) {
+                selector.addEventListener('change', function() {
+                    selectCompany(this.value);
+                });
+                selector.setAttribute('data-listener-added', 'true');
             }
         }
 
