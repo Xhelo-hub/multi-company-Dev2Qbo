@@ -722,7 +722,7 @@
             const isLocal = window.location.hostname === 'localhost';
             const correctBasePath = isLocal && window.location.pathname.includes('multi-company-Dev2Qbo') 
                 ? '/multi-company-Dev2Qbo/public' 
-                : '';
+                : '/public';
             backButton.href = `${correctBasePath}/app.html`;
             
             loadTemplates();
