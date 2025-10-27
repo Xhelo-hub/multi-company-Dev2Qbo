@@ -23,10 +23,21 @@ class SalesReceiptTransformer
             ?? $devposSale['DocNumber'] 
             ?? null;
             
+        // Try multiple date field variations from DevPos API
         $issueDate = $devposSale['issueDate'] 
             ?? $devposSale['dateCreated'] 
-            ?? $devposSale['created_at'] 
-            ?? date('Y-m-d');
+            ?? $devposSale['created_at']
+            ?? $devposSale['dateIssued']
+            ?? $devposSale['date']
+            ?? $devposSale['invoiceDate']
+            ?? $devposSale['documentDate']
+            ?? null;
+        
+        // If no date found, log warning and use today's date as fallback
+        if (!$issueDate) {
+            error_log("WARNING: No date found in DevPos cash sale. Available fields: " . json_encode(array_keys($devposSale)));
+            $issueDate = date('Y-m-d');
+        }
             
         $totalAmount = $devposSale['totalAmount'] 
             ?? $devposSale['total'] 

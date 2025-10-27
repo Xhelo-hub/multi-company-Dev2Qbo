@@ -23,10 +23,21 @@ class InvoiceTransformer
             ?? $devposInvoice['DocNumber'] 
             ?? null;
             
+        // Try multiple date field variations from DevPos API
         $issueDate = $devposInvoice['issueDate'] 
             ?? $devposInvoice['dateCreated'] 
-            ?? $devposInvoice['created_at'] 
-            ?? date('Y-m-d');
+            ?? $devposInvoice['created_at']
+            ?? $devposInvoice['dateIssued']
+            ?? $devposInvoice['date']
+            ?? $devposInvoice['invoiceDate']
+            ?? $devposInvoice['documentDate']
+            ?? null;
+        
+        // If no date found, log warning and use today's date as fallback
+        if (!$issueDate) {
+            error_log("WARNING: No date found in DevPos invoice. Available fields: " . json_encode(array_keys($devposInvoice)));
+            $issueDate = date('Y-m-d');
+        }
             
         $totalAmount = $devposInvoice['totalAmount'] 
             ?? $devposInvoice['total'] 
