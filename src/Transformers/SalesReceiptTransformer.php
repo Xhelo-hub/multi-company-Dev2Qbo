@@ -95,6 +95,9 @@ class SalesReceiptTransformer
                 'value' => $paymentMethod === 'Card' ? '2' : '1' // Adjust based on your QBO setup
             ]
         ];
+        
+        // Log what we're sending to QuickBooks
+        error_log("INFO: QuickBooks SalesReceipt TxnDate being set to: " . substr($issueDate, 0, 10));
 
         // Add document number if available
         if ($documentNumber) {

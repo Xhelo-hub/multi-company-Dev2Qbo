@@ -44,6 +44,10 @@ class QboClient
      */
     public function createInvoice(array $invoiceData): array
     {
+        // Log what we're sending to QuickBooks
+        error_log("DEBUG: Sending to QBO Invoice API - TxnDate: " . ($invoiceData['TxnDate'] ?? 'NOT SET'));
+        error_log("DEBUG: Full Invoice payload: " . json_encode($invoiceData));
+        
         $response = $this->httpClient->post(
             "{$this->baseUrl}/v3/company/{$this->realmId}/invoice",
             [
@@ -56,7 +60,14 @@ class QboClient
             ]
         );
         
-        return json_decode($response->getBody()->getContents(), true);
+        $result = json_decode($response->getBody()->getContents(), true);
+        
+        // Log what QuickBooks returned
+        if (isset($result['Invoice']['TxnDate'])) {
+            error_log("DEBUG: QBO returned Invoice with TxnDate: " . $result['Invoice']['TxnDate']);
+        }
+        
+        return $result;
     }
     
     /**
@@ -68,6 +79,9 @@ class QboClient
      */
     public function createSalesReceipt(array $receiptData): array
     {
+        // Log what we're sending to QuickBooks
+        error_log("DEBUG: Sending to QBO SalesReceipt API - TxnDate: " . ($receiptData['TxnDate'] ?? 'NOT SET'));
+        
         $response = $this->httpClient->post(
             "{$this->baseUrl}/v3/company/{$this->realmId}/salesreceipt",
             [
@@ -80,7 +94,14 @@ class QboClient
             ]
         );
         
-        return json_decode($response->getBody()->getContents(), true);
+        $result = json_decode($response->getBody()->getContents(), true);
+        
+        // Log what QuickBooks returned
+        if (isset($result['SalesReceipt']['TxnDate'])) {
+            error_log("DEBUG: QBO returned SalesReceipt with TxnDate: " . $result['SalesReceipt']['TxnDate']);
+        }
+        
+        return $result;
     }
     
     /**
@@ -92,6 +113,9 @@ class QboClient
      */
     public function createBill(array $billData): array
     {
+        // Log what we're sending to QuickBooks
+        error_log("DEBUG: Sending to QBO Bill API - TxnDate: " . ($billData['TxnDate'] ?? 'NOT SET'));
+        
         $response = $this->httpClient->post(
             "{$this->baseUrl}/v3/company/{$this->realmId}/bill",
             [
@@ -104,7 +128,14 @@ class QboClient
             ]
         );
         
-        return json_decode($response->getBody()->getContents(), true);
+        $result = json_decode($response->getBody()->getContents(), true);
+        
+        // Log what QuickBooks returned
+        if (isset($result['Bill']['TxnDate'])) {
+            error_log("DEBUG: QBO returned Bill with TxnDate: " . $result['Bill']['TxnDate']);
+        }
+        
+        return $result;
     }
     
     /**

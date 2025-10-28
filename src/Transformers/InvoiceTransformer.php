@@ -90,6 +90,9 @@ class InvoiceTransformer
             ],
             'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
         ];
+        
+        // Log what we're sending to QuickBooks
+        error_log("INFO: QuickBooks Invoice TxnDate being set to: " . substr($issueDate, 0, 10));
 
         // Add document number if available
         if ($documentNumber) {
