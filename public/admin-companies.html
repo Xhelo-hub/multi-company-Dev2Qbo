@@ -150,6 +150,16 @@
             transform: translateY(-1px);
         }
 
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+            transform: translateY(-1px);
+        }
+
         .card {
             background: #ffffff;
             border-radius: 10px;
@@ -709,6 +719,9 @@
                         <button class="btn btn-primary" onclick="viewCompany(${company.company_id})">
                             <i class="fas fa-eye"></i> View
                         </button>
+                        <button class="btn btn-warning" onclick="cancelRunningJobs(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-stop-circle"></i> Cancel Jobs
+                        </button>
                         <button class="btn ${company.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleCompanyStatus(${company.company_id}, ${company.is_active ? 0 : 1})">
                             <i class="fas fa-${company.is_active ? 'ban' : 'check'}"></i> ${company.is_active ? 'Deactivate' : 'Activate'}
                         </button>
@@ -1102,6 +1115,35 @@
                 closeEditModal();
             }
         });
+
+        // Cancel running sync jobs for a company
+        async function cancelRunningJobs(companyId, companyName) {
+            if (!confirm(`Cancel all running sync jobs for "${companyName}"?\n\nThis will mark any stuck or long-running jobs as failed.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/companies/${companyId}/cancel-jobs`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    if (result.cancelled_count > 0) {
+                        alert(`✅ Successfully cancelled ${result.cancelled_count} running job(s) for "${companyName}"`);
+                    } else {
+                        alert(`ℹ️ No running jobs found for "${companyName}"`);
+                    }
+                } else {
+                    alert('❌ Error: ' + (result.message || 'Failed to cancel jobs'));
+                }
+            } catch (error) {
+                alert('❌ Error cancelling jobs');
+                console.error(error);
+            }
+        }
 
         // Logout
         async function logout() {
