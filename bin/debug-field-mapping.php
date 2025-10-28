@@ -66,11 +66,7 @@ if (!$company['tenant'] || !$company['username'] || !$company['password_encrypte
     die("DevPos credentials not configured for this company.\n");
 }
 
-$devpos = new DevposClient(
-    $company['tenant'],
-    $company['username'],
-    $company['password_encrypted']
-);
+$devpos = new DevposClient($pdo, (int)$company['id']);
 
 // Fetch sample data from DevPos
 echo "Fetching sample invoices from DevPos...\n";
@@ -78,7 +74,7 @@ $today = date('Y-m-d');
 $yesterday = date('Y-m-d', strtotime('-7 days'));
 
 try {
-    $invoices = $devpos->getInvoices($yesterday, $today);
+    $invoices = $devpos->fetchSalesEInvoices($yesterday, $today);
     
     if (empty($invoices)) {
         echo "No invoices found in the last 7 days.\n\n";
@@ -193,7 +189,7 @@ try {
     // Now check Purchase Bills
     echo "Fetching sample purchase bills from DevPos...\n";
     
-    $bills = $devpos->getPurchaseInvoices($yesterday, $today);
+    $bills = $devpos->fetchPurchaseEInvoices($yesterday, $today);
     
     if (empty($bills)) {
         echo "No purchase bills found in the last 7 days.\n\n";
