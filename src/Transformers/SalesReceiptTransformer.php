@@ -31,14 +31,17 @@ class SalesReceiptTransformer
             ?? $devposSale['DocNumber'] 
             ?? null;
             
-        // Try multiple date field variations from DevPos API
-        $issueDate = $devposSale['issueDate'] 
-            ?? $devposSale['dateCreated'] 
-            ?? $devposSale['created_at']
-            ?? $devposSale['dateIssued']
-            ?? $devposSale['date']
-            ?? $devposSale['invoiceDate']
-            ?? $devposSale['documentDate']
+        // Extract date - based on DevPos API documentation (section 5.3)
+        // The actual field returned is 'dateTimeCreated' for invoice responses
+        $issueDate = $devposSale['dateTimeCreated']      // PRIMARY - official API field
+            ?? $devposSale['createdDate']                // For e-invoice queries
+            ?? $devposSale['issueDate']                  // Legacy fallback
+            ?? $devposSale['dateCreated']                // Legacy fallback
+            ?? $devposSale['created_at']                 // Legacy fallback
+            ?? $devposSale['dateIssued']                 // Legacy fallback
+            ?? $devposSale['date']                       // Legacy fallback
+            ?? $devposSale['invoiceDate']                // Legacy fallback
+            ?? $devposSale['documentDate']               // Legacy fallback
             ?? null;
         
         // If no date found, log warning and use today's date as fallback

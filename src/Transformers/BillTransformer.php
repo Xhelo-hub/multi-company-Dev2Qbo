@@ -31,13 +31,16 @@ class BillTransformer
             ?? $devposBill['DocNumber'] 
             ?? null;
             
-        // Try multiple date field variations from DevPos API
-        $issueDate = $devposBill['issueDate'] 
-            ?? $devposBill['dateCreated'] 
-            ?? $devposBill['created_at']
-            ?? $devposBill['dateIssued']
-            ?? $devposBill['date']
-            ?? $devposBill['invoiceDate']
+        // Extract date - based on DevPos API documentation (section 5.3)
+        // The actual field returned is 'dateTimeCreated' for invoice responses
+        $issueDate = $devposBill['dateTimeCreated']      // PRIMARY - official API field
+            ?? $devposBill['createdDate']                // For e-invoice queries
+            ?? $devposBill['issueDate']                  // Legacy fallback
+            ?? $devposBill['dateCreated']                // Legacy fallback
+            ?? $devposBill['created_at']                 // Legacy fallback
+            ?? $devposBill['dateIssued']                 // Legacy fallback
+            ?? $devposBill['date']                       // Legacy fallback
+            ?? $devposBill['invoiceDate']                // Legacy fallback
             ?? null;
         
         // If no date found, throw error instead of using today's date
