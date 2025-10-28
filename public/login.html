@@ -260,6 +260,12 @@
                     body: JSON.stringify({ email, password })
                 });
 
+                // Check if response is JSON before parsing
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server error: Invalid response format. Please check server logs.');
+                }
+
                 const data = await response.json();
 
                 if (!response.ok) {

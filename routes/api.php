@@ -855,6 +855,60 @@ $app->get('/api/companies/{companyId}/credentials/qbo', function (Request $reque
 // SYNC ENDPOINTS
 // ============================================================================
 
+// Cancel all running/stuck sync jobs (admin utility) - MUST be before pattern routes
+$app->post('/api/sync/jobs/cancel-stuck', function (Request $request, Response $response) use ($pdo) {
+    try {
+        $data = $request->getParsedBody();
+        $minutesThreshold = (int)($data['minutes'] ?? 30); // Default: jobs running > 30 minutes
+        
+        // Find stuck jobs
+        $stmt = $pdo->prepare("
+            SELECT id, job_type, started_at, TIMESTAMPDIFF(MINUTE, started_at, NOW()) as minutes_running
+            FROM sync_jobs 
+            WHERE status = 'running' 
+            AND started_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+        ");
+        $stmt->execute([$minutesThreshold]);
+        $stuckJobs = $stmt->fetchAll();
+        
+        if (empty($stuckJobs)) {
+            $response->getBody()->write(json_encode([
+                'success' => true,
+                'message' => 'No stuck jobs found',
+                'cancelled_count' => 0
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
+        }
+        
+        // Cancel them
+        $stmt = $pdo->prepare("
+            UPDATE sync_jobs 
+            SET status = 'failed',
+                error_message = CONCAT('Job timeout - exceeded ', ?, ' minutes'),
+                completed_at = NOW()
+            WHERE status = 'running' 
+            AND started_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+        ");
+        $stmt->execute([$minutesThreshold, $minutesThreshold]);
+        $cancelledCount = $stmt->rowCount();
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => "Cancelled {$cancelledCount} stuck job(s)",
+            'cancelled_count' => $cancelledCount,
+            'jobs' => $stuckJobs
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (\Exception $e) {
+        $response->getBody()->write(json_encode([
+            'success' => false,
+            'message' => 'Failed to cancel stuck jobs: ' . $e->getMessage()
+        ]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
 // Run sync job
 $app->post('/api/sync/{companyId}/{type}', function (Request $request, Response $response, array $args) use ($pdo) {
     $companyId = (int)$args['companyId'];
@@ -966,60 +1020,6 @@ $app->post('/api/sync/jobs/{jobId}/cancel', function (Request $request, Response
         $response->getBody()->write(json_encode([
             'success' => false,
             'message' => 'Failed to cancel job: ' . $e->getMessage()
-        ]));
-        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
-    }
-})->add($authMiddleware);
-
-// Cancel all running/stuck sync jobs (admin utility)
-$app->post('/api/sync/jobs/cancel-stuck', function (Request $request, Response $response) use ($pdo) {
-    try {
-        $data = $request->getParsedBody();
-        $minutesThreshold = (int)($data['minutes'] ?? 30); // Default: jobs running > 30 minutes
-        
-        // Find stuck jobs
-        $stmt = $pdo->prepare("
-            SELECT id, job_type, started_at, TIMESTAMPDIFF(MINUTE, started_at, NOW()) as minutes_running
-            FROM sync_jobs 
-            WHERE status = 'running' 
-            AND started_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
-        ");
-        $stmt->execute([$minutesThreshold]);
-        $stuckJobs = $stmt->fetchAll();
-        
-        if (empty($stuckJobs)) {
-            $response->getBody()->write(json_encode([
-                'success' => true,
-                'message' => 'No stuck jobs found',
-                'cancelled_count' => 0
-            ]));
-            return $response->withHeader('Content-Type', 'application/json');
-        }
-        
-        // Cancel them
-        $stmt = $pdo->prepare("
-            UPDATE sync_jobs 
-            SET status = 'failed',
-                error_message = CONCAT('Job timeout - exceeded ', ?, ' minutes'),
-                completed_at = NOW()
-            WHERE status = 'running' 
-            AND started_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
-        ");
-        $stmt->execute([$minutesThreshold, $minutesThreshold]);
-        $cancelledCount = $stmt->rowCount();
-        
-        $response->getBody()->write(json_encode([
-            'success' => true,
-            'message' => "Cancelled {$cancelledCount} stuck job(s)",
-            'cancelled_count' => $cancelledCount,
-            'jobs' => $stuckJobs
-        ]));
-        return $response->withHeader('Content-Type', 'application/json');
-        
-    } catch (\Exception $e) {
-        $response->getBody()->write(json_encode([
-            'success' => false,
-            'message' => 'Failed to cancel stuck jobs: ' . $e->getMessage()
         ]));
         return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
     }
