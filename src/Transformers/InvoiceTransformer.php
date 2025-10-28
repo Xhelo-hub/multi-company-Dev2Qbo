@@ -17,6 +17,14 @@ class InvoiceTransformer
      */
     public static function fromDevpos(array $devposInvoice): array
     {
+        // Debug: Log the first invoice to see actual structure
+        static $debugLogged = false;
+        if (!$debugLogged) {
+            error_log("=== DEBUG: DevPos Invoice Structure ===");
+            error_log(json_encode($devposInvoice, JSON_PRETTY_PRINT));
+            $debugLogged = true;
+        }
+
         // Extract fields with fallbacks
         $documentNumber = $devposInvoice['documentNumber'] 
             ?? $devposInvoice['doc_no'] 
@@ -35,8 +43,12 @@ class InvoiceTransformer
         
         // If no date found, log warning and use today's date as fallback
         if (!$issueDate) {
-            error_log("WARNING: No date found in DevPos invoice. Available fields: " . json_encode(array_keys($devposInvoice)));
+            error_log("WARNING: No date found in DevPos invoice");
+            error_log("Available fields: " . implode(', ', array_keys($devposInvoice)));
+            error_log("Full document: " . json_encode($devposInvoice));
             $issueDate = date('Y-m-d');
+        } else {
+            error_log("INFO: Using date field with value: " . $issueDate);
         }
             
         $totalAmount = $devposInvoice['totalAmount'] 

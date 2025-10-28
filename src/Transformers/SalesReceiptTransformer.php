@@ -17,6 +17,14 @@ class SalesReceiptTransformer
      */
     public static function fromDevpos(array $devposSale): array
     {
+        // Debug: Log the first cash sale to see actual structure
+        static $debugLogged = false;
+        if (!$debugLogged) {
+            error_log("=== DEBUG: DevPos Cash Sale Structure ===");
+            error_log(json_encode($devposSale, JSON_PRETTY_PRINT));
+            $debugLogged = true;
+        }
+
         // Extract fields with fallbacks
         $documentNumber = $devposSale['documentNumber'] 
             ?? $devposSale['doc_no'] 
@@ -35,8 +43,11 @@ class SalesReceiptTransformer
         
         // If no date found, log warning and use today's date as fallback
         if (!$issueDate) {
-            error_log("WARNING: No date found in DevPos cash sale. Available fields: " . json_encode(array_keys($devposSale)));
+            error_log("WARNING: No date found in DevPos cash sale");
+            error_log("Available fields: " . implode(', ', array_keys($devposSale)));
             $issueDate = date('Y-m-d');
+        } else {
+            error_log("INFO: Using date field with value: " . $issueDate);
         }
             
         $totalAmount = $devposSale['totalAmount'] 

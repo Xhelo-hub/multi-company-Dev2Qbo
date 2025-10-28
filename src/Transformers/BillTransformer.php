@@ -17,6 +17,14 @@ class BillTransformer
      */
     public static function fromDevpos(array $devposBill): array
     {
+        // Debug: Log the first bill to see actual structure
+        static $debugLogged = false;
+        if (!$debugLogged) {
+            error_log("=== DEBUG: DevPos Purchase Bill Structure ===");
+            error_log(json_encode($devposBill, JSON_PRETTY_PRINT));
+            $debugLogged = true;
+        }
+
         // Extract fields with fallbacks
         $documentNumber = $devposBill['documentNumber'] 
             ?? $devposBill['doc_no'] 
@@ -34,8 +42,11 @@ class BillTransformer
         
         // If no date found, throw error instead of using today's date
         if (!$issueDate) {
-            error_log("WARNING: No date found in DevPos bill: " . json_encode($devposBill));
+            error_log("WARNING: No date found in DevPos bill");
+            error_log("Available fields: " . implode(', ', array_keys($devposBill)));
             $issueDate = date('Y-m-d'); // Last resort fallback
+        } else {
+            error_log("INFO: Using date field with value: " . $issueDate);
         }
             
         $totalAmount = $devposBill['totalAmount'] 
