@@ -658,8 +658,8 @@
             // Get additional info for each company
             const companiesWithDetails = await Promise.all(companies.map(async (company) => {
                 const [devpos, qbo, users] = await Promise.all([
-                    fetch(`${API_BASE}/api/companies/${company.company_id}/credentials/devpos`, {credentials: 'include'}).then(r => r.json()),
-                    fetch(`${API_BASE}/api/companies/${company.company_id}/credentials/qbo`, {credentials: 'include'}).then(r => r.json()),
+                    fetch(`${API_BASE}/api/companies/${company.company_id}/credentials/devpos`, {credentials: 'include'}).then(r => r.ok ? r.json() : {}),
+                    fetch(`${API_BASE}/api/companies/${company.company_id}/credentials/qbo`, {credentials: 'include'}).then(r => r.ok ? r.json() : {}),
                     fetch(`${API_BASE}/api/companies/${company.company_id}/users`, {credentials: 'include'}).then(r => r.ok ? r.json() : [])
                 ]);
                 
