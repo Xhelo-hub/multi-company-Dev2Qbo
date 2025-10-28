@@ -21,22 +21,37 @@ class BillsSync
   {
     $eic = $doc['eic'] ?? ($doc['EIC'] ?? null);
     $pdfB64 = $doc['pdf'] ?? null;
+    
+    // Log initial state
+    error_log("DEBUG: attachPdfIfAvailable - Type: $etype, QBO ID: $qboId, EIC: " . ($eic ?? 'null') . ", Has PDF in doc: " . ($pdfB64 ? 'YES' : 'NO'));
+    
     if (!$pdfB64 && $eic) {
       try {
+        error_log("DEBUG: Fetching PDF from DevPos API for EIC: $eic");
         $detail = $this->dev->getEInvoiceByEIC((string)$eic);
         $pdfB64 = $detail['pdf'] ?? null;
+        error_log("DEBUG: PDF retrieved from API: " . ($pdfB64 ? 'YES (' . strlen($pdfB64) . ' chars)' : 'NO'));
       } catch (\Throwable $e) {
+        error_log("ERROR: Failed to fetch invoice detail for EIC $eic: " . $e->getMessage());
       }
     }
+    
     if ($pdfB64) {
       $binary = base64_decode($pdfB64);
       if ($binary !== false && strlen($binary) > 0) {
         $fn = ($doc['documentNumber'] ?? $doc['doc_no'] ?? ('bill_' . $qboId)) . '.pdf';
+        error_log("DEBUG: Attempting to upload attachment: $fn (" . strlen($binary) . " bytes)");
         try {
           $this->qbo->uploadAttachment($etype, $qboId, $fn, $binary, false);
+          error_log("SUCCESS: Attachment uploaded successfully: $fn");
         } catch (\Throwable $e) {
+          error_log("ERROR: Failed to upload attachment $fn: " . $e->getMessage());
         }
+      } else {
+        error_log("WARNING: PDF base64 decode failed or empty result");
       }
+    } else {
+      error_log("WARNING: No PDF found for $etype $qboId (EIC: " . ($eic ?? 'null') . ")");
     }
   }
   public function run(string $from, string $to): array
@@ -58,18 +73,7 @@ class BillsSync
       if ($amount <= 0) {
         $res['skipped']++;
         continue;
-      }
-
-      // DEBUG: Log bill structure to see date fields
-      error_log("DevPos Bill Keys: ".json_encode(array_keys($doc)));
-      if(isset($doc['issueDate'])) error_log("  issueDate: ".$doc['issueDate']);
-      if(isset($doc['dateCreated'])) error_log("  dateCreated: ".$doc['dateCreated']);
-      if(isset($doc['created_at'])) error_log("  created_at: ".$doc['created_at']);
-      if(isset($doc['date'])) error_log("  date: ".$doc['date']);
-      if(isset($doc['invoiceDate'])) error_log("  invoiceDate: ".$doc['invoiceDate']);
-      if(isset($doc['documentDate'])) error_log("  documentDate: ".$doc['documentDate']);
-
-      // Check duplicate by document number + vendor NUIS combination
+      }      // Check duplicate by document number + vendor NUIS combination
       $compositeKey = $docNumber . '|' . $sellerNuis;
       if ($this->maps->findDocument('devpos', 'purchase', $compositeKey)) {
         $res['skipped']++;
