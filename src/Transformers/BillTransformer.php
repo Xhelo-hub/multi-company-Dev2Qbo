@@ -31,38 +31,20 @@ class BillTransformer
             ?? $devposBill['DocNumber'] 
             ?? null;
             
-        // Extract date - DevPos returns 'invoiceCreatedDate' in API responses
-        $issueDate = $devposBill['invoiceCreatedDate']   // PRIMARY - actual API field returned
-            ?? $devposBill['dateTimeCreated']            // Alternative field name
-            ?? $devposBill['createdDate']                // Alternative
-            ?? $devposBill['issueDate']                  // Fallback
-            ?? $devposBill['dateCreated']                // Fallback
-            ?? $devposBill['created_at']                 // Fallback
-            ?? $devposBill['dateIssued']                 // Fallback
-            ?? $devposBill['date']                       // Fallback
-            ?? $devposBill['invoiceDate']                // Fallback
-            ?? null;
+        // Extract date - DevPos returns 'issueDate' in API responses (verified from working implementation)
+        $issueDate = $devposBill['issueDate']            // PRIMARY - actual API field (DEV-QBO-REST-API uses this)
+            ?? $devposBill['date']                       // SECONDARY fallback (also checked by working impl)
+            ?? date('Y-m-d');                            // FINAL fallback - today's date
         
-        // If no date found, throw error instead of using today's date
-        if (!$issueDate) {
-            error_log("WARNING: No date found in DevPos bill");
-            error_log("Available fields: " . implode(', ', array_keys($devposBill)));
-            $issueDate = date('Y-m-d'); // Last resort fallback
-        } else {
-            // Log which field we found the date in
-            $foundField = null;
-            if (isset($devposBill['invoiceCreatedDate'])) $foundField = 'invoiceCreatedDate';
-            elseif (isset($devposBill['dateTimeCreated'])) $foundField = 'dateTimeCreated';
-            elseif (isset($devposBill['createdDate'])) $foundField = 'createdDate';
-            elseif (isset($devposBill['issueDate'])) $foundField = 'issueDate';
-            elseif (isset($devposBill['dateCreated'])) $foundField = 'dateCreated';
-            elseif (isset($devposBill['created_at'])) $foundField = 'created_at';
-            elseif (isset($devposBill['dateIssued'])) $foundField = 'dateIssued';
-            elseif (isset($devposBill['date'])) $foundField = 'date';
-            elseif (isset($devposBill['invoiceDate'])) $foundField = 'invoiceDate';
-            
-            error_log("INFO: Found date in field '$foundField' with value: " . $issueDate);
+        // Log which field we found the date in
+        $foundField = 'today (fallback)';
+        if (isset($devposBill['issueDate'])) {
+            $foundField = 'issueDate';
+        } elseif (isset($devposBill['date'])) {
+            $foundField = 'date';
         }
+        
+        error_log("INFO: Found date in field '$foundField' with value: " . $issueDate);
         
         // Ensure date is in YYYY-MM-DD format for QuickBooks
         // DevPos returns ISO 8601: "2025-05-21T14:33:57+02:00"
