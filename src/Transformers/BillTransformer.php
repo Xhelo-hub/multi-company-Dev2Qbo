@@ -49,7 +49,19 @@ class BillTransformer
             error_log("Available fields: " . implode(', ', array_keys($devposBill)));
             $issueDate = date('Y-m-d'); // Last resort fallback
         } else {
-            error_log("INFO: Using date field with value: " . $issueDate);
+            // Log which field we found the date in
+            $foundField = null;
+            if (isset($devposBill['invoiceCreatedDate'])) $foundField = 'invoiceCreatedDate';
+            elseif (isset($devposBill['dateTimeCreated'])) $foundField = 'dateTimeCreated';
+            elseif (isset($devposBill['createdDate'])) $foundField = 'createdDate';
+            elseif (isset($devposBill['issueDate'])) $foundField = 'issueDate';
+            elseif (isset($devposBill['dateCreated'])) $foundField = 'dateCreated';
+            elseif (isset($devposBill['created_at'])) $foundField = 'created_at';
+            elseif (isset($devposBill['dateIssued'])) $foundField = 'dateIssued';
+            elseif (isset($devposBill['date'])) $foundField = 'date';
+            elseif (isset($devposBill['invoiceDate'])) $foundField = 'invoiceDate';
+            
+            error_log("INFO: Found date in field '$foundField' with value: " . $issueDate);
         }
         
         // Ensure date is in YYYY-MM-DD format for QuickBooks

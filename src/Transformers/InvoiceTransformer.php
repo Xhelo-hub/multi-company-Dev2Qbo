@@ -51,7 +51,20 @@ class InvoiceTransformer
             error_log("Full document: " . json_encode($devposInvoice));
             $issueDate = date('Y-m-d');
         } else {
-            error_log("INFO: Using date field with value: " . $issueDate);
+            // Log which field we found the date in
+            $foundField = null;
+            if (isset($devposInvoice['invoiceCreatedDate'])) $foundField = 'invoiceCreatedDate';
+            elseif (isset($devposInvoice['dateTimeCreated'])) $foundField = 'dateTimeCreated';
+            elseif (isset($devposInvoice['createdDate'])) $foundField = 'createdDate';
+            elseif (isset($devposInvoice['issueDate'])) $foundField = 'issueDate';
+            elseif (isset($devposInvoice['dateCreated'])) $foundField = 'dateCreated';
+            elseif (isset($devposInvoice['created_at'])) $foundField = 'created_at';
+            elseif (isset($devposInvoice['dateIssued'])) $foundField = 'dateIssued';
+            elseif (isset($devposInvoice['date'])) $foundField = 'date';
+            elseif (isset($devposInvoice['invoiceDate'])) $foundField = 'invoiceDate';
+            elseif (isset($devposInvoice['documentDate'])) $foundField = 'documentDate';
+            
+            error_log("INFO: Found date in field '$foundField' with value: " . $issueDate);
         }
         
         // Ensure date is in YYYY-MM-DD format for QuickBooks

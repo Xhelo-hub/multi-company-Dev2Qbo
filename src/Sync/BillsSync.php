@@ -60,6 +60,13 @@ class BillsSync
     $fromIso = $from . 'T00:00:00+02:00';
     $toIso = $to . 'T23:59:59+02:00';
     foreach ($this->dev->fetchPurchaseEInvoices($fromIso, $toIso) as $doc) {
+      // DEBUG: Log first bill structure to see what DevPos sends
+      static $logged = false;
+      if (!$logged) {
+        error_log("DEBUG DevPos Purchase Bill: " . json_encode($doc, JSON_PRETTY_PRINT));
+        $logged = true;
+      }
+      
       $docNumber = $doc['documentNumber'] ?? $doc['id'] ?? null;
       $sellerNuis = $doc['sellerNuis'] ?? '';
       $amount = (float)($doc['amount'] ?? $doc['total'] ?? $doc['totalAmount'] ?? 0);

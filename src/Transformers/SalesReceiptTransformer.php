@@ -50,7 +50,20 @@ class SalesReceiptTransformer
             error_log("Available fields: " . implode(', ', array_keys($devposSale)));
             $issueDate = date('Y-m-d');
         } else {
-            error_log("INFO: Using date field with value: " . $issueDate);
+            // Log which field we found the date in
+            $foundField = null;
+            if (isset($devposSale['invoiceCreatedDate'])) $foundField = 'invoiceCreatedDate';
+            elseif (isset($devposSale['dateTimeCreated'])) $foundField = 'dateTimeCreated';
+            elseif (isset($devposSale['createdDate'])) $foundField = 'createdDate';
+            elseif (isset($devposSale['issueDate'])) $foundField = 'issueDate';
+            elseif (isset($devposSale['dateCreated'])) $foundField = 'dateCreated';
+            elseif (isset($devposSale['created_at'])) $foundField = 'created_at';
+            elseif (isset($devposSale['dateIssued'])) $foundField = 'dateIssued';
+            elseif (isset($devposSale['date'])) $foundField = 'date';
+            elseif (isset($devposSale['invoiceDate'])) $foundField = 'invoiceDate';
+            elseif (isset($devposSale['documentDate'])) $foundField = 'documentDate';
+            
+            error_log("INFO: Found date in field '$foundField' with value: " . $issueDate);
         }
         
         // Ensure date is in YYYY-MM-DD format for QuickBooks
