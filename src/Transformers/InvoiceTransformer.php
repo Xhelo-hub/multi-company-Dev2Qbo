@@ -57,7 +57,7 @@ class InvoiceTransformer
         // Ensure date is in YYYY-MM-DD format for QuickBooks
         // DevPos returns ISO 8601: "2025-05-21T14:33:57+02:00"
         // QuickBooks expects: "2025-05-21"
-        // Extract positions 0-9: Y(0-3)-M(5-6)-D(8-9)
+        // Extract positions 0-10: Y(0-4)-M(6-7)-D(9-10)
         $formattedDate = substr($issueDate, 0, 10);
             
         $totalAmount = $devposInvoice['totalAmount'] 
