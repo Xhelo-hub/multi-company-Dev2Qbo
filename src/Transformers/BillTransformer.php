@@ -57,6 +57,10 @@ class BillTransformer
         // QuickBooks expects: "2025-05-21"
         // Extract positions 0-9: Y(0-3)-M(5-6)-D(8-9)
         $formattedDate = substr($issueDate, 0, 10);
+        
+        // Extract due date if available, otherwise use issue date
+        $dueDate = $devposBill['dueDate'] ?? $issueDate;
+        $formattedDueDate = substr($dueDate, 0, 10);
             
         $totalAmount = $devposBill['totalAmount'] 
             ?? $devposBill['total'] 
@@ -98,11 +102,12 @@ class BillTransformer
                 'value' => (string)$vendorId
             ],
             'TxnDate' => $formattedDate, // YYYY-MM-DD format
-            'DueDate' => $formattedDate, // Use same date as issue date
+            'DueDate' => $formattedDueDate, // Use actual due date from DevPos
         ];
         
         // Log what we're sending to QuickBooks
         error_log("INFO: QuickBooks Bill TxnDate being set to: " . $formattedDate);
+        error_log("INFO: QuickBooks Bill DueDate being set to: " . $formattedDueDate);
 
         // Add document number if available
         if ($documentNumber) {
