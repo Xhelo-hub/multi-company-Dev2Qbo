@@ -51,6 +51,12 @@ class BillTransformer
         } else {
             error_log("INFO: Using date field with value: " . $issueDate);
         }
+        
+        // Ensure date is in YYYY-MM-DD format for QuickBooks
+        // DevPos returns ISO 8601: "2025-05-21T14:33:57+02:00"
+        // QuickBooks expects: "2025-05-21"
+        // Extract positions 0-9: Y(0-3)-M(5-6)-D(8-9)
+        $formattedDate = substr($issueDate, 0, 10);
             
         $totalAmount = $devposBill['totalAmount'] 
             ?? $devposBill['total'] 
@@ -91,12 +97,12 @@ class BillTransformer
             'VendorRef' => [
                 'value' => (string)$vendorId
             ],
-            'TxnDate' => substr($issueDate, 0, 10), // YYYY-MM-DD format
-            'DueDate' => substr($issueDate, 0, 10), // Use same date as issue date
+            'TxnDate' => $formattedDate, // YYYY-MM-DD format
+            'DueDate' => $formattedDate, // Use same date as issue date
         ];
         
         // Log what we're sending to QuickBooks
-        error_log("INFO: QuickBooks Bill TxnDate being set to: " . substr($issueDate, 0, 10));
+        error_log("INFO: QuickBooks Bill TxnDate being set to: " . $formattedDate);
 
         // Add document number if available
         if ($documentNumber) {
