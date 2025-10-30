@@ -1687,7 +1687,8 @@ class SyncExecutor
                 return true;
             }
             
-            error_log("Failed to upload PDF attachment: HTTP " . $response->getStatusCode());
+            $responseBody = $response->getBody()->getContents();
+            error_log("Failed to upload PDF attachment: HTTP " . $response->getStatusCode() . " - Response: " . substr($responseBody, 0, 500));
             return false;
             
         } catch (Exception $e) {
@@ -1717,8 +1718,17 @@ class SyncExecutor
         if (!$pdfB64 && $eic) {
             error_log("Fetching invoice detail from DevPos for EIC: $eic");
             $detail = $this->fetchDevPosInvoiceDetail($token, $tenant, $eic);
-            $pdfB64 = $detail['pdf'] ?? null;
-            error_log("PDF from DevPos API: " . ($pdfB64 ? 'YES (' . strlen($pdfB64) . ' chars)' : 'NO'));
+            
+            if ($detail) {
+                // Log available fields to debug
+                error_log("DevPos detail response keys: " . implode(', ', array_keys($detail)));
+                
+                // Try multiple possible field names for PDF
+                $pdfB64 = $detail['pdf'] ?? $detail['PDF'] ?? $detail['pdfBase64'] ?? $detail['base64Pdf'] ?? null;
+                error_log("PDF from DevPos API: " . ($pdfB64 ? 'YES (' . strlen($pdfB64) . ' chars)' : 'NO'));
+            } else {
+                error_log("DevPos detail fetch returned null");
+            }
         }
         
         // Upload PDF if available
