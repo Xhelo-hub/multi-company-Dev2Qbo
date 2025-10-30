@@ -21,9 +21,9 @@ class BillTransformer
         error_log("=== DEBUG: DevPos Bill ===");
         error_log("Document: " . ($devposBill['documentNumber'] ?? 'N/A'));
         error_log("Available date fields: " . json_encode([
+            'invoiceCreatedDate' => $devposBill['invoiceCreatedDate'] ?? 'NOT SET',
             'issueDate' => $devposBill['issueDate'] ?? 'NOT SET',
             'date' => $devposBill['date'] ?? 'NOT SET',
-            'invoiceCreatedDate' => $devposBill['invoiceCreatedDate'] ?? 'NOT SET',
             'dateTimeCreated' => $devposBill['dateTimeCreated'] ?? 'NOT SET',
             'createdDate' => $devposBill['createdDate'] ?? 'NOT SET',
         ]));
@@ -35,14 +35,17 @@ class BillTransformer
             ?? $devposBill['DocNumber'] 
             ?? null;
             
-        // Extract date - DevPos returns 'issueDate' in API responses (verified from working implementation)
-        $issueDate = $devposBill['issueDate']            // PRIMARY - actual API field (DEV-QBO-REST-API uses this)
-            ?? $devposBill['date']                       // SECONDARY fallback (also checked by working impl)
+        // Extract date - DevPos actually returns 'invoiceCreatedDate' (verified from production logs Oct 30)
+        $issueDate = $devposBill['invoiceCreatedDate']   // PRIMARY - actual API field (confirmed in logs)
+            ?? $devposBill['issueDate']                  // SECONDARY fallback
+            ?? $devposBill['date']                       // TERTIARY fallback
             ?? date('Y-m-d');                            // FINAL fallback - today's date
         
         // Log which field we found the date in
         $foundField = 'today (fallback)';
-        if (isset($devposBill['issueDate'])) {
+        if (isset($devposBill['invoiceCreatedDate'])) {
+            $foundField = 'invoiceCreatedDate';
+        } elseif (isset($devposBill['issueDate'])) {
             $foundField = 'issueDate';
         } elseif (isset($devposBill['date'])) {
             $foundField = 'date';

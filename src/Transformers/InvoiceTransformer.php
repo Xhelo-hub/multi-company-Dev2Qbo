@@ -21,9 +21,9 @@ class InvoiceTransformer
         error_log("=== DEBUG: DevPos Invoice ===");
         error_log("Document: " . ($devposInvoice['documentNumber'] ?? 'N/A'));
         error_log("Available date fields: " . json_encode([
+            'invoiceCreatedDate' => $devposInvoice['invoiceCreatedDate'] ?? 'NOT SET',
             'issueDate' => $devposInvoice['issueDate'] ?? 'NOT SET',
             'date' => $devposInvoice['date'] ?? 'NOT SET',
-            'invoiceCreatedDate' => $devposInvoice['invoiceCreatedDate'] ?? 'NOT SET',
             'dateTimeCreated' => $devposInvoice['dateTimeCreated'] ?? 'NOT SET',
             'createdDate' => $devposInvoice['createdDate'] ?? 'NOT SET',
         ]));
@@ -35,14 +35,17 @@ class InvoiceTransformer
             ?? $devposInvoice['DocNumber'] 
             ?? null;
             
-        // Extract date - DevPos returns 'issueDate' in API responses (verified from working implementation)
-        $issueDate = $devposInvoice['issueDate']            // PRIMARY - actual API field (DEV-QBO-REST-API uses this)
-            ?? $devposInvoice['date']                       // SECONDARY fallback (also checked by working impl)
+        // Extract date - DevPos actually returns 'invoiceCreatedDate' (verified from production logs Oct 30)
+        $issueDate = $devposInvoice['invoiceCreatedDate']   // PRIMARY - actual API field (confirmed in logs)
+            ?? $devposInvoice['issueDate']                  // SECONDARY fallback
+            ?? $devposInvoice['date']                       // TERTIARY fallback
             ?? date('Y-m-d');                               // FINAL fallback - today's date
         
         // Log which field we found the date in
         $foundField = 'today (fallback)';
-        if (isset($devposInvoice['issueDate'])) {
+        if (isset($devposInvoice['invoiceCreatedDate'])) {
+            $foundField = 'invoiceCreatedDate';
+        } elseif (isset($devposInvoice['issueDate'])) {
             $foundField = 'issueDate';
         } elseif (isset($devposInvoice['date'])) {
             $foundField = 'date';

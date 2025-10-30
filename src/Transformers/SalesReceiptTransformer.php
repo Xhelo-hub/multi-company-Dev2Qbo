@@ -31,14 +31,17 @@ class SalesReceiptTransformer
             ?? $devposSale['DocNumber'] 
             ?? null;
             
-        // Extract date - DevPos returns 'issueDate' in API responses (verified from working implementation)
-        $issueDate = $devposSale['issueDate']            // PRIMARY - actual API field (DEV-QBO-REST-API uses this)
-            ?? $devposSale['date']                       // SECONDARY fallback (also checked by working impl)
+        // Extract date - DevPos actually returns 'invoiceCreatedDate' (verified from production logs Oct 30)
+        $issueDate = $devposSale['invoiceCreatedDate']   // PRIMARY - actual API field (confirmed in logs)
+            ?? $devposSale['issueDate']                  // SECONDARY fallback
+            ?? $devposSale['date']                       // TERTIARY fallback
             ?? date('Y-m-d');                            // FINAL fallback - today's date
         
         // Log which field we found the date in
         $foundField = 'today (fallback)';
-        if (isset($devposSale['issueDate'])) {
+        if (isset($devposSale['invoiceCreatedDate'])) {
+            $foundField = 'invoiceCreatedDate';
+        } elseif (isset($devposSale['issueDate'])) {
             $foundField = 'issueDate';
         } elseif (isset($devposSale['date'])) {
             $foundField = 'date';
