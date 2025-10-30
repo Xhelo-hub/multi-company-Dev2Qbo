@@ -1012,10 +1012,11 @@ class SyncExecutor
         $amount = (float)($devposBill['amount'] ?? $devposBill['total'] ?? $devposBill['totalAmount'] ?? 0);
         
         // Extract bill date - try multiple possible field names
-        $billDate = $devposBill['issueDate'] 
-            ?? $devposBill['dateIssued'] 
-            ?? $devposBill['date']
-            ?? $devposBill['transactionDate']
+        $billDate = $devposBill['invoiceCreatedDate']  // PRIMARY - actual field from DevPos API
+            ?? $devposBill['issueDate']                // SECONDARY fallback
+            ?? $devposBill['dateIssued']               // TERTIARY fallback
+            ?? $devposBill['date']                     // QUATERNARY fallback
+            ?? $devposBill['transactionDate']          // QUINARY fallback
             ?? null;
         
         if (!$billDate) {
