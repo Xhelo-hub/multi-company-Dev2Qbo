@@ -623,10 +623,11 @@ class SyncExecutor
             ?? $devposInvoice['DocNumber'] 
             ?? null;
             
-        $issueDate = $devposInvoice['issueDate'] 
-            ?? $devposInvoice['dateCreated'] 
-            ?? $devposInvoice['created_at'] 
-            ?? date('Y-m-d');
+        $issueDate = $devposInvoice['invoiceCreatedDate']  // PRIMARY - actual field from DevPos API
+            ?? $devposInvoice['issueDate']                 // SECONDARY fallback 
+            ?? $devposInvoice['dateCreated']               // TERTIARY fallback
+            ?? $devposInvoice['created_at']                // QUATERNARY fallback
+            ?? date('Y-m-d');                              // FINAL fallback - today's date
             
         $totalAmount = (float)($devposInvoice['totalAmount'] 
             ?? $devposInvoice['total'] 
