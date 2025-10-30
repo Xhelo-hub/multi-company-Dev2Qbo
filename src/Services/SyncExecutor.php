@@ -563,16 +563,37 @@ class SyncExecutor
             
             // Store mapping
             if (isset($result['Invoice']['Id'])) {
+                $qboInvoiceId = (string)$result['Invoice']['Id'];
+                
                 $this->storeInvoiceMapping(
                     $companyId, 
                     $eic, 
-                    (int)$result['Invoice']['Id'],
+                    (int)$qboInvoiceId,
                     'invoice',
                     $invoice['documentNumber'] ?? '',
                     $result['Invoice']['DocNumber'] ?? '',
                     (float)($invoice['totalAmount'] ?? $invoice['amount'] ?? 0),
                     $invoice['buyerName'] ?? ''
                 );
+                
+                // Attach PDF if available
+                try {
+                    $devposCreds = $this->getDevPosCredentials($companyId);
+                    if ($devposCreds) {
+                        $devposToken = $this->getDevPosToken($devposCreds);
+                        $this->attachPDFIfAvailable(
+                            $invoice,
+                            'Invoice',
+                            $qboInvoiceId,
+                            $devposToken,
+                            $devposCreds['tenant'],
+                            $qboCreds
+                        );
+                    }
+                } catch (Exception $pdfError) {
+                    // Don't fail invoice sync if PDF attachment fails
+                    error_log("Warning: Failed to attach PDF to invoice: " . $pdfError->getMessage());
+                }
             }
         } catch (\GuzzleHttp\Exception\ClientException $e) {
             // Get the full error response from QuickBooks
@@ -933,15 +954,36 @@ class SyncExecutor
         
         // Store mapping
         if (isset($result['Bill']['Id'])) {
+            $qboBillId = (string)$result['Bill']['Id'];
+            
             $this->storeBillMapping(
                 $companyId, 
                 $bill['documentNumber'] ?? '',
                 $bill['sellerNuis'] ?? '',
-                (int)$result['Bill']['Id'],
+                (int)$qboBillId,
                 $result['Bill']['DocNumber'] ?? '',
                 (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0),
                 $bill['sellerName'] ?? ''
             );
+            
+            // Attach PDF if available
+            try {
+                $devposCreds = $this->getDevPosCredentials($companyId);
+                if ($devposCreds) {
+                    $devposToken = $this->getDevPosToken($devposCreds);
+                    $this->attachPDFIfAvailable(
+                        $bill,
+                        'Bill',
+                        $qboBillId,
+                        $devposToken,
+                        $devposCreds['tenant'],
+                        $qboCreds
+                    );
+                }
+            } catch (Exception $pdfError) {
+                // Don't fail bill sync if PDF attachment fails
+                error_log("Warning: Failed to attach PDF to bill: " . $pdfError->getMessage());
+            }
         }
     }
     
@@ -1532,6 +1574,168 @@ class SyncExecutor
         } catch (Exception $e) {
             error_log("Warning: Failed to cache customer mapping: " . $e->getMessage());
             // Non-fatal error - continue without caching
+        }
+    }
+
+    /**
+     * Fetch invoice detail with PDF from DevPos by EIC
+     */
+    private function fetchDevPosInvoiceDetail(string $token, string $tenant, string $eic): ?array
+    {
+        $client = new Client([
+            'timeout' => 30,
+            'http_errors' => false
+        ]);
+        $apiBase = $_ENV['DEVPOS_API_BASE'] ?? 'https://online.devpos.al/api/v3';
+        
+        try {
+            // Try GET with query parameter first
+            $response = $client->get($apiBase . '/EInvoice', [
+                'query' => ['EIC' => $eic],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'tenant' => $tenant,
+                    'Accept' => 'application/json'
+                ]
+            ]);
+            
+            // If 405/415 Method Not Allowed, try POST with form params
+            if (in_array($response->getStatusCode(), [405, 415])) {
+                $response = $client->post($apiBase . '/EInvoice', [
+                    'form_params' => ['EIC' => $eic],
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'tenant' => $tenant,
+                        'Accept' => 'application/json'
+                    ]
+                ]);
+            }
+            
+            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+                $body = $response->getBody()->getContents();
+                $data = json_decode($body, true);
+                
+                // API may return array with single item or the object directly
+                if (is_array($data)) {
+                    return isset($data[0]) && is_array($data[0]) ? $data[0] : $data;
+                }
+            }
+            
+            error_log("Failed to fetch invoice detail for EIC $eic: HTTP " . $response->getStatusCode());
+            return null;
+            
+        } catch (Exception $e) {
+            error_log("Error fetching invoice detail for EIC $eic: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Upload PDF attachment to QuickBooks
+     */
+    private function uploadPDFToQBO(
+        string $entityType,
+        string $entityId,
+        string $filename,
+        string $pdfBinary,
+        array $qboCreds
+    ): bool {
+        $client = new Client(['timeout' => 30]);
+        $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+        $baseUrl = $isSandbox 
+            ? 'https://sandbox-quickbooks.api.intuit.com'
+            : 'https://quickbooks.api.intuit.com';
+        
+        try {
+            $boundary = uniqid('boundary_');
+            $eol = "\r\n";
+            
+            // Build multipart body
+            $body = "--{$boundary}{$eol}";
+            $body .= "Content-Disposition: form-data; name=\"file_metadata_0\"{$eol}";
+            $body .= "Content-Type: application/json{$eol}{$eol}";
+            $body .= json_encode([
+                'AttachableRef' => [
+                    [
+                        'EntityRef' => [
+                            'type' => $entityType,
+                            'value' => $entityId
+                        ],
+                        'IncludeOnSend' => false
+                    ]
+                ],
+                'FileName' => $filename,
+                'ContentType' => 'application/pdf'
+            ]);
+            $body .= "{$eol}--{$boundary}{$eol}";
+            $body .= "Content-Disposition: form-data; name=\"file_content_0\"; filename=\"{$filename}\"{$eol}";
+            $body .= "Content-Type: application/pdf{$eol}{$eol}";
+            $body .= $pdfBinary;
+            $body .= "{$eol}--{$boundary}--{$eol}";
+            
+            $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/upload', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                    'Accept' => 'application/json',
+                    'Content-Type' => "multipart/form-data; boundary={$boundary}"
+                ],
+                'body' => $body
+            ]);
+            
+            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+                error_log("✓ PDF attachment uploaded: $filename to $entityType $entityId");
+                return true;
+            }
+            
+            error_log("Failed to upload PDF attachment: HTTP " . $response->getStatusCode());
+            return false;
+            
+        } catch (Exception $e) {
+            error_log("Error uploading PDF attachment: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Attach PDF to invoice/bill if available from DevPos
+     */
+    private function attachPDFIfAvailable(
+        array $document,
+        string $entityType,
+        string $entityId,
+        string $token,
+        string $tenant,
+        array $qboCreds
+    ): void {
+        // Check if PDF is already in document data
+        $pdfB64 = $document['pdf'] ?? null;
+        $eic = $document['eic'] ?? $document['EIC'] ?? null;
+        
+        error_log("Checking PDF for $entityType $entityId - EIC: " . ($eic ?? 'null') . ", Has PDF in data: " . ($pdfB64 ? 'YES' : 'NO'));
+        
+        // If no PDF in initial data and we have EIC, fetch full invoice detail
+        if (!$pdfB64 && $eic) {
+            error_log("Fetching invoice detail from DevPos for EIC: $eic");
+            $detail = $this->fetchDevPosInvoiceDetail($token, $tenant, $eic);
+            $pdfB64 = $detail['pdf'] ?? null;
+            error_log("PDF from DevPos API: " . ($pdfB64 ? 'YES (' . strlen($pdfB64) . ' chars)' : 'NO'));
+        }
+        
+        // Upload PDF if available
+        if ($pdfB64) {
+            $pdfBinary = base64_decode($pdfB64);
+            
+            if ($pdfBinary !== false && strlen($pdfBinary) > 0) {
+                $docNumber = $document['documentNumber'] ?? $document['doc_no'] ?? $entityId;
+                $filename = $docNumber . '.pdf';
+                
+                error_log("Uploading PDF: $filename (" . strlen($pdfBinary) . " bytes)");
+                $this->uploadPDFToQBO($entityType, $entityId, $filename, $pdfBinary, $qboCreds);
+            } else {
+                error_log("Warning: PDF base64 decode failed or empty");
+            }
+        } else {
+            error_log("No PDF available for $entityType $entityId");
         }
     }
 }
