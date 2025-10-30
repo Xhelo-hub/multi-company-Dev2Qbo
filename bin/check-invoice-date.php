@@ -56,18 +56,21 @@ try {
     echo "Company: {$company['company_name']}\n";
     echo "Tenant: {$company['devpos_tenant']}\n\n";
     
-    // Decrypt password
+    // Decrypt password using the same method as CompanyService
     $key = $_ENV['ENCRYPTION_KEY'] ?? null;
     if (!$key) {
         echo "❌ ENCRYPTION_KEY not found in .env\n";
         exit(1);
     }
     
-    $encrypted = base64_decode($company['devpos_password']);
-    $ivLength = openssl_cipher_iv_length('aes-256-cbc');
-    $iv = substr($encrypted, 0, $ivLength);
-    $encrypted = substr($encrypted, $ivLength);
-    $password = openssl_decrypt($encrypted, 'aes-256-cbc', $key, 0, $iv);
+    // Use same decryption as CompanyService: md5 of key for IV
+    $password = openssl_decrypt(
+        $company['devpos_password'], 
+        'AES-256-CBC', 
+        $key, 
+        0, 
+        substr(md5($key), 0, 16)
+    );
     
     if ($password === false) {
         echo "❌ Failed to decrypt DevPos password\n";
