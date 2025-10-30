@@ -17,13 +17,17 @@ class InvoiceTransformer
      */
     public static function fromDevpos(array $devposInvoice): array
     {
-        // Debug: Log the first invoice to see actual structure
-        static $debugLogged = false;
-        if (!$debugLogged) {
-            error_log("=== DEBUG: DevPos Invoice Structure ===");
-            error_log(json_encode($devposInvoice, JSON_PRETTY_PRINT));
-            $debugLogged = true;
-        }
+        // Debug: Log EVERY invoice to see what date fields DevPos is actually returning
+        error_log("=== DEBUG: DevPos Invoice ===");
+        error_log("Document: " . ($devposInvoice['documentNumber'] ?? 'N/A'));
+        error_log("Available date fields: " . json_encode([
+            'issueDate' => $devposInvoice['issueDate'] ?? 'NOT SET',
+            'date' => $devposInvoice['date'] ?? 'NOT SET',
+            'invoiceCreatedDate' => $devposInvoice['invoiceCreatedDate'] ?? 'NOT SET',
+            'dateTimeCreated' => $devposInvoice['dateTimeCreated'] ?? 'NOT SET',
+            'createdDate' => $devposInvoice['createdDate'] ?? 'NOT SET',
+        ]));
+        error_log("ALL FIELDS: " . implode(', ', array_keys($devposInvoice)));
 
         // Extract fields with fallbacks
         $documentNumber = $devposInvoice['documentNumber'] 

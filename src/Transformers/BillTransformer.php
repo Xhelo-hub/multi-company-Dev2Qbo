@@ -17,13 +17,17 @@ class BillTransformer
      */
     public static function fromDevpos(array $devposBill): array
     {
-        // Debug: Log the first bill to see actual structure
-        static $debugLogged = false;
-        if (!$debugLogged) {
-            error_log("=== DEBUG: DevPos Purchase Bill Structure ===");
-            error_log(json_encode($devposBill, JSON_PRETTY_PRINT));
-            $debugLogged = true;
-        }
+        // Debug: Log EVERY bill to see what date fields DevPos is actually returning
+        error_log("=== DEBUG: DevPos Bill ===");
+        error_log("Document: " . ($devposBill['documentNumber'] ?? 'N/A'));
+        error_log("Available date fields: " . json_encode([
+            'issueDate' => $devposBill['issueDate'] ?? 'NOT SET',
+            'date' => $devposBill['date'] ?? 'NOT SET',
+            'invoiceCreatedDate' => $devposBill['invoiceCreatedDate'] ?? 'NOT SET',
+            'dateTimeCreated' => $devposBill['dateTimeCreated'] ?? 'NOT SET',
+            'createdDate' => $devposBill['createdDate'] ?? 'NOT SET',
+        ]));
+        error_log("ALL FIELDS: " . implode(', ', array_keys($devposBill)));
 
         // Extract fields with fallbacks
         $documentNumber = $devposBill['documentNumber'] 
