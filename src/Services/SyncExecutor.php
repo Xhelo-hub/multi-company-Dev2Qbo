@@ -570,7 +570,7 @@ class SyncExecutor
                     'invoice',
                     $invoice['documentNumber'] ?? '',
                     $result['Invoice']['DocNumber'] ?? '',
-                    (float)($invoice['totalAmount'] ?? 0),
+                    (float)($invoice['totalAmount'] ?? $invoice['amount'] ?? 0),
                     $invoice['buyerName'] ?? ''
                 );
             }
