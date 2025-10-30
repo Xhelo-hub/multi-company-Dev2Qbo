@@ -63,9 +63,15 @@ try {
         exit(1);
     }
     
-    // Use same decryption as CompanyService: md5 of key for IV
+    //  Debug: Check if encrypted password is present
+    $encrypted = $company['devpos_password'];
+    echo "  DEBUG: Encrypted length: " . strlen($encrypted) . " bytes\n";
+    echo "  DEBUG: Key length: " . strlen($key) . " bytes\n";
+    echo "  DEBUG: IV: " . substr(md5($key), 0, 16) . "\n\n";
+    
+    // Use same decryption as CompanyService: md5 of key for IV  
     $password = openssl_decrypt(
-        $company['devpos_password'], 
+        $encrypted, 
         'AES-256-CBC', 
         $key, 
         0, 
@@ -74,6 +80,7 @@ try {
     
     if ($password === false) {
         echo "❌ Failed to decrypt DevPos password\n";
+        echo "  OpenSSL Error: " . openssl_error_string() . "\n";
         exit(1);
     }
     
