@@ -56,26 +56,21 @@ try {
     echo "Company: {$company['company_name']}\n";
     echo "Tenant: {$company['devpos_tenant']}\n\n";
     
-    // Decrypt password using the same method as CompanyService
+    // Decrypt password using the same method as SyncExecutor  
+    // (Note: SyncExecutor and CompanyService use DIFFERENT methods - using SyncExecutor's)
     $key = $_ENV['ENCRYPTION_KEY'] ?? null;
     if (!$key) {
         echo "❌ ENCRYPTION_KEY not found in .env\n";
         exit(1);
     }
     
-    //  Debug: Check if encrypted password is present
-    $encrypted = $company['devpos_password'];
-    echo "  DEBUG: Encrypted length: " . strlen($encrypted) . " bytes\n";
-    echo "  DEBUG: Key length: " . strlen($key) . " bytes\n";
-    echo "  DEBUG: IV: " . substr(md5($key), 0, 16) . "\n\n";
-    
-    // Use same decryption as CompanyService: md5 of key for IV  
+    // SyncExecutor method: hash the key with SHA256 for both key and IV
     $password = openssl_decrypt(
-        $encrypted, 
-        'AES-256-CBC', 
-        $key, 
-        0, 
-        substr(md5($key), 0, 16)
+        $company['devpos_password'],
+        'AES-256-CBC',
+        hash('sha256', $key, true), // Binary hash for key (32 bytes)
+        0,
+        substr(hash('sha256', $key), 0, 16) // Hex hash for IV (16 bytes)
     );
     
     if ($password === false) {
