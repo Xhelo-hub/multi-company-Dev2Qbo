@@ -33,11 +33,17 @@ try {
     // Get database connection
     $pdo = \App\Storage\make_pdo();
     
-    // Get company credentials
+    // Get company credentials from multi-company schema
     $stmt = $pdo->prepare("
-        SELECT id, name, devpos_tenant, devpos_username, devpos_password 
-        FROM companies 
-        WHERE id = ?
+        SELECT 
+            c.id, 
+            c.company_name,
+            cd.tenant as devpos_tenant,
+            cd.username as devpos_username,
+            cd.password_encrypted as devpos_password
+        FROM companies c
+        JOIN company_credentials_devpos cd ON c.id = cd.company_id
+        WHERE c.id = ?
     ");
     $stmt->execute([$companyId]);
     $company = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -47,7 +53,7 @@ try {
         exit(1);
     }
     
-    echo "Company: {$company['name']}\n";
+    echo "Company: {$company['company_name']}\n";
     echo "Tenant: {$company['devpos_tenant']}\n\n";
     
     // Decrypt password
