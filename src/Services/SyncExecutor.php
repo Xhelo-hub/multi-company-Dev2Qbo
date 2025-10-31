@@ -1631,7 +1631,7 @@ class SyncExecutor
     }
 
     /**
-     * Upload PDF attachment to QuickBooks
+     * Upload PDF attachment to QuickBooks using Guzzle's native multipart
      */
     private function uploadPDFToQBO(
         string $entityType,
@@ -1647,39 +1647,42 @@ class SyncExecutor
             : 'https://quickbooks.api.intuit.com';
         
         try {
-            $boundary = uniqid('boundary_');
-            $eol = "\r\n";
-            
-            // Build multipart body
-            $body = "--{$boundary}{$eol}";
-            $body .= "Content-Disposition: form-data; name=\"file_metadata_0\"{$eol}";
-            $body .= "Content-Type: application/json{$eol}{$eol}";
-            $body .= json_encode([
-                'AttachableRef' => [
-                    [
-                        'EntityRef' => [
-                            'type' => $entityType,
-                            'value' => $entityId
-                        ],
-                        'IncludeOnSend' => false
-                    ]
-                ],
-                'FileName' => $filename,
-                'ContentType' => 'application/pdf'
-            ]);
-            $body .= "{$eol}--{$boundary}{$eol}";
-            $body .= "Content-Disposition: form-data; name=\"file_content_0\"; filename=\"{$filename}\"{$eol}";
-            $body .= "Content-Type: application/pdf{$eol}{$eol}";
-            $body .= $pdfBinary;
-            $body .= "{$eol}--{$boundary}--{$eol}";
-            
+            // Use Guzzle's native multipart support - more reliable
             $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/upload', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $qboCreds['access_token'],
-                    'Accept' => 'application/json',
-                    'Content-Type' => "multipart/form-data; boundary={$boundary}"
+                    'Accept' => 'application/json'
+                    // Don't set Content-Type - Guzzle will set it with boundary
                 ],
-                'body' => $body
+                'multipart' => [
+                    [
+                        'name' => 'file_metadata_0',
+                        'contents' => json_encode([
+                            'AttachableRef' => [
+                                [
+                                    'EntityRef' => [
+                                        'type' => $entityType,
+                                        'value' => $entityId
+                                    ],
+                                    'IncludeOnSend' => false
+                                ]
+                            ],
+                            'FileName' => $filename,
+                            'ContentType' => 'application/pdf'
+                        ]),
+                        'headers' => [
+                            'Content-Type' => 'application/json'
+                        ]
+                    ],
+                    [
+                        'name' => 'file_content_0',
+                        'contents' => $pdfBinary,
+                        'filename' => $filename,
+                        'headers' => [
+                            'Content-Type' => 'application/pdf'
+                        ]
+                    ]
+                ]
             ]);
             
             if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
@@ -1693,6 +1696,10 @@ class SyncExecutor
             
         } catch (Exception $e) {
             error_log("Error uploading PDF attachment: " . $e->getMessage());
+            if (method_exists($e, 'getResponse') && $e->getResponse()) {
+                $responseBody = $e->getResponse()->getBody()->getContents();
+                error_log("QBO API Error Response: " . substr($responseBody, 0, 500));
+            }
             return false;
         }
     }
