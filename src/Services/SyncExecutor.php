@@ -1596,35 +1596,44 @@ class SyncExecutor
         $apiBase = $_ENV['DEVPOS_API_BASE'] ?? 'https://online.devpos.al/api/v3';
         
         try {
-            // Try GET with query parameter first
             $url = $apiBase . '/EInvoice';
-            $debugLog("Attempting GET $url?EIC=$eic");
             
-            $response = $client->get($url, [
-                'query' => ['EIC' => $eic],
-                'headers' => [
-                    'Authorization' => 'Bearer ' . substr($token, 0, 20) . '...',
-                    'tenant' => $tenant,
-                    'Accept' => 'application/json'
-                ]
-            ]);
+            // Try multiple approaches to fetch invoice
+            $attempts = [
+                ['method' => 'GET', 'params' => ['query' => ['EIC' => $eic]], 'desc' => 'GET with EIC parameter (uppercase)'],
+                ['method' => 'GET', 'params' => ['query' => ['eic' => $eic]], 'desc' => 'GET with eic parameter (lowercase)'],
+                ['method' => 'POST', 'params' => ['form_params' => ['EIC' => $eic]], 'desc' => 'POST with EIC form param'],
+                ['method' => 'POST', 'params' => ['json' => ['EIC' => $eic]], 'desc' => 'POST with EIC JSON body'],
+            ];
             
-            $statusCode = $response->getStatusCode();
-            $debugLog("DevPos API Response: HTTP $statusCode");
+            $response = null;
+            $statusCode = 0;
             
-            // If 405/415 Method Not Allowed, try POST with form params
-            if (in_array($statusCode, [405, 415])) {
-                $debugLog("Method not allowed, trying POST instead");
-                $response = $client->post($url, [
-                    'form_params' => ['EIC' => $eic],
+            foreach ($attempts as $attempt) {
+                $debugLog("Attempting {$attempt['desc']}...");
+                
+                $options = array_merge($attempt['params'], [
                     'headers' => [
-                        'Authorization' => 'Bearer ' . substr($token, 0, 20) . '...',
+                        'Authorization' => 'Bearer ' . $token,
                         'tenant' => $tenant,
                         'Accept' => 'application/json'
                     ]
                 ]);
+                
+                $response = $client->request($attempt['method'], $url, $options);
                 $statusCode = $response->getStatusCode();
-                $debugLog("DevPos API POST Response: HTTP $statusCode");
+                $debugLog("Response: HTTP $statusCode");
+                
+                // If success, break
+                if ($statusCode >= 200 && $statusCode < 300) {
+                    $debugLog("✓ Success with: {$attempt['desc']}");
+                    break;
+                }
+                
+                // If not method error, break (might be auth or other issue)
+                if (!in_array($statusCode, [405, 415])) {
+                    break;
+                }
             }
             
             if ($statusCode >= 200 && $statusCode < 300) {
