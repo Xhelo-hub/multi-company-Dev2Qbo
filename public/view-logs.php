@@ -113,46 +113,67 @@ $filter = isset($_GET['filter']) ? $_GET['filter'] : 'pdf|PDF|attachment|upload|
     </div>
 
     <?php
-    // Determine log file - DEFAULT TO PHP-FPM (where error_log() writes)
-    $logFile = '/var/log/php8.3-fpm.log';
-    if (isset($_GET['logfile'])) {
-        switch ($_GET['logfile']) {
-            case 'apache':
-                $logFile = '/var/log/apache2/error.log';
-                break;
-            case 'php-fpm':
-                $logFile = '/var/log/php8.3-fpm.log';
-                break;
-            case 'syslog':
-                $logFile = '/var/log/syslog';
-                break;
-        }
+    // Determine log source
+    $logSource = isset($_GET['logfile']) ? $_GET['logfile'] : 'php-fpm';
+    
+    echo "<h2>Log Source: ";
+    switch ($logSource) {
+        case 'php-fpm':
+            echo "PHP-FPM (via journalctl)";
+            break;
+        case 'apache':
+            echo "Apache Error Log";
+            break;
+        case 'syslog':
+            echo "System Log";
+            break;
     }
-
-    echo "<h2>Log: $logFile</h2>";
+    echo "</h2>";
     echo "<p>Last updated: " . date('Y-m-d H:i:s') . "</p>";
 
-    // Try to read log file
-    if (!file_exists($logFile)) {
-        echo "<pre class='error'>Log file not found: $logFile</pre>";
+    // Build command based on log source
+    $command = '';
+    
+    switch ($logSource) {
+        case 'php-fpm':
+            // Use journalctl for PHP-FPM logs (no permission issues)
+            $command = "journalctl -u php8.3-fpm -n $lines --no-pager";
+            break;
+            
+        case 'apache':
+            $logFile = '/var/log/apache2/error.log';
+            if (file_exists($logFile) && is_readable($logFile)) {
+                $command = "tail -n $lines " . escapeshellarg($logFile);
+            }
+            break;
+            
+        case 'syslog':
+            $logFile = '/var/log/syslog';
+            if (file_exists($logFile) && is_readable($logFile)) {
+                $command = "tail -n $lines " . escapeshellarg($logFile);
+            }
+            break;
+    }
+    
+    // Apply filter if specified
+    if (!empty($command) && !empty($filter)) {
+        $command .= " | grep -E " . escapeshellarg($filter);
+    }
+    
+    // Execute command
+    if (empty($command)) {
+        echo "<pre class='error'>Unable to read logs - insufficient permissions or log not found</pre>";
     } else {
-        // Read last N lines
-        $command = "tail -n $lines " . escapeshellarg($logFile);
-        
-        // Apply filter if specified
-        if (!empty($filter)) {
-            $command .= " | grep -E " . escapeshellarg($filter);
-        }
-        
         $output = shell_exec($command . " 2>&1");
         
         if (empty($output)) {
-            echo "<pre class='warning'>No log entries found (filter may be too restrictive)</pre>";
+            echo "<pre class='warning'>No log entries found (filter may be too restrictive or no logs yet)</pre>";
+            echo "<p>Try removing the filter or check if any sync has been run recently.</p>";
         } else {
             // Colorize output
-            $lines = explode("\n", $output);
+            $outputLines = explode("\n", $output);
             echo "<pre>";
-            foreach ($lines as $line) {
+            foreach ($outputLines as $line) {
                 if (empty(trim($line))) continue;
                 
                 $class = '';
