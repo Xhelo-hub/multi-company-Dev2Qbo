@@ -1778,24 +1778,41 @@ class SyncExecutor
         
         // Check if PDF is already in document data
         $pdfB64 = $document['pdf'] ?? null;
+        $pdfUrl = $document['pdfUrl'] ?? $document['pdf_url'] ?? $document['pdfLink'] ?? null;
         $eic = $document['eic'] ?? $document['EIC'] ?? null;
         
-        $debugLog("Checking PDF for $entityType $entityId - EIC: " . ($eic ?? 'null') . ", Has PDF in data: " . ($pdfB64 ? 'YES' : 'NO'));
+        // Construct PDF URL from EIC if not explicitly provided
+        if (!$pdfUrl && $eic) {
+            $pdfUrl = 'https://online.devpos.al/' . $eic;
+        }
         
-        // If no PDF in initial data and we have EIC, fetch full invoice detail
-        if (!$pdfB64 && $eic) {
-            $debugLog("Fetching invoice detail from DevPos for EIC: $eic");
-            $detail = $this->fetchDevPosInvoiceDetail($token, $tenant, $eic);
-            
-            if ($detail) {
-                // Log available fields to debug
-                $debugLog("DevPos detail response keys: " . implode(', ', array_keys($detail)));
+        $debugLog("Checking PDF for $entityType $entityId - EIC: " . ($eic ?? 'null') . ", Has PDF: " . ($pdfB64 ? 'YES' : 'NO') . ", PDF URL: " . ($pdfUrl ?? 'null'));
+        
+        // If we have a PDF URL, download it
+        if (!$pdfB64 && $pdfUrl) {
+            $debugLog("Downloading PDF from URL: $pdfUrl");
+            try {
+                $client = new \GuzzleHttp\Client();
+                $response = $client->get($pdfUrl, [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'tenant' => $tenant,
+                    ]
+                ]);
                 
-                // Try multiple possible field names for PDF
-                $pdfB64 = $detail['pdf'] ?? $detail['PDF'] ?? $detail['pdfBase64'] ?? $detail['base64Pdf'] ?? null;
-                $debugLog("PDF from DevPos API: " . ($pdfB64 ? 'YES (' . strlen($pdfB64) . ' chars)' : 'NO'));
-            } else {
-                $debugLog("DevPos detail fetch returned null");
+                if ($response->getStatusCode() === 200) {
+                    $pdfBinary = $response->getBody()->getContents();
+                    if ($pdfBinary && strlen($pdfBinary) > 0) {
+                        $pdfB64 = base64_encode($pdfBinary);
+                        $debugLog("✓ Downloaded PDF from URL (" . strlen($pdfBinary) . " bytes)");
+                    } else {
+                        $debugLog("Downloaded PDF is empty");
+                    }
+                } else {
+                    $debugLog("Failed to download PDF: HTTP " . $response->getStatusCode());
+                }
+            } catch (\Exception $e) {
+                $debugLog("Error downloading PDF from URL: " . $e->getMessage());
             }
         }
         
