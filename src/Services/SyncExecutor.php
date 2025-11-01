@@ -1582,6 +1582,13 @@ class SyncExecutor
      */
     private function fetchDevPosInvoiceDetail(string $token, string $tenant, string $eic): ?array
     {
+        // Debug log helper
+        $debugLog = function($msg) {
+            $logFile = __DIR__ . '/../../storage/pdf-debug.log';
+            @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $msg" . PHP_EOL, FILE_APPEND);
+            error_log($msg);
+        };
+        
         $client = new Client([
             'timeout' => 30,
             'http_errors' => false
@@ -1590,42 +1597,62 @@ class SyncExecutor
         
         try {
             // Try GET with query parameter first
-            $response = $client->get($apiBase . '/EInvoice', [
+            $url = $apiBase . '/EInvoice';
+            $debugLog("Attempting GET $url?EIC=$eic");
+            
+            $response = $client->get($url, [
                 'query' => ['EIC' => $eic],
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $token,
+                    'Authorization' => 'Bearer ' . substr($token, 0, 20) . '...',
                     'tenant' => $tenant,
                     'Accept' => 'application/json'
                 ]
             ]);
             
+            $statusCode = $response->getStatusCode();
+            $debugLog("DevPos API Response: HTTP $statusCode");
+            
             // If 405/415 Method Not Allowed, try POST with form params
-            if (in_array($response->getStatusCode(), [405, 415])) {
-                $response = $client->post($apiBase . '/EInvoice', [
+            if (in_array($statusCode, [405, 415])) {
+                $debugLog("Method not allowed, trying POST instead");
+                $response = $client->post($url, [
                     'form_params' => ['EIC' => $eic],
                     'headers' => [
-                        'Authorization' => 'Bearer ' . $token,
+                        'Authorization' => 'Bearer ' . substr($token, 0, 20) . '...',
                         'tenant' => $tenant,
                         'Accept' => 'application/json'
                     ]
                 ]);
+                $statusCode = $response->getStatusCode();
+                $debugLog("DevPos API POST Response: HTTP $statusCode");
             }
             
-            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+            if ($statusCode >= 200 && $statusCode < 300) {
                 $body = $response->getBody()->getContents();
+                $debugLog("Response body length: " . strlen($body) . " bytes");
+                
                 $data = json_decode($body, true);
+                
+                if ($data === null) {
+                    $debugLog("ERROR: Failed to decode JSON response");
+                    $debugLog("Response preview: " . substr($body, 0, 200));
+                    return null;
+                }
                 
                 // API may return array with single item or the object directly
                 if (is_array($data)) {
-                    return isset($data[0]) && is_array($data[0]) ? $data[0] : $data;
+                    $result = isset($data[0]) && is_array($data[0]) ? $data[0] : $data;
+                    $debugLog("Parsed invoice data with " . count($result) . " fields");
+                    return $result;
                 }
             }
             
-            error_log("Failed to fetch invoice detail for EIC $eic: HTTP " . $response->getStatusCode());
+            $body = $response->getBody()->getContents();
+            $debugLog("Failed to fetch invoice: HTTP $statusCode - " . substr($body, 0, 200));
             return null;
             
         } catch (Exception $e) {
-            error_log("Error fetching invoice detail for EIC $eic: " . $e->getMessage());
+            $debugLog("Exception fetching invoice detail: " . $e->getMessage());
             return null;
         }
     }
