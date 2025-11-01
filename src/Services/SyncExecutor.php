@@ -1686,19 +1686,32 @@ class SyncExecutor
             ]);
             
             if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
-                error_log("✓ PDF attachment uploaded: $filename to $entityType $entityId");
+                $msg = "✓ PDF attachment uploaded: $filename to $entityType $entityId";
+                error_log($msg);
+                // Also write to debug log
+                $logFile = __DIR__ . '/../../storage/pdf-debug.log';
+                @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $msg" . PHP_EOL, FILE_APPEND);
                 return true;
             }
             
             $responseBody = $response->getBody()->getContents();
-            error_log("Failed to upload PDF attachment: HTTP " . $response->getStatusCode() . " - Response: " . substr($responseBody, 0, 500));
+            $msg = "Failed to upload PDF attachment: HTTP " . $response->getStatusCode() . " - Response: " . substr($responseBody, 0, 500);
+            error_log($msg);
+            $logFile = __DIR__ . '/../../storage/pdf-debug.log';
+            @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $msg" . PHP_EOL, FILE_APPEND);
             return false;
             
         } catch (Exception $e) {
-            error_log("Error uploading PDF attachment: " . $e->getMessage());
+            $msg = "Error uploading PDF attachment: " . $e->getMessage();
+            error_log($msg);
+            $logFile = __DIR__ . '/../../storage/pdf-debug.log';
+            @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $msg" . PHP_EOL, FILE_APPEND);
+            
             if (method_exists($e, 'getResponse') && $e->getResponse()) {
                 $responseBody = $e->getResponse()->getBody()->getContents();
-                error_log("QBO API Error Response: " . substr($responseBody, 0, 500));
+                $errMsg = "QBO API Error Response: " . substr($responseBody, 0, 500);
+                error_log($errMsg);
+                @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $errMsg" . PHP_EOL, FILE_APPEND);
             }
             return false;
         }
@@ -1715,26 +1728,38 @@ class SyncExecutor
         string $tenant,
         array $qboCreds
     ): void {
+        // Debug log helper
+        $debugLog = function($msg) {
+            $logFile = __DIR__ . '/../../storage/pdf-debug.log';
+            $logDir = dirname($logFile);
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0755, true);
+            }
+            $timestamp = date('Y-m-d H:i:s');
+            @file_put_contents($logFile, "[$timestamp] $msg" . PHP_EOL, FILE_APPEND);
+            error_log($msg);
+        };
+        
         // Check if PDF is already in document data
         $pdfB64 = $document['pdf'] ?? null;
         $eic = $document['eic'] ?? $document['EIC'] ?? null;
         
-        error_log("Checking PDF for $entityType $entityId - EIC: " . ($eic ?? 'null') . ", Has PDF in data: " . ($pdfB64 ? 'YES' : 'NO'));
+        $debugLog("Checking PDF for $entityType $entityId - EIC: " . ($eic ?? 'null') . ", Has PDF in data: " . ($pdfB64 ? 'YES' : 'NO'));
         
         // If no PDF in initial data and we have EIC, fetch full invoice detail
         if (!$pdfB64 && $eic) {
-            error_log("Fetching invoice detail from DevPos for EIC: $eic");
+            $debugLog("Fetching invoice detail from DevPos for EIC: $eic");
             $detail = $this->fetchDevPosInvoiceDetail($token, $tenant, $eic);
             
             if ($detail) {
                 // Log available fields to debug
-                error_log("DevPos detail response keys: " . implode(', ', array_keys($detail)));
+                $debugLog("DevPos detail response keys: " . implode(', ', array_keys($detail)));
                 
                 // Try multiple possible field names for PDF
                 $pdfB64 = $detail['pdf'] ?? $detail['PDF'] ?? $detail['pdfBase64'] ?? $detail['base64Pdf'] ?? null;
-                error_log("PDF from DevPos API: " . ($pdfB64 ? 'YES (' . strlen($pdfB64) . ' chars)' : 'NO'));
+                $debugLog("PDF from DevPos API: " . ($pdfB64 ? 'YES (' . strlen($pdfB64) . ' chars)' : 'NO'));
             } else {
-                error_log("DevPos detail fetch returned null");
+                $debugLog("DevPos detail fetch returned null");
             }
         }
         
@@ -1746,13 +1771,13 @@ class SyncExecutor
                 $docNumber = $document['documentNumber'] ?? $document['doc_no'] ?? $entityId;
                 $filename = $docNumber . '.pdf';
                 
-                error_log("Uploading PDF: $filename (" . strlen($pdfBinary) . " bytes)");
+                $debugLog("Uploading PDF: $filename (" . strlen($pdfBinary) . " bytes)");
                 $this->uploadPDFToQBO($entityType, $entityId, $filename, $pdfBinary, $qboCreds);
             } else {
-                error_log("Warning: PDF base64 decode failed or empty");
+                $debugLog("Warning: PDF base64 decode failed or empty");
             }
         } else {
-            error_log("No PDF available for $entityType $entityId");
+            $debugLog("No PDF available for $entityType $entityId");
         }
     }
 }
