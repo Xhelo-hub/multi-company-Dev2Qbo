@@ -102,8 +102,8 @@ $filter = isset($_GET['filter']) ? $_GET['filter'] : 'pdf|PDF|attachment|upload|
             
             <label>Log File:</label>
             <select name="logfile">
-                <option value="apache" <?= !isset($_GET['logfile']) || $_GET['logfile'] === 'apache' ? 'selected' : '' ?>>Apache Error Log</option>
-                <option value="php-fpm" <?= isset($_GET['logfile']) && $_GET['logfile'] === 'php-fpm' ? 'selected' : '' ?>>PHP-FPM Log</option>
+                <option value="php-fpm" <?= !isset($_GET['logfile']) || $_GET['logfile'] === 'php-fpm' ? 'selected' : '' ?>>PHP-FPM Log (Default)</option>
+                <option value="apache" <?= isset($_GET['logfile']) && $_GET['logfile'] === 'apache' ? 'selected' : '' ?>>Apache Error Log</option>
                 <option value="syslog" <?= isset($_GET['logfile']) && $_GET['logfile'] === 'syslog' ? 'selected' : '' ?>>System Log</option>
             </select>
             
@@ -113,10 +113,13 @@ $filter = isset($_GET['filter']) ? $_GET['filter'] : 'pdf|PDF|attachment|upload|
     </div>
 
     <?php
-    // Determine log file
-    $logFile = '/var/log/apache2/error.log';
+    // Determine log file - DEFAULT TO PHP-FPM (where error_log() writes)
+    $logFile = '/var/log/php8.3-fpm.log';
     if (isset($_GET['logfile'])) {
         switch ($_GET['logfile']) {
+            case 'apache':
+                $logFile = '/var/log/apache2/error.log';
+                break;
             case 'php-fpm':
                 $logFile = '/var/log/php8.3-fpm.log';
                 break;
