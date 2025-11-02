@@ -984,8 +984,8 @@ class SyncExecutor
             $currency
         );
         
-        // Convert bill to QBO format with currency-specific account
-        $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId, $qboCreds, $companyId);
+        // Convert bill to QBO format
+        $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId);
         
         // Create bill in QuickBooks
         $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/bill', [
@@ -1122,7 +1122,7 @@ class SyncExecutor
     /**
      * Convert DevPos bill to QuickBooks format
      */
-    private function convertDevPosToQBOBill(array $devposBill, string $vendorId, array $qboCreds, int $companyId): array
+    private function convertDevPosToQBOBill(array $devposBill, string $vendorId): array
     {
         $amount = (float)($devposBill['amount'] ?? $devposBill['total'] ?? $devposBill['totalAmount'] ?? 0);
         
@@ -1146,8 +1146,9 @@ class SyncExecutor
         $currency = $devposBill['currencyCode'] ?? $devposBill['currency'] ?? 'ALL';
         $exchangeRate = $devposBill['exchangeRate'] ?? null;
         
-        // Get currency-specific expense account for multi-currency support
-        $expenseAccountId = $this->getCurrencyExpenseAccount($currency, $qboCreds, $companyId);
+        // Note: Expense accounts are always in home currency (ALL)
+        // QuickBooks handles multi-currency through CurrencyRef + ExchangeRate on the transaction
+        $expenseAccountId = $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1';
         
         $payload = [
             'VendorRef' => [
@@ -1159,7 +1160,7 @@ class SyncExecutor
                     'Amount' => $amount,
                     'AccountBasedExpenseLineDetail' => [
                         'AccountRef' => [
-                            'value' => $expenseAccountId // Currency-specific account
+                            'value' => $expenseAccountId // Always home currency account
                         ]
                     ],
                     'Description' => 'Bill from ' . ($devposBill['sellerName'] ?? 'Vendor')
