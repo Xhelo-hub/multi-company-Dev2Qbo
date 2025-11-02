@@ -975,6 +975,14 @@ class SyncExecutor
         // Get currency from bill (DevPos uses currencyCode or currency field)
         $currency = $bill['currencyCode'] ?? $bill['currency'] ?? 'ALL';
         
+        // DEBUG: Log bill currency detection
+        error_log("=== BILL CURRENCY DETECTION ===");
+        error_log("Bill document: " . ($bill['documentNumber'] ?? 'NO DOC NUMBER'));
+        error_log("currencyCode field: " . ($bill['currencyCode'] ?? 'NOT SET'));
+        error_log("currency field: " . ($bill['currency'] ?? 'NOT SET'));
+        error_log("Detected currency: $currency");
+        error_log("exchangeRate field: " . ($bill['exchangeRate'] ?? 'NOT SET'));
+        
         // Get or create vendor
         $vendorId = $this->getOrCreateVendor(
             $bill['sellerNuis'] ?? '',
