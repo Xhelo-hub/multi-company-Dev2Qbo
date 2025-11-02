@@ -463,9 +463,18 @@
             
             <!-- Top Controls - Space between -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; flex-wrap: wrap; gap: 15px;">
-                <a href="admin-create-company.html" class="btn btn-success" style="margin: 0;">
-                    <i class="fas fa-plus"></i> Add Company
-                </a>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <a href="admin-create-company.html" class="btn btn-success" style="margin: 0;">
+                        <i class="fas fa-plus"></i> Add Company
+                    </a>
+                    <!-- Combined Search Filter -->
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input id="filterSearch" type="search" placeholder="Search by company name or NIPT..." style="padding:8px 12px; border:2px solid #ddd; border-radius:5px; font-size:14px; min-width: 280px;">
+                        <button class="btn" id="clearFiltersBtn" title="Clear search" style="padding:8px 12px; background: #6c757d; color: white;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <label for="perPageSelect" style="font-weight: 600; color: #333;">Show per page:</label>
                     <select id="perPageSelect" onchange="changePerPage(this.value)" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; cursor: pointer;">
@@ -476,12 +485,6 @@
                         <option value="all">All</option>
                     </select>
                     <span id="showingInfo" style="color: #666; margin-left: 15px;"></span>
-                    <!-- Filters: Company Name and NIPT -->
-                    <div style="display:flex; gap:8px; align-items:center; margin-left:10px;">
-                        <input id="filterName" type="search" placeholder="Filter by company name" style="padding:8px 10px; border:1px solid #ddd; border-radius:5px; font-size:14px;">
-                        <input id="filterNipt" type="search" placeholder="Filter by NIPT" style="padding:8px 10px; border:1px solid #ddd; border-radius:5px; font-size:14px; width:160px;">
-                        <button class="btn" id="clearFiltersBtn" title="Clear filters" style="padding:8px 10px;">Clear</button>
-                    </div>
                 </div>
             </div>
             
@@ -653,12 +656,9 @@
         let allCompanies = [];
         let currentPage = 1;
         let perPage = 10;
-    // Filters
-    let filterName = '';
-    let filterNipt = '';
-    let filterDebounceTimeout = null;
-
-        async function loadCompanies() {
+        // Search filter
+        let searchQuery = '';
+        let filterDebounceTimeout = null;        async function loadCompanies() {
             const response = await fetch(`${API_BASE}/api/companies`, {
                 credentials: 'include'
             });
@@ -689,13 +689,13 @@
             const tbody = document.getElementById('companiesTable');
             tbody.innerHTML = '';
 
-            // Apply filters before pagination
+            // Apply search filter before pagination (searches both name and NIPT)
             const filteredCompanies = allCompanies.filter(c => {
+                if (searchQuery === '') return true;
                 const name = (c.company_name || '').toString().toLowerCase();
                 const nipt = (c.company_code || '').toString().toLowerCase();
-                const nameMatch = filterName === '' || name.includes(filterName.toLowerCase());
-                const niptMatch = filterNipt === '' || nipt.includes(filterNipt.toLowerCase());
-                return nameMatch && niptMatch;
+                const query = searchQuery.toLowerCase();
+                return name.includes(query) || nipt.includes(query);
             });
 
             // Calculate pagination
@@ -836,28 +836,23 @@
             };
         }
 
-        // Filter input handlers
+        // Search filter input handlers
         document.addEventListener('DOMContentLoaded', () => {
-            const nameInput = document.getElementById('filterName');
-            const niptInput = document.getElementById('filterNipt');
+            const searchInput = document.getElementById('filterSearch');
             const clearBtn = document.getElementById('clearFiltersBtn');
 
-            const applyFilters = debounceFilter(() => {
-                filterName = nameInput.value.trim();
-                filterNipt = niptInput.value.trim();
+            const applySearch = debounceFilter(() => {
+                searchQuery = searchInput.value.trim();
                 currentPage = 1;
                 renderCompanies();
             }, 250);
 
-            nameInput.addEventListener('input', applyFilters);
-            niptInput.addEventListener('input', applyFilters);
+            searchInput.addEventListener('input', applySearch);
 
             clearBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                nameInput.value = '';
-                niptInput.value = '';
-                filterName = '';
-                filterNipt = '';
+                searchInput.value = '';
+                searchQuery = '';
                 currentPage = 1;
                 renderCompanies();
             });
