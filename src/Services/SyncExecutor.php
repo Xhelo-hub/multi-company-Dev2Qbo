@@ -457,6 +457,13 @@ class SyncExecutor
             
             error_log("DevPos returned " . count($invoices) . " sales invoices");
             
+            // DEBUG: Log first invoice structure to check for currency fields
+            if (count($invoices) > 0) {
+                error_log("=== FIRST SALES INVOICE FROM DEVPOS API ===");
+                error_log(json_encode($invoices[0], JSON_PRETTY_PRINT));
+                error_log("=== AVAILABLE FIELDS: " . implode(', ', array_keys($invoices[0])) . " ===");
+            }
+            
             return $invoices;
             
         } catch (\GuzzleHttp\Exception\ClientException $e) {
@@ -504,6 +511,13 @@ class SyncExecutor
             }
             
             error_log("DevPos returned " . count($invoices) . " purchase invoices");
+            
+            // DEBUG: Log first invoice structure to check for currency fields
+            if (count($invoices) > 0) {
+                error_log("=== FIRST PURCHASE INVOICE FROM DEVPOS API ===");
+                error_log(json_encode($invoices[0], JSON_PRETTY_PRINT));
+                error_log("=== AVAILABLE FIELDS: " . implode(', ', array_keys($invoices[0])) . " ===");
+            }
             
             return $invoices;
             
