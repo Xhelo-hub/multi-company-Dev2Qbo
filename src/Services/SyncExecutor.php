@@ -777,6 +777,27 @@ class SyncExecutor
             ];
         }
 
+        // Multi-Currency Support
+        // Add currency reference and exchange rate if not home currency
+        $exchangeRate = $devposInvoice['exchangeRate'] ?? null;
+        
+        if ($currency !== 'ALL') {
+            error_log("Adding multi-currency to invoice: Currency=$currency, ExchangeRate=$exchangeRate");
+            
+            // Set currency reference
+            $payload['CurrencyRef'] = ['value' => strtoupper($currency)];
+            
+            // Set exchange rate if available
+            if ($exchangeRate && $exchangeRate > 0) {
+                $payload['ExchangeRate'] = (float)$exchangeRate;
+                error_log("Invoice exchange rate: 1 $currency = $exchangeRate ALL");
+            } else {
+                error_log("WARNING: Foreign currency invoice ($currency) but no exchange rate provided!");
+            }
+        } else {
+            error_log("Home currency invoice (ALL) - no CurrencyRef needed");
+        }
+
         return $payload;
     }
     
@@ -1118,7 +1139,11 @@ class SyncExecutor
         $txnDate = date('Y-m-d', strtotime($billDate));
         error_log("Bill date: " . $txnDate . " (from field value: " . ($billDate === 'now' ? 'MISSING' : $billDate) . ")");
         
-        return [
+        // Get currency from bill
+        $currency = $devposBill['currencyCode'] ?? $devposBill['currency'] ?? 'ALL';
+        $exchangeRate = $devposBill['exchangeRate'] ?? null;
+        
+        $payload = [
             'VendorRef' => [
                 'value' => $vendorId
             ],
@@ -1137,6 +1162,27 @@ class SyncExecutor
             'DocNumber' => $devposBill['documentNumber'] ?? '',
             'TxnDate' => $txnDate
         ];
+        
+        // Multi-Currency Support
+        // Add currency reference and exchange rate if not home currency
+        if ($currency !== 'ALL') {
+            error_log("Adding multi-currency to bill: Currency=$currency, ExchangeRate=$exchangeRate");
+            
+            // Set currency reference
+            $payload['CurrencyRef'] = ['value' => strtoupper($currency)];
+            
+            // Set exchange rate if available
+            if ($exchangeRate && $exchangeRate > 0) {
+                $payload['ExchangeRate'] = (float)$exchangeRate;
+                error_log("Bill exchange rate: 1 $currency = $exchangeRate ALL");
+            } else {
+                error_log("WARNING: Foreign currency bill ($currency) but no exchange rate provided!");
+            }
+        } else {
+            error_log("Home currency bill (ALL) - no CurrencyRef needed");
+        }
+        
+        return $payload;
     }
     
     /**
