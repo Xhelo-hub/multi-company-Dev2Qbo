@@ -699,6 +699,9 @@ class SyncExecutor
         // Get or create customer in QuickBooks
         $customerId = $this->getOrCreateQBOCustomer($buyerName, $buyerNuis, $companyId, $qboCreds, $currency);
 
+        // Get currency-specific income item for multi-currency support
+        $incomeItemId = $this->getCurrencyIncomeItem($currency, $qboCreds, $companyId);
+        
         // Build QuickBooks invoice payload based on company VAT tracking preference
         
         if ($tracksVat) {
@@ -712,7 +715,7 @@ class SyncExecutor
                         'DetailType' => 'SalesItemLineDetail',
                         'SalesItemLineDetail' => [
                             'ItemRef' => [
-                                'value' => '1', // Default sales item (must exist in QBO)
+                                'value' => $incomeItemId, // Currency-specific item
                                 'name' => 'Services'
                             ],
                             'UnitPrice' => $totalWithVat,
@@ -739,7 +742,7 @@ class SyncExecutor
                         'DetailType' => 'SalesItemLineDetail',
                         'SalesItemLineDetail' => [
                             'ItemRef' => [
-                                'value' => '1', // Default sales item (must exist in QBO)
+                                'value' => $incomeItemId, // Currency-specific item
                                 'name' => 'Services'
                             ],
                             'UnitPrice' => $totalWithVat,
@@ -981,8 +984,8 @@ class SyncExecutor
             $currency
         );
         
-        // Convert bill to QBO format
-        $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId);
+        // Convert bill to QBO format with currency-specific account
+        $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId, $qboCreds, $companyId);
         
         // Create bill in QuickBooks
         $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/bill', [
@@ -1119,7 +1122,7 @@ class SyncExecutor
     /**
      * Convert DevPos bill to QuickBooks format
      */
-    private function convertDevPosToQBOBill(array $devposBill, string $vendorId): array
+    private function convertDevPosToQBOBill(array $devposBill, string $vendorId, array $qboCreds, int $companyId): array
     {
         $amount = (float)($devposBill['amount'] ?? $devposBill['total'] ?? $devposBill['totalAmount'] ?? 0);
         
@@ -1143,6 +1146,9 @@ class SyncExecutor
         $currency = $devposBill['currencyCode'] ?? $devposBill['currency'] ?? 'ALL';
         $exchangeRate = $devposBill['exchangeRate'] ?? null;
         
+        // Get currency-specific expense account for multi-currency support
+        $expenseAccountId = $this->getCurrencyExpenseAccount($currency, $qboCreds, $companyId);
+        
         $payload = [
             'VendorRef' => [
                 'value' => $vendorId
@@ -1153,7 +1159,7 @@ class SyncExecutor
                     'Amount' => $amount,
                     'AccountBasedExpenseLineDetail' => [
                         'AccountRef' => [
-                            'value' => $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1' // Should be configured
+                            'value' => $expenseAccountId // Currency-specific account
                         ]
                     ],
                     'Description' => 'Bill from ' . ($devposBill['sellerName'] ?? 'Vendor')
@@ -1676,6 +1682,150 @@ class SyncExecutor
         }
     }
 
+    /**
+     * Get currency-specific income item from QuickBooks (for invoices)
+     * Returns item ID that matches the currency, or default item
+     */
+    private function getCurrencyIncomeItem(string $currency, array $qboCreds, int $companyId): string
+    {
+        // For home currency, use default item
+        if ($currency === 'ALL') {
+            return '1'; // Default item
+        }
+        
+        // Check cache first (in-memory for this request)
+        static $itemCache = [];
+        $cacheKey = $companyId . '_' . $currency;
+        
+        if (isset($itemCache[$cacheKey])) {
+            return $itemCache[$cacheKey];
+        }
+        
+        try {
+            $client = new Client(['timeout' => 15]);
+            $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+            $baseUrl = $isSandbox 
+                ? 'https://sandbox-quickbooks.api.intuit.com'
+                : 'https://quickbooks.api.intuit.com';
+            
+            // Query for items with this currency
+            // QuickBooks API: Items don't have currency, but we can search by name pattern
+            // Look for items like "Services-USD", "Income-EUR", etc.
+            $query = "SELECT * FROM Item WHERE Type = 'Service' AND Active = true MAXRESULTS 100";
+            
+            $response = $client->get($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/query', [
+                'query' => ['query' => $query],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                    'Accept' => 'application/json'
+                ]
+            ]);
+            
+            $data = json_decode($response->getBody()->getContents(), true);
+            
+            if (!empty($data['QueryResponse']['Item'])) {
+                // Look for item with currency in name (e.g., "Services-USD", "Income EUR")
+                foreach ($data['QueryResponse']['Item'] as $item) {
+                    $name = $item['Name'] ?? '';
+                    // Check if currency code appears in item name
+                    if (stripos($name, $currency) !== false || stripos($name, '-' . $currency) !== false) {
+                        $itemId = $item['Id'];
+                        $itemCache[$cacheKey] = $itemId;
+                        error_log("Found currency-specific item: $name (ID: $itemId) for $currency");
+                        return $itemId;
+                    }
+                }
+            }
+            
+            // Fallback: Use default item and log warning
+            error_log("WARNING: No currency-specific item found for $currency, using default item ID 1");
+            $itemCache[$cacheKey] = '1';
+            return '1';
+            
+        } catch (Exception $e) {
+            error_log("Error querying QBO items for currency $currency: " . $e->getMessage());
+            return '1'; // Fallback to default
+        }
+    }
+    
+    /**
+     * Get currency-specific expense account from QuickBooks (for bills)
+     * Returns account ID that matches the currency, or default account
+     */
+    private function getCurrencyExpenseAccount(string $currency, array $qboCreds, int $companyId): string
+    {
+        // For home currency, use default account
+        if ($currency === 'ALL') {
+            return $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1';
+        }
+        
+        // Check cache first
+        static $accountCache = [];
+        $cacheKey = $companyId . '_' . $currency;
+        
+        if (isset($accountCache[$cacheKey])) {
+            return $accountCache[$cacheKey];
+        }
+        
+        try {
+            $client = new Client(['timeout' => 15]);
+            $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
+            $baseUrl = $isSandbox 
+                ? 'https://sandbox-quickbooks.api.intuit.com'
+                : 'https://quickbooks.api.intuit.com';
+            
+            // Query for expense accounts with matching currency
+            $query = "SELECT * FROM Account WHERE AccountType = 'Expense' AND Active = true MAXRESULTS 100";
+            
+            $response = $client->get($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/query', [
+                'query' => ['query' => $query],
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                    'Accept' => 'application/json'
+                ]
+            ]);
+            
+            $data = json_decode($response->getBody()->getContents(), true);
+            
+            if (!empty($data['QueryResponse']['Account'])) {
+                // Look for account with matching currency
+                foreach ($data['QueryResponse']['Account'] as $account) {
+                    $currencyRef = $account['CurrencyRef']['value'] ?? null;
+                    
+                    // Direct currency match on account
+                    if ($currencyRef === $currency) {
+                        $accountId = $account['Id'];
+                        $accountName = $account['Name'] ?? $accountId;
+                        $accountCache[$cacheKey] = $accountId;
+                        error_log("Found currency-specific expense account: $accountName (ID: $accountId) for $currency");
+                        return $accountId;
+                    }
+                }
+                
+                // Fallback: Look for currency in account name
+                foreach ($data['QueryResponse']['Account'] as $account) {
+                    $name = $account['Name'] ?? '';
+                    if (stripos($name, $currency) !== false || stripos($name, '-' . $currency) !== false) {
+                        $accountId = $account['Id'];
+                        $accountCache[$cacheKey] = $accountId;
+                        error_log("Found expense account by name pattern: $name (ID: $accountId) for $currency");
+                        return $accountId;
+                    }
+                }
+            }
+            
+            // Fallback: Use default and log warning
+            $defaultAccount = $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1';
+            error_log("WARNING: No currency-specific expense account found for $currency, using default account ID $defaultAccount");
+            $accountCache[$cacheKey] = $defaultAccount;
+            return $defaultAccount;
+            
+        } catch (Exception $e) {
+            error_log("Error querying QBO accounts for currency $currency: " . $e->getMessage());
+            return $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1';
+        }
+    }
+    
     /**
      * Fetch invoice detail with PDF from DevPos by EIC
      */
