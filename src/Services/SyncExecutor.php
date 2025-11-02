@@ -342,17 +342,44 @@ use GuzzleHttp\Client;
                         continue;
                     }
                     
-                    // Get current bill data for comparison - CHECK ALL POSSIBLE CURRENCY FIELDS
+                    // Get current bill data for comparison
                     $currentAmount = (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0);
-                    $currentCurrency = $bill['currencyCode'] 
-                        ?? $bill['currency'] 
-                        ?? $bill['Currency'] 
-                        ?? $bill['CurrencyCode']
-                        ?? $bill['currencyType']
-                        ?? $bill['exchangeCurrency']
-                        ?? 'ALL';
                     
-                    error_log("[$progress] Extracted currency: $currentCurrency (amount: $currentAmount)");
+                    // Fetch detailed invoice info to get currency (list API doesn't include it)
+                    $currentCurrency = 'ALL'; // Default
+                    $exchangeRate = null;
+                    
+                    if ($eic) {
+                        $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
+                        if ($detailedInvoice) {
+                            // Extract currency from detailed invoice
+                            $currentCurrency = $detailedInvoice['currencyCode'] 
+                                ?? $detailedInvoice['currency'] 
+                                ?? $detailedInvoice['Currency'] 
+                                ?? $detailedInvoice['CurrencyCode']
+                                ?? 'ALL';
+                            
+                            // Extract exchange rate if available
+                            $exchangeRate = $detailedInvoice['exchangeRate'] 
+                                ?? $detailedInvoice['ExchangeRate']
+                                ?? $detailedInvoice['rate']
+                                ?? null;
+                            
+                            error_log("[$progress] Fetched detailed invoice - Currency: $currentCurrency, ExchangeRate: " . ($exchangeRate ?? 'NULL'));
+                        } else {
+                            error_log("[$progress] Could not fetch detailed invoice for EIC: $eic, using default currency ALL");
+                        }
+                    }
+                    
+                    error_log("[$progress] Bill $docNumber - Currency: $currentCurrency, Amount: $currentAmount");
+                    
+                    // Enrich bill data with currency and exchange rate from detailed invoice
+                    if ($currentCurrency !== 'ALL') {
+                        $bill['currencyCode'] = $currentCurrency;
+                        if ($exchangeRate) {
+                            $bill['exchangeRate'] = $exchangeRate;
+                        }
+                    }
                     
                     // Check if bill already exists in mapping
                     $existingMapping = $this->getBillMapping($companyId, $docNumber, $vendorNuis);
@@ -653,6 +680,49 @@ use GuzzleHttp\Client;
             } catch (Exception $e) {
                 error_log("DevPos Purchase API Error: " . $e->getMessage());
                 throw $e;
+            }
+        }
+        
+        /**
+         * Fetch full invoice details from DevPos by EIC
+         * This endpoint returns detailed invoice information including currency
+         */
+        private function fetchDevPosInvoiceDetails(string $token, string $tenant, string $eic): ?array
+        {
+            $client = new Client();
+            $apiBase = $_ENV['DEVPOS_API_BASE'] ?? 'https://online.devpos.al/api/v3';
+            
+            try {
+                $response = $client->get($apiBase . '/EInvoice', [
+                    'query' => [
+                        'EIC' => $eic
+                    ],
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'tenant' => $tenant,
+                        'Accept' => 'application/json'
+                    ]
+                ]);
+                
+                $body = $response->getBody()->getContents();
+                $details = json_decode($body, true);
+                
+                if (!$details) {
+                    error_log("DevPos Invoice Details API returned empty response for EIC: $eic");
+                    return null;
+                }
+                
+                return $details;
+                
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+                error_log("DevPos Invoice Details API Client Error for EIC $eic: " . $e->getMessage());
+                if ($e->hasResponse()) {
+                    error_log("DevPos Invoice Details API Error Response: " . $e->getResponse()->getBody()->getContents());
+                }
+                return null;
+            } catch (Exception $e) {
+                error_log("DevPos Invoice Details API Error for EIC $eic: " . $e->getMessage());
+                return null;
             }
         }
         
