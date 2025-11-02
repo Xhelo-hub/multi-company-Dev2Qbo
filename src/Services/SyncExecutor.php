@@ -435,7 +435,8 @@ class SyncExecutor
             $response = $client->get($apiBase . '/EInvoice/GetSalesInvoice', [
                 'query' => [
                     'fromDate' => $fromDate,
-                    'toDate' => $toDate
+                    'toDate' => $toDate,
+                    'includePdf' => true  // Request PDF field in response
                 ],
                 'headers' => [
                     'Authorization' => 'Bearer ' . $token,
@@ -482,7 +483,8 @@ class SyncExecutor
             $response = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
                 'query' => [
                     'fromDate' => $fromDate,
-                    'toDate' => $toDate
+                    'toDate' => $toDate,
+                    'includePdf' => true  // Request PDF field in response
                 ],
                 'headers' => [
                     'Authorization' => 'Bearer ' . $token,
@@ -1782,37 +1784,87 @@ class SyncExecutor
         $eic = $document['eic'] ?? $document['EIC'] ?? null;
         
         // Construct PDF URL from EIC if not explicitly provided
+        // Try multiple possible PDF endpoint patterns
         if (!$pdfUrl && $eic) {
-            $pdfUrl = 'https://online.devpos.al/' . $eic;
+            $possibleUrls = [
+                'https://online.devpos.al/api/v3/EInvoice/' . $eic . '/pdf',
+                'https://online.devpos.al/api/v3/EInvoice/' . $eic . '/download',
+                'https://online.devpos.al/' . $eic . '/pdf',
+                'https://online.devpos.al/' . $eic . '/download',
+                'https://online.devpos.al/' . $eic, // This returns HTML page!
+            ];
+            $pdfUrl = $possibleUrls;
         }
         
-        $debugLog("Checking PDF for $entityType $entityId - EIC: " . ($eic ?? 'null') . ", Has PDF: " . ($pdfB64 ? 'YES' : 'NO') . ", PDF URL: " . ($pdfUrl ?? 'null'));
+        // Remove blob: prefix if present (blob URLs are for browser only)
+        if (is_string($pdfUrl) && strpos($pdfUrl, 'blob:') === 0) {
+            $pdfUrl = substr($pdfUrl, 5); // Remove "blob:" prefix
+        }
         
-        // If we have a PDF URL, download it
+        $debugLog("Checking PDF for $entityType $entityId - EIC: " . ($eic ?? 'null') . ", Has PDF: " . ($pdfB64 ? 'YES' : 'NO'));
+        
+        // If we have a PDF URL (or array of URLs to try), download and validate it
         if (!$pdfB64 && $pdfUrl) {
-            $debugLog("Downloading PDF from URL: $pdfUrl");
-            try {
-                $client = new \GuzzleHttp\Client();
-                $response = $client->get($pdfUrl, [
-                    'headers' => [
-                        'Authorization' => 'Bearer ' . $token,
-                        'tenant' => $tenant,
-                    ]
-                ]);
-                
-                if ($response->getStatusCode() === 200) {
-                    $pdfBinary = $response->getBody()->getContents();
-                    if ($pdfBinary && strlen($pdfBinary) > 0) {
-                        $pdfB64 = base64_encode($pdfBinary);
-                        $debugLog("✓ Downloaded PDF from URL (" . strlen($pdfBinary) . " bytes)");
+            $urls = is_array($pdfUrl) ? $pdfUrl : [$pdfUrl];
+            
+            foreach ($urls as $tryUrl) {
+                $debugLog("Trying PDF URL: $tryUrl");  
+                try {
+                    $client = new \GuzzleHttp\Client(['http_errors' => false]);
+                    $response = $client->get($tryUrl, [
+                        'headers' => [
+                            'Authorization' => 'Bearer ' . $token,
+                            'tenant' => $tenant,
+                        ]
+                    ]);
+                    
+                    $statusCode = $response->getStatusCode();
+                    if ($statusCode === 200) {
+                        $pdfBinary = $response->getBody()->getContents();
+                        if ($pdfBinary && strlen($pdfBinary) > 0) {
+                            // Validate that it's actually a PDF (should start with %PDF)
+                            $header = substr($pdfBinary, 0, 4);
+                            $contentType = $response->getHeaderLine('Content-Type');
+                            
+                            $debugLog("  HTTP $statusCode - Downloaded " . strlen($pdfBinary) . " bytes, Content-Type: $contentType");
+                            $debugLog("  First 4 bytes: " . bin2hex($header) . " (should be 25504446 for %PDF)");
+                            
+                            if ($header === '%PDF') {
+                                $pdfB64 = base64_encode($pdfBinary);
+                                $debugLog("✓ SUCCESS: Valid PDF from $tryUrl (" . strlen($pdfBinary) . " bytes)");
+
+                                // Persist Base64 string for inspection/debugging
+                                try {
+                                    $dumpDir = __DIR__ . '/../../storage/pdf-b64';
+                                    if (!is_dir($dumpDir)) {
+                                        @mkdir($dumpDir, 0755, true);
+                                    }
+                                    $dumpPath = $dumpDir . '/' . preg_replace('/[^a-z0-9_\-]/i', '_', $entityType . '-' . $entityId) . '.b64';
+                                    @file_put_contents($dumpPath, $pdfB64);
+                                    $debugLog("  Saved Base64 PDF to: $dumpPath");
+                                } catch (\Exception $e) {
+                                    $debugLog("  Failed to write Base64 dump: " . $e->getMessage());
+                                }
+                                
+                                break; // Stop trying other URLs, we got a valid PDF
+
+                            } else {
+                                $debugLog("  ❌ NOT a PDF - Content starts with: " . substr($pdfBinary, 0, 50));
+                                // Try next URL
+                            }
+                        } else {
+                            $debugLog("  Empty response");
+                        }
                     } else {
-                        $debugLog("Downloaded PDF is empty");
+                        $debugLog("  HTTP $statusCode - skipping");
                     }
-                } else {
-                    $debugLog("Failed to download PDF: HTTP " . $response->getStatusCode());
+                } catch (\Exception $e) {
+                    $debugLog("  Error: " . $e->getMessage());
                 }
-            } catch (\Exception $e) {
-                $debugLog("Error downloading PDF from URL: " . $e->getMessage());
+            }
+            
+            if (!$pdfB64) {
+                $debugLog("❌ FAILED: Could not download valid PDF from any URL");
             }
         }
         
