@@ -686,6 +686,7 @@ use GuzzleHttp\Client;
         /**
          * Fetch full invoice details from DevPos by EIC
          * This endpoint returns detailed invoice information including currency
+         * Uses POST with form data as per DevPos API documentation
          */
         private function fetchDevPosInvoiceDetails(string $token, string $tenant, string $eic): ?array
         {
@@ -693,8 +694,9 @@ use GuzzleHttp\Client;
             $apiBase = $_ENV['DEVPOS_API_BASE'] ?? 'https://online.devpos.al/api/v3';
             
             try {
-                $response = $client->get($apiBase . '/EInvoice', [
-                    'query' => [
+                // API requires POST with form data, not GET with query params
+                $response = $client->post($apiBase . '/EInvoice', [
+                    'form_params' => [
                         'EIC' => $eic
                     ],
                     'headers' => [
