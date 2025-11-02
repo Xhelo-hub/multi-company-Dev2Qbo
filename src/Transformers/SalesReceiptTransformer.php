@@ -108,11 +108,15 @@ class SalesReceiptTransformer
 
         // Multi-Currency Support
         // Check if transaction uses a currency different from base currency
-        $transactionCurrency = $devposSale['currency'] ?? null;
-        $baseCurrency = $devposSale['baseCurrency'] ?? null;
+        // DevPos API uses either 'currency' or 'currencyCode' (per ISO 4217)
+        $transactionCurrency = $devposSale['currencyCode'] 
+            ?? $devposSale['currency'] 
+            ?? null;
+        $baseCurrency = $devposSale['baseCurrency'] ?? 'ALL'; // Default to Albanian Lek
         $exchangeRate = $devposSale['exchangeRate'] ?? null;
         
-        if ($transactionCurrency && $baseCurrency && $transactionCurrency !== $baseCurrency) {
+        // Only set currency if it's explicitly provided AND different from base
+        if ($transactionCurrency && strtoupper($transactionCurrency) !== strtoupper($baseCurrency)) {
             error_log("INFO: Multi-currency cash sale detected - Currency: $transactionCurrency, Base: $baseCurrency");
             
             // Set currency reference (ISO 4217 code: ALL, EUR, USD, etc.)
@@ -124,13 +128,19 @@ class SalesReceiptTransformer
             if ($exchangeRate && $exchangeRate > 0) {
                 $payload['ExchangeRate'] = (float)$exchangeRate;
                 error_log("INFO: Exchange rate set: 1 $transactionCurrency = $exchangeRate $baseCurrency");
+            } else {
+                error_log("WARNING: Foreign currency ($transactionCurrency) specified but no exchange rate provided!");
             }
             
             // Note: QuickBooks will automatically calculate HomeBalance using:
             // HomeBalance = TotalAmount * ExchangeRate
             // We don't need to set it explicitly
         } else {
-            error_log("INFO: Single currency cash sale (or currency fields not available)");
+            if ($transactionCurrency) {
+                error_log("INFO: Home currency cash sale: $transactionCurrency");
+            } else {
+                error_log("INFO: No currency specified, assuming home currency (ALL)");
+            }
         }
 
         return $payload;
