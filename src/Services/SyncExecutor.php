@@ -693,11 +693,38 @@ class SyncExecutor
 
         $totalWithVat = floatval($totalAmount);
         
-        // Get currency from invoice (DevPos uses currencyCode or currency field)
-        $currency = $devposInvoice['currencyCode'] ?? $devposInvoice['currency'] ?? 'ALL';
+        // STEP 1: Extract currency from invoice
+        error_log("=== STEP 1: INVOICE CURRENCY EXTRACTION ===");
+        error_log("Invoice document: " . ($devposInvoice['documentNumber'] ?? 'NO DOC NUMBER'));
+        error_log("Buyer: " . ($buyerName ?? 'UNKNOWN'));
         
-        // Get or create customer in QuickBooks
-        $customerId = $this->getOrCreateQBOCustomer($buyerName, $buyerNuis, $companyId, $qboCreds, $currency);
+        $currencyCode = $devposInvoice['currencyCode'] ?? null;
+        $currency = $devposInvoice['currency'] ?? null;
+        $baseCurrency = $devposInvoice['baseCurrency'] ?? null;
+        $exchangeRate = $devposInvoice['exchangeRate'] ?? null;
+        $amountInBaseCurrency = $devposInvoice['amountInBaseCurrency'] ?? null;
+        
+        error_log("  currencyCode field: " . ($currencyCode ?? 'NOT SET'));
+        error_log("  currency field: " . ($currency ?? 'NOT SET'));
+        error_log("  baseCurrency field: " . ($baseCurrency ?? 'NOT SET'));
+        error_log("  exchangeRate field: " . ($exchangeRate ?? 'NOT SET'));
+        error_log("  totalAmount: $totalAmount");
+        error_log("  amountInBaseCurrency: " . ($amountInBaseCurrency ?? 'NOT SET'));
+        
+        $finalCurrency = $currencyCode ?? $currency ?? 'ALL';
+        error_log("  ➜ FINAL CURRENCY: $finalCurrency");
+        error_log("==========================================");
+        
+        // STEP 2: Get or create customer with currency
+        error_log("=== STEP 2: CUSTOMER CREATION ===");
+        error_log("  Customer NUIS: " . ($buyerNuis ?? 'NOT SET'));
+        error_log("  Customer Name: $buyerName");
+        error_log("  Currency for customer: $finalCurrency");
+        
+        $customerId = $this->getOrCreateQBOCustomer($buyerName, $buyerNuis, $companyId, $qboCreds, $finalCurrency);
+        
+        error_log("  ➜ Customer ID: $customerId");
+        error_log("==================================");
 
         // Note: Income items are always in home currency (ALL)
         // QuickBooks handles multi-currency through CurrencyRef + ExchangeRate on the transaction
@@ -780,26 +807,32 @@ class SyncExecutor
             ];
         }
 
-        // Multi-Currency Support
-        // Add currency reference and exchange rate if not home currency
+        // STEP 3: Multi-Currency Support
+        error_log("=== STEP 3: INVOICE PAYLOAD MULTI-CURRENCY ===");
         $exchangeRate = $devposInvoice['exchangeRate'] ?? null;
         
-        if ($currency !== 'ALL') {
-            error_log("Adding multi-currency to invoice: Currency=$currency, ExchangeRate=$exchangeRate");
+        if ($finalCurrency !== 'ALL') {
+            error_log("  Detected foreign currency: $finalCurrency");
+            error_log("  Exchange rate: " . ($exchangeRate ?? 'NOT SET'));
             
             // Set currency reference
-            $payload['CurrencyRef'] = ['value' => strtoupper($currency)];
+            $payload['CurrencyRef'] = ['value' => strtoupper($finalCurrency)];
+            error_log("  ➜ Added CurrencyRef: $finalCurrency");
             
             // Set exchange rate if available
             if ($exchangeRate && $exchangeRate > 0) {
                 $payload['ExchangeRate'] = (float)$exchangeRate;
-                error_log("Invoice exchange rate: 1 $currency = $exchangeRate ALL");
+                error_log("  ➜ Added ExchangeRate: $exchangeRate (1 $finalCurrency = $exchangeRate ALL)");
             } else {
-                error_log("WARNING: Foreign currency invoice ($currency) but no exchange rate provided!");
+                error_log("  ⚠️  WARNING: Foreign currency but no exchange rate!");
             }
         } else {
-            error_log("Home currency invoice (ALL) - no CurrencyRef needed");
+            error_log("  Home currency (ALL) - no CurrencyRef needed");
         }
+        
+        error_log("  ➜ Final Invoice Payload:");
+        error_log(json_encode($payload, JSON_PRETTY_PRINT));
+        error_log("================================================");
 
         return $payload;
     }
@@ -972,30 +1005,58 @@ class SyncExecutor
             ? 'https://sandbox-quickbooks.api.intuit.com'
             : 'https://quickbooks.api.intuit.com';
         
-        // Get currency from bill (DevPos uses currencyCode or currency field)
-        $currency = $bill['currencyCode'] ?? $bill['currency'] ?? 'ALL';
-        
-        // DEBUG: Log bill currency detection
-        error_log("=== BILL CURRENCY DETECTION ===");
+        // STEP 1: Extract currency from bill
+        error_log("=== STEP 1: CURRENCY EXTRACTION ===");
         error_log("Bill document: " . ($bill['documentNumber'] ?? 'NO DOC NUMBER'));
-        error_log("currencyCode field: " . ($bill['currencyCode'] ?? 'NOT SET'));
-        error_log("currency field: " . ($bill['currency'] ?? 'NOT SET'));
-        error_log("Detected currency: $currency");
-        error_log("exchangeRate field: " . ($bill['exchangeRate'] ?? 'NOT SET'));
+        error_log("Seller: " . ($bill['sellerName'] ?? 'UNKNOWN'));
         
-        // Get or create vendor
+        // Check all possible currency fields
+        $currencyCode = $bill['currencyCode'] ?? null;
+        $currency = $bill['currency'] ?? null;
+        $baseCurrency = $bill['baseCurrency'] ?? null;
+        $exchangeRate = $bill['exchangeRate'] ?? null;
+        $totalAmount = $bill['totalAmount'] ?? $bill['total'] ?? $bill['amount'] ?? null;
+        $amountInBaseCurrency = $bill['amountInBaseCurrency'] ?? null;
+        
+        error_log("  currencyCode field: " . ($currencyCode ?? 'NOT SET'));
+        error_log("  currency field: " . ($currency ?? 'NOT SET'));
+        error_log("  baseCurrency field: " . ($baseCurrency ?? 'NOT SET'));
+        error_log("  exchangeRate field: " . ($exchangeRate ?? 'NOT SET'));
+        error_log("  totalAmount: " . ($totalAmount ?? 'NOT SET'));
+        error_log("  amountInBaseCurrency: " . ($amountInBaseCurrency ?? 'NOT SET'));
+        
+        // Determine final currency
+        $finalCurrency = $currencyCode ?? $currency ?? 'ALL';
+        error_log("  ➜ FINAL CURRENCY: $finalCurrency");
+        error_log("=================================");
+        
+        // STEP 2: Get or create vendor with currency
+        error_log("=== STEP 2: VENDOR CREATION ===");
+        error_log("  Vendor NUIS: " . ($bill['sellerNuis'] ?? 'NOT SET'));
+        error_log("  Vendor Name: " . ($bill['sellerName'] ?? 'Unknown Vendor'));
+        error_log("  Currency for vendor: $finalCurrency");
+        
         $vendorId = $this->getOrCreateVendor(
             $bill['sellerNuis'] ?? '',
             $bill['sellerName'] ?? 'Unknown Vendor',
             $qboCreds,
             $companyId,
-            $currency
+            $finalCurrency
         );
         
-        // Convert bill to QBO format
+        error_log("  ➜ Vendor ID: $vendorId");
+        error_log("================================");
+        
+        // STEP 3: Convert bill to QBO format
+        error_log("=== STEP 3: BILL PAYLOAD CREATION ===");
         $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId);
         
-        // Create bill in QuickBooks
+        error_log("  ➜ Generated QBO Payload:");
+        error_log(json_encode($qboBill, JSON_PRETTY_PRINT));
+        error_log("========================================");
+        
+        // STEP 4: Send to QuickBooks
+        error_log("=== STEP 4: SENDING TO QUICKBOOKS ===");
         $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/bill', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $qboCreds['access_token'],
@@ -1006,6 +1067,21 @@ class SyncExecutor
         ]);
         
         $result = json_decode($response->getBody()->getContents(), true);
+        
+        error_log("  ➜ QuickBooks Response:");
+        error_log(json_encode($result, JSON_PRETTY_PRINT));
+        
+        // STEP 5: Check what QBO returned
+        if (isset($result['Bill'])) {
+            error_log("=== STEP 5: QBO BILL VERIFICATION ===");
+            error_log("  Bill ID: " . ($result['Bill']['Id'] ?? 'NOT SET'));
+            error_log("  CurrencyRef: " . ($result['Bill']['CurrencyRef']['value'] ?? 'NOT SET'));
+            error_log("  ExchangeRate: " . ($result['Bill']['ExchangeRate'] ?? 'NOT SET'));
+            error_log("  TotalAmt: " . ($result['Bill']['TotalAmt'] ?? 'NOT SET'));
+            error_log("  Balance: " . ($result['Bill']['Balance'] ?? 'NOT SET'));
+            error_log("  HomeBalance: " . ($result['Bill']['HomeBalance'] ?? 'NOT SET'));
+            error_log("=========================================");
+        }
         
         // Store mapping
         if (isset($result['Bill']['Id'])) {
