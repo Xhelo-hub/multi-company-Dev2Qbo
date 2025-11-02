@@ -315,6 +315,12 @@ use GuzzleHttp\Client;
                 try {
                     error_log("[$progress] Processing bill $billId...");
                     
+                    // DEBUG: Log ALL fields in the bill to diagnose currency issue
+                    error_log("[$progress] === BILL RAW DATA ===");
+                    error_log("[$progress] Available fields: " . implode(', ', array_keys($bill)));
+                    error_log("[$progress] Full bill data: " . json_encode($bill, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                    error_log("[$progress] ====================");
+                    
                     // Check if amount is valid
                     $amount = (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0);
                     if ($amount <= 0) {
@@ -334,9 +340,17 @@ use GuzzleHttp\Client;
                         continue;
                     }
                     
-                    // Get current bill data for comparison
+                    // Get current bill data for comparison - CHECK ALL POSSIBLE CURRENCY FIELDS
                     $currentAmount = (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0);
-                    $currentCurrency = $bill['currencyCode'] ?? $bill['currency'] ?? 'ALL';
+                    $currentCurrency = $bill['currencyCode'] 
+                        ?? $bill['currency'] 
+                        ?? $bill['Currency'] 
+                        ?? $bill['CurrencyCode']
+                        ?? $bill['currencyType']
+                        ?? $bill['exchangeCurrency']
+                        ?? 'ALL';
+                    
+                    error_log("[$progress] Extracted currency: $currentCurrency (amount: $currentAmount)");
                     
                     // Check if bill already exists in mapping
                     $existingMapping = $this->getBillMapping($companyId, $docNumber, $vendorNuis);
@@ -1380,9 +1394,21 @@ use GuzzleHttp\Client;
             $txnDate = date('Y-m-d', strtotime($billDate));
             error_log("Bill date: " . $txnDate . " (from field value: " . ($billDate === 'now' ? 'MISSING' : $billDate) . ")");
             
-            // Get currency from bill
-            $currency = $devposBill['currencyCode'] ?? $devposBill['currency'] ?? 'ALL';
-            $exchangeRate = $devposBill['exchangeRate'] ?? null;
+            // Get currency from bill - try all possible field names
+            $currency = $devposBill['currencyCode'] 
+                ?? $devposBill['currency'] 
+                ?? $devposBill['Currency']
+                ?? $devposBill['CurrencyCode']
+                ?? $devposBill['currencyType']
+                ?? $devposBill['exchangeCurrency']
+                ?? 'ALL';
+            
+            $exchangeRate = $devposBill['exchangeRate'] 
+                ?? $devposBill['ExchangeRate']
+                ?? $devposBill['rate']
+                ?? null;
+            
+            error_log("convertDevPosToQBOBill: Currency='$currency', ExchangeRate='" . ($exchangeRate ?? 'NULL') . "', Amount=$amount");
             
             // Note: Expense accounts are always in home currency (ALL)
             // QuickBooks handles multi-currency through CurrencyRef + ExchangeRate on the transaction
