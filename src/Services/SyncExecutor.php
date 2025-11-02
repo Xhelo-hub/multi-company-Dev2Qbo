@@ -693,27 +693,35 @@ use GuzzleHttp\Client;
             $client = new Client();
             $apiBase = $_ENV['DEVPOS_API_BASE'] ?? 'https://online.devpos.al/api/v3';
             
-            // Try different endpoint variations since /EInvoice returns 405
+            // Try different endpoint variations and formats
             $endpoints = [
-                '/EInvoice/Invoice',  // Try Invoice subpath
-                '/EInvoice/GetInvoice',  // Try Get method
-                '/Invoice',  // Try simplified path
+                ['path' => '/Invoice', 'type' => 'json'],  // Try JSON body
+                ['path' => '/Invoice', 'type' => 'form'],  // Try form data
+                ['path' => '/EInvoice', 'type' => 'json'],  // Try base path with JSON
             ];
             
-            foreach ($endpoints as $endpoint) {
+            foreach ($endpoints as $endpointConfig) {
+                $endpoint = $endpointConfig['path'];
+                $type = $endpointConfig['type'];
+                
                 try {
-                    error_log("Trying DevPos endpoint: POST $apiBase$endpoint with EIC=$eic");
+                    error_log("Trying DevPos endpoint: POST $apiBase$endpoint with EIC=$eic (type: $type)");
                     
-                    $response = $client->post($apiBase . $endpoint, [
-                        'form_params' => [
-                            'EIC' => $eic
-                        ],
+                    $options = [
                         'headers' => [
                             'Authorization' => 'Bearer ' . $token,
                             'tenant' => $tenant,
                             'Accept' => 'application/json'
                         ]
-                    ]);
+                    ];
+                    
+                    if ($type === 'json') {
+                        $options['json'] = ['EIC' => $eic];
+                    } else {
+                        $options['form_params'] = ['EIC' => $eic];
+                    }
+                    
+                    $response = $client->post($apiBase . $endpoint, $options);
                     
                     $body = $response->getBody()->getContents();
                     $details = json_decode($body, true);
