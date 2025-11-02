@@ -693,8 +693,11 @@ class SyncExecutor
 
         $totalWithVat = floatval($totalAmount);
         
+        // Get currency from invoice (DevPos uses currencyCode or currency field)
+        $currency = $devposInvoice['currencyCode'] ?? $devposInvoice['currency'] ?? 'ALL';
+        
         // Get or create customer in QuickBooks
-        $customerId = $this->getOrCreateQBOCustomer($buyerName, $buyerNuis, $companyId, $qboCreds);
+        $customerId = $this->getOrCreateQBOCustomer($buyerName, $buyerNuis, $companyId, $qboCreds, $currency);
 
         // Build QuickBooks invoice payload based on company VAT tracking preference
         
@@ -945,12 +948,16 @@ class SyncExecutor
             ? 'https://sandbox-quickbooks.api.intuit.com'
             : 'https://quickbooks.api.intuit.com';
         
+        // Get currency from bill (DevPos uses currencyCode or currency field)
+        $currency = $bill['currencyCode'] ?? $bill['currency'] ?? 'ALL';
+        
         // Get or create vendor
         $vendorId = $this->getOrCreateVendor(
             $bill['sellerNuis'] ?? '',
             $bill['sellerName'] ?? 'Unknown Vendor',
             $qboCreds,
-            $companyId
+            $companyId,
+            $currency
         );
         
         // Convert bill to QBO format
@@ -1006,18 +1013,28 @@ class SyncExecutor
     /**
      * Get or create vendor in QuickBooks
      */
-    private function getOrCreateVendor(string $nuis, string $name, array $qboCreds, int $companyId): string
+    private function getOrCreateVendor(string $nuis, string $name, array $qboCreds, int $companyId, string $currency = 'ALL'): string
     {
+        // Normalize currency code
+        $currency = strtoupper($currency);
+        
+        // For multi-currency, append currency to name for lookup
+        $lookupKey = $nuis;
+        if ($currency !== 'ALL') {
+            $lookupKey = $nuis . '_' . $currency;
+        }
+        
         // Check if vendor already exists in mappings
         $stmt = $this->pdo->prepare("
             SELECT qbo_vendor_id 
             FROM vendor_mappings 
             WHERE company_id = ? AND devpos_nuis = ?
         ");
-        $stmt->execute([$companyId, $nuis]);
+        $stmt->execute([$companyId, $lookupKey]);
         $existingId = $stmt->fetchColumn();
         
         if ($existingId) {
+            error_log("Found existing vendor: $name ($currency) => QBO ID: $existingId");
             return (string)$existingId;
         }
         
@@ -1028,11 +1045,26 @@ class SyncExecutor
             ? 'https://sandbox-quickbooks.api.intuit.com'
             : 'https://quickbooks.api.intuit.com';
         
+        // Append currency to display name if not home currency
+        $displayName = $name;
+        if ($currency !== 'ALL') {
+            $displayName = $name . ' - ' . $currency;
+        }
+        if ($nuis) {
+            $displayName .= " ({$nuis})";
+        }
+        
         $vendorData = [
-            'DisplayName' => $name . ($nuis ? " ({$nuis})" : ''),
+            'DisplayName' => $displayName,
             'CompanyName' => $name,
             'Vendor1099' => false
         ];
+        
+        // Set currency if not home currency (ALL)
+        if ($currency !== 'ALL') {
+            $vendorData['CurrencyRef'] = ['value' => $currency];
+            error_log("Creating vendor with currency: $currency");
+        }
         
         if ($nuis) {
             $vendorData['TaxIdentifier'] = $nuis;
@@ -1051,12 +1083,13 @@ class SyncExecutor
         $vendorId = (string)($result['Vendor']['Id'] ?? '');
         
         if ($vendorId) {
-            // Store vendor mapping
+            // Store vendor mapping with currency-specific key
             $stmt = $this->pdo->prepare("
                 INSERT INTO vendor_mappings (company_id, devpos_nuis, vendor_name, qbo_vendor_id, created_at)
                 VALUES (?, ?, ?, ?, NOW())
             ");
-            $stmt->execute([$companyId, $nuis, $name, $vendorId]);
+            $stmt->execute([$companyId, $lookupKey, $name, $vendorId]);
+            error_log("Created vendor: $displayName => QBO ID: $vendorId");
         }
         
         return $vendorId;
@@ -1367,28 +1400,39 @@ class SyncExecutor
      * @param array $qboCreds QuickBooks credentials
      * @return string QuickBooks customer ID
      */
-    private function getOrCreateQBOCustomer(string $buyerName, ?string $buyerNuis, int $companyId, array $qboCreds): string
+    private function getOrCreateQBOCustomer(string $buyerName, ?string $buyerNuis, int $companyId, array $qboCreds, string $currency = 'ALL'): string
     {
-        // First, check if we have a cached mapping
-        $customerId = $this->findCachedCustomer($companyId, $buyerName, $buyerNuis);
+        // Normalize currency
+        $currency = strtoupper($currency);
+        
+        // For multi-currency, append currency to name for lookup
+        $searchName = $buyerName;
+        if ($currency !== 'ALL') {
+            $searchName = $buyerName . ' - ' . $currency;
+        }
+        
+        // First, check if we have a cached mapping (including currency)
+        $customerId = $this->findCachedCustomer($companyId, $searchName, $buyerNuis, $currency);
         if ($customerId) {
+            error_log("Found cached customer: $searchName => QBO ID: $customerId");
             return $customerId;
         }
         
-        // Search for customer in QuickBooks by NUIS or name
-        $customerId = $this->findQBOCustomerByNuis($buyerNuis, $qboCreds);
-        if (!$customerId) {
-            $customerId = $this->findQBOCustomerByName($buyerName, $qboCreds);
+        // Search for customer in QuickBooks by name (with currency suffix if applicable)
+        $customerId = $this->findQBOCustomerByName($searchName, $qboCreds);
+        if (!$customerId && $buyerNuis) {
+            // Try by NUIS only if name search failed
+            $customerId = $this->findQBOCustomerByNuis($buyerNuis, $qboCreds);
         }
         
         // If not found, create new customer in QuickBooks
         if (!$customerId) {
-            $customerId = $this->createQBOCustomer($buyerName, $buyerNuis, $qboCreds);
+            $customerId = $this->createQBOCustomer($searchName, $buyerNuis, $qboCreds, $currency);
         }
         
         // Cache the mapping
         if ($customerId) {
-            $this->cacheCustomerMapping($companyId, $buyerName, $buyerNuis, $customerId);
+            $this->cacheCustomerMapping($companyId, $searchName, $buyerNuis, $customerId);
         }
         
         return $customerId ?: '1'; // Fallback to default customer
@@ -1397,24 +1441,10 @@ class SyncExecutor
     /**
      * Find cached customer mapping in database
      */
-    private function findCachedCustomer(int $companyId, string $buyerName, ?string $buyerNuis): ?string
+    private function findCachedCustomer(int $companyId, string $buyerName, ?string $buyerNuis, string $currency = 'ALL'): ?string
     {
-        if ($buyerNuis) {
-            // Try lookup by NUIS first (most reliable)
-            $stmt = $this->pdo->prepare("
-                SELECT qbo_customer_id 
-                FROM customer_mappings 
-                WHERE company_id = ? AND buyer_nuis = ?
-                LIMIT 1
-            ");
-            $stmt->execute([$companyId, $buyerNuis]);
-            $result = $stmt->fetchColumn();
-            if ($result) {
-                return $result;
-            }
-        }
-        
-        // Fallback to name lookup
+        // For multi-currency, we stored the name with currency suffix
+        // So search by the full name (which already includes currency if applicable)
         $stmt = $this->pdo->prepare("
             SELECT qbo_customer_id 
             FROM customer_mappings 
@@ -1513,7 +1543,7 @@ class SyncExecutor
     /**
      * Create new customer in QuickBooks
      */
-    private function createQBOCustomer(string $buyerName, ?string $buyerNuis, array $qboCreds): ?string
+    private function createQBOCustomer(string $buyerName, ?string $buyerNuis, array $qboCreds, string $currency = 'ALL'): ?string
     {
         $client = new Client([
             'timeout' => 30,
@@ -1525,9 +1555,16 @@ class SyncExecutor
             ? 'https://sandbox-quickbooks.api.intuit.com'
             : 'https://quickbooks.api.intuit.com';
         
+        // Note: buyerName already has currency suffix appended if needed
         $payload = [
             'DisplayName' => $buyerName
         ];
+        
+        // Set currency if not home currency (ALL)
+        if ($currency !== 'ALL') {
+            $payload['CurrencyRef'] = ['value' => $currency];
+            error_log("Creating customer with currency: $currency");
+        }
         
         // Add tax ID if available
         if ($buyerNuis) {
