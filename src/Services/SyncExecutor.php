@@ -1,12 +1,12 @@
-    <?php
+<?php
 
-    declare(strict_types=1);
+declare(strict_types=1);
 
-    namespace App\Services;
+namespace App\Services;
 
-    use PDO;
-    use Exception;
-    use GuzzleHttp\Client;
+use PDO;
+use Exception;
+use GuzzleHttp\Client;
 
     class SyncExecutor
     {
@@ -2376,18 +2376,23 @@
             @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $msg" . PHP_EOL, FILE_APPEND);
             return false;
             
-        } catch (Exception $e) {
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
             $msg = "Error uploading PDF attachment: " . $e->getMessage();
             error_log($msg);
             $logFile = __DIR__ . '/../../storage/pdf-debug.log';
             @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $msg" . PHP_EOL, FILE_APPEND);
             
-            if (method_exists($e, 'getResponse') && $e->getResponse()) {
-                $responseBody = $e->getResponse()->getBody()->getContents();
-                $errMsg = "QBO API Error Response: " . substr($responseBody, 0, 500);
-                error_log($errMsg);
-                @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $errMsg" . PHP_EOL, FILE_APPEND);
-            }
+            $responseBody = $e->getResponse()->getBody()->getContents();
+            $errMsg = "QBO API Error Response: " . substr($responseBody, 0, 500);
+            error_log($errMsg);
+            @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $errMsg" . PHP_EOL, FILE_APPEND);
+            
+            return false;
+        } catch (Exception $e) {
+            $msg = "Error uploading PDF attachment: " . $e->getMessage();
+            error_log($msg);
+            $logFile = __DIR__ . '/../../storage/pdf-debug.log';
+            @file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] $msg" . PHP_EOL, FILE_APPEND);
             return false;
         }
     }

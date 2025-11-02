@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use PDO;
-use App\Sync\SalesSync;
-use App\Sync\BillsSync;
 
 /**
  * Multi-Company Sync Service - Manages sync jobs across multiple companies
