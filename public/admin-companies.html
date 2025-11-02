@@ -468,12 +468,7 @@
                         <i class="fas fa-plus"></i> Add Company
                     </a>
                     <!-- Combined Search Filter -->
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <input id="filterSearch" type="search" placeholder="Search by company name or NIPT..." style="padding:8px 12px; border:2px solid #ddd; border-radius:5px; font-size:14px; min-width: 280px;">
-                        <button class="btn" id="clearFiltersBtn" title="Clear search" style="padding:8px 12px; background: #6c757d; color: white;">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
+                    <input id="filterSearch" type="search" placeholder="Search by company name or NIPT..." style="padding:8px 12px; border:2px solid #ddd; border-radius:5px; font-size:14px; min-width: 280px;">
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <label for="perPageSelect" style="font-weight: 600; color: #333;">Show per page:</label>
@@ -836,10 +831,9 @@
             };
         }
 
-        // Search filter input handlers
+        // Search filter input handler
         document.addEventListener('DOMContentLoaded', () => {
             const searchInput = document.getElementById('filterSearch');
-            const clearBtn = document.getElementById('clearFiltersBtn');
 
             const applySearch = debounceFilter(() => {
                 searchQuery = searchInput.value.trim();
@@ -848,14 +842,6 @@
             }, 250);
 
             searchInput.addEventListener('input', applySearch);
-
-            clearBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                searchInput.value = '';
-                searchQuery = '';
-                currentPage = 1;
-                renderCompanies();
-            });
         });
 
         async function toggleCompanyStatus(companyId, isActive) {
