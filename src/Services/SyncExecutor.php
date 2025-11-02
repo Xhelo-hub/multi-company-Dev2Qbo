@@ -1783,6 +1783,9 @@ class SyncExecutor
         $pdfUrl = $document['pdfUrl'] ?? $document['pdf_url'] ?? $document['pdfLink'] ?? null;
         $eic = $document['eic'] ?? $document['EIC'] ?? null;
         
+        // DEBUG: Log all available fields in document
+        $debugLog("Available document fields: " . implode(', ', array_keys($document)));
+        
         // Construct PDF URL from EIC if not explicitly provided
         // Try multiple possible PDF endpoint patterns
         if (!$pdfUrl && $eic) {
