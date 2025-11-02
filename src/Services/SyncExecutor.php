@@ -316,7 +316,7 @@ use GuzzleHttp\Client;
                     error_log("[$progress] Processing bill $billId...");
                     
                     // DEBUG: Log first bill's full structure, then just currency for others
-                    if ($processed + $skipped === 0) {
+                    if ($synced + $skipped === 0) {
                         error_log("[$progress] === FIRST BILL RAW DATA ===");
                         error_log("[$progress] Available fields: " . implode(', ', array_keys($bill)));
                         error_log("[$progress] Full bill data: " . json_encode($bill, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
@@ -1108,7 +1108,7 @@ use GuzzleHttp\Client;
         /**
          * Verify if a bill actually exists in QuickBooks
          */
-        private function verifyBillExistsInQBO(int $billId, array $qboCreds): bool
+        private function verifyBillExistsInQBO(int|string $billId, array $qboCreds): bool
         {
             try {
                 $client = new Client();
