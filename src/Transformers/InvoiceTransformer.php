@@ -27,6 +27,13 @@ class InvoiceTransformer
             'dateTimeCreated' => $devposInvoice['dateTimeCreated'] ?? 'NOT SET',
             'createdDate' => $devposInvoice['createdDate'] ?? 'NOT SET',
         ]));
+        error_log("Currency fields: " . json_encode([
+            'currency' => $devposInvoice['currency'] ?? 'NOT SET',
+            'baseCurrency' => $devposInvoice['baseCurrency'] ?? 'NOT SET',
+            'exchangeRate' => $devposInvoice['exchangeRate'] ?? 'NOT SET',
+            'totalAmount' => $devposInvoice['totalAmount'] ?? 'NOT SET',
+            'amountInBaseCurrency' => $devposInvoice['amountInBaseCurrency'] ?? 'NOT SET',
+        ]));
         error_log("ALL FIELDS: " . implode(', ', array_keys($devposInvoice)));
 
         // Extract fields with fallbacks
@@ -117,6 +124,33 @@ class InvoiceTransformer
                     'StringValue' => $eicValue
                 ]
             ];
+        }
+
+        // Multi-Currency Support
+        // Check if transaction uses a currency different from base currency
+        $transactionCurrency = $devposInvoice['currency'] ?? null;
+        $baseCurrency = $devposInvoice['baseCurrency'] ?? null;
+        $exchangeRate = $devposInvoice['exchangeRate'] ?? null;
+        
+        if ($transactionCurrency && $baseCurrency && $transactionCurrency !== $baseCurrency) {
+            error_log("INFO: Multi-currency transaction detected - Currency: $transactionCurrency, Base: $baseCurrency");
+            
+            // Set currency reference (ISO 4217 code: ALL, EUR, USD, etc.)
+            $payload['CurrencyRef'] = ['value' => strtoupper($transactionCurrency)];
+            
+            // Set exchange rate if available
+            // QuickBooks expects: 1 foreign currency = X home currency
+            // Example: 1 EUR = 106.50 ALL means exchangeRate = 106.50
+            if ($exchangeRate && $exchangeRate > 0) {
+                $payload['ExchangeRate'] = (float)$exchangeRate;
+                error_log("INFO: Exchange rate set: 1 $transactionCurrency = $exchangeRate $baseCurrency");
+            }
+            
+            // Note: QuickBooks will automatically calculate HomeBalance using:
+            // HomeBalance = TotalAmount * ExchangeRate
+            // We don't need to set it explicitly
+        } else {
+            error_log("INFO: Single currency transaction (or currency fields not available)");
         }
 
         return $payload;

@@ -106,6 +106,33 @@ class SalesReceiptTransformer
             $payload['DocNumber'] = (string)$documentNumber;
         }
 
+        // Multi-Currency Support
+        // Check if transaction uses a currency different from base currency
+        $transactionCurrency = $devposSale['currency'] ?? null;
+        $baseCurrency = $devposSale['baseCurrency'] ?? null;
+        $exchangeRate = $devposSale['exchangeRate'] ?? null;
+        
+        if ($transactionCurrency && $baseCurrency && $transactionCurrency !== $baseCurrency) {
+            error_log("INFO: Multi-currency cash sale detected - Currency: $transactionCurrency, Base: $baseCurrency");
+            
+            // Set currency reference (ISO 4217 code: ALL, EUR, USD, etc.)
+            $payload['CurrencyRef'] = ['value' => strtoupper($transactionCurrency)];
+            
+            // Set exchange rate if available
+            // QuickBooks expects: 1 foreign currency = X home currency
+            // Example: 1 EUR = 106.50 ALL means exchangeRate = 106.50
+            if ($exchangeRate && $exchangeRate > 0) {
+                $payload['ExchangeRate'] = (float)$exchangeRate;
+                error_log("INFO: Exchange rate set: 1 $transactionCurrency = $exchangeRate $baseCurrency");
+            }
+            
+            // Note: QuickBooks will automatically calculate HomeBalance using:
+            // HomeBalance = TotalAmount * ExchangeRate
+            // We don't need to set it explicitly
+        } else {
+            error_log("INFO: Single currency cash sale (or currency fields not available)");
+        }
+
         return $payload;
     }
 }
