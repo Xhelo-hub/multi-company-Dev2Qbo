@@ -315,11 +315,13 @@ use GuzzleHttp\Client;
                 try {
                     error_log("[$progress] Processing bill $billId...");
                     
-                    // DEBUG: Log ALL fields in the bill to diagnose currency issue
-                    error_log("[$progress] === BILL RAW DATA ===");
-                    error_log("[$progress] Available fields: " . implode(', ', array_keys($bill)));
-                    error_log("[$progress] Full bill data: " . json_encode($bill, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-                    error_log("[$progress] ====================");
+                    // DEBUG: Log first bill's full structure, then just currency for others
+                    if ($processed + $skipped === 0) {
+                        error_log("[$progress] === FIRST BILL RAW DATA ===");
+                        error_log("[$progress] Available fields: " . implode(', ', array_keys($bill)));
+                        error_log("[$progress] Full bill data: " . json_encode($bill, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+                        error_log("[$progress] ====================");
+                    }
                     
                     // Check if amount is valid
                     $amount = (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0);
