@@ -699,8 +699,8 @@ class SyncExecutor
         // Get or create customer in QuickBooks
         $customerId = $this->getOrCreateQBOCustomer($buyerName, $buyerNuis, $companyId, $qboCreds, $currency);
 
-        // Get currency-specific income item for multi-currency support
-        $incomeItemId = $this->getCurrencyIncomeItem($currency, $qboCreds, $companyId);
+        // Note: Income items are always in home currency (ALL)
+        // QuickBooks handles multi-currency through CurrencyRef + ExchangeRate on the transaction
         
         // Build QuickBooks invoice payload based on company VAT tracking preference
         
@@ -715,7 +715,7 @@ class SyncExecutor
                         'DetailType' => 'SalesItemLineDetail',
                         'SalesItemLineDetail' => [
                             'ItemRef' => [
-                                'value' => $incomeItemId, // Currency-specific item
+                                'value' => '1', // Default item - always home currency
                                 'name' => 'Services'
                             ],
                             'UnitPrice' => $totalWithVat,
@@ -742,7 +742,7 @@ class SyncExecutor
                         'DetailType' => 'SalesItemLineDetail',
                         'SalesItemLineDetail' => [
                             'ItemRef' => [
-                                'value' => $incomeItemId, // Currency-specific item
+                                'value' => '1', // Default item - always home currency
                                 'name' => 'Services'
                             ],
                             'UnitPrice' => $totalWithVat,
