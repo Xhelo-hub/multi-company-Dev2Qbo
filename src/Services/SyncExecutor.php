@@ -45,25 +45,36 @@ use GuzzleHttp\Client;
                 // Execute based on job type
                 switch ($job['job_type']) {
                     case 'sales':
-                        $results = $this->syncSales($job);
+                        $results = $this->syncSales($job, $jobId);
                         break;
                         
                     case 'purchases':
-                        $results = $this->syncPurchases($job);
+                        $results = $this->syncPurchases($job, $jobId);
                         break;
                         
                     case 'bills':
-                        $results = $this->syncBills($job);
+                        $results = $this->syncBills($job, $jobId);
                         break;
                         
                     case 'full':
-                        $results['sales'] = $this->syncSales($job);
-                        $results['purchases'] = $this->syncPurchases($job);
-                        $results['bills'] = $this->syncBills($job);
+                        $results['sales'] = $this->syncSales($job, $jobId);
+                        if ($this->isJobCancelled($jobId)) {
+                            throw new Exception('Job cancelled by user');
+                        }
+                        $results['purchases'] = $this->syncPurchases($job, $jobId);
+                        if ($this->isJobCancelled($jobId)) {
+                            throw new Exception('Job cancelled by user');
+                        }
+                        $results['bills'] = $this->syncBills($job, $jobId);
                         break;
                         
                     default:
                         throw new Exception('Invalid job type: ' . $job['job_type']);
+                }
+                
+                // Check one final time before completing
+                if ($this->isJobCancelled($jobId)) {
+                    throw new Exception('Job cancelled by user');
                 }
                 
                 // Mark as completed
@@ -76,17 +87,51 @@ use GuzzleHttp\Client;
                 ];
                 
             } catch (Exception $e) {
-                // Mark as failed
-                $this->failJob($jobId, $e->getMessage());
+                // Check if it was a cancellation
+                if (strpos($e->getMessage(), 'cancelled') !== false) {
+                    // Mark as cancelled
+                    $this->cancelJob($jobId, $e->getMessage());
+                } else {
+                    // Mark as failed
+                    $this->failJob($jobId, $e->getMessage());
+                }
                 
                 throw $e;
             }
         }
         
         /**
+         * Check if job has been cancelled
+         */
+        private function isJobCancelled(int $jobId): bool
+        {
+            $stmt = $this->pdo->prepare("SELECT status FROM sync_jobs WHERE id = ?");
+            $stmt->execute([$jobId]);
+            $status = $stmt->fetchColumn();
+            
+            return $status === 'cancelled';
+        }
+        
+        /**
+         * Mark job as cancelled
+         */
+        private function cancelJob(int $jobId, string $message): void
+        {
+            $stmt = $this->pdo->prepare("
+                UPDATE sync_jobs 
+                SET status = 'cancelled',
+                    error_message = ?,
+                    completed_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$message, $jobId]);
+            error_log("Job $jobId cancelled: $message");
+        }
+        
+        /**
          * Sync sales invoices from DevPos to QuickBooks
          */
-        private function syncSales(array $job): array
+        private function syncSales(array $job, int $jobId): array
         {
             $companyId = (int)$job['company_id'];
             
@@ -121,6 +166,12 @@ use GuzzleHttp\Client;
             $errors = [];
             
             foreach ($invoices as $index => $invoice) {
+                // Check for cancellation every 10 invoices
+                if ($index % 10 === 0 && $this->isJobCancelled($jobId)) {
+                    error_log("Sales sync cancelled at invoice $index/$totalInvoices");
+                    throw new Exception("Job cancelled by user after processing $synced invoices");
+                }
+                
                 $invoiceId = $invoice['eic'] ?? $invoice['documentNumber'] ?? 'unknown';
                 $progress = ($index + 1) . "/$totalInvoices";
                 
@@ -154,7 +205,7 @@ use GuzzleHttp\Client;
         /**
          * Sync purchase invoices
          */
-        private function syncPurchases(array $job): array
+        private function syncPurchases(array $job, int $jobId): array
         {
             $companyId = (int)$job['company_id'];
             
@@ -216,7 +267,7 @@ use GuzzleHttp\Client;
         /**
          * Sync bills from DevPos to QuickBooks
          */
-        private function syncBills(array $job): array
+        private function syncBills(array $job, int $jobId): array
         {
             $companyId = (int)$job['company_id'];
             
@@ -252,6 +303,12 @@ use GuzzleHttp\Client;
             $errors = [];
             
             foreach ($bills as $index => $bill) {
+                // Check for cancellation every 10 bills
+                if ($index % 10 === 0 && $this->isJobCancelled($jobId)) {
+                    error_log("Bills sync cancelled at bill $index/$totalBills");
+                    throw new Exception("Job cancelled by user after processing $synced bills");
+                }
+                
                 $billId = $bill['documentNumber'] ?? $bill['eic'] ?? 'unknown';
                 $progress = ($index + 1) . "/$totalBills";
                 

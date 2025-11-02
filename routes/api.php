@@ -183,7 +183,7 @@ $app->post('/api/companies/{id}/sync', function (Request $request, Response $res
     return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 
-// Cancel all running jobs for a company (admin only)
+// Cancel all running/pending jobs for a company (admin only)
 $app->post('/api/companies/{id}/cancel-jobs', function (Request $request, Response $response, array $args) use ($pdo) {
     $user = $request->getAttribute('user');
     
@@ -196,28 +196,41 @@ $app->post('/api/companies/{id}/cancel-jobs', function (Request $request, Respon
     }
     
     $companyId = (int)$args['id'];
+    $data = $request->getParsedBody();
+    $cancelPending = (bool)($data['cancel_pending'] ?? true); // Default: cancel both running and pending
     
     try {
-        // Cancel all running jobs for this company
+        // Build WHERE clause based on what to cancel
+        $statuses = ['running'];
+        if ($cancelPending) {
+            $statuses[] = 'pending';
+        }
+        
+        $statusPlaceholders = implode(',', array_fill(0, count($statuses), '?'));
+        
+        // Cancel running/pending jobs for this company
         $stmt = $pdo->prepare("
             UPDATE sync_jobs 
-            SET status = 'failed',
-                error_message = 'Cancelled by admin user',
+            SET status = 'cancelled',
+                error_message = CONCAT('Cancelled by admin user (was ', status, ')'),
                 completed_at = NOW()
             WHERE company_id = ? 
-            AND status = 'running'
+            AND status IN ($statusPlaceholders)
         ");
         
-        $stmt->execute([$companyId]);
+        $params = array_merge([$companyId], $statuses);
+        $stmt->execute($params);
         $cancelledCount = $stmt->rowCount();
         
+        $statusesStr = implode(' and ', $statuses);
         $message = $cancelledCount > 0 
-            ? "Successfully cancelled {$cancelledCount} running job(s)" 
-            : "No running jobs found for this company";
+            ? "Successfully cancelled {$cancelledCount} {$statusesStr} job(s)" 
+            : "No {$statusesStr} jobs found for this company";
         
         $response->getBody()->write(json_encode([
             'success' => true,
             'cancelled_count' => $cancelledCount,
+            'cancelled_statuses' => $statuses,
             'message' => $message
         ]));
         
@@ -855,6 +868,86 @@ $app->get('/api/companies/{companyId}/credentials/qbo', function (Request $reque
 // SYNC ENDPOINTS
 // ============================================================================
 
+// Cancel all pending jobs (before they start) - admin only
+$app->post('/api/sync/jobs/cancel-pending', function (Request $request, Response $response) use ($pdo) {
+    try {
+        $data = $request->getParsedBody();
+        $companyId = isset($data['company_id']) ? (int)$data['company_id'] : null;
+        
+        if ($companyId) {
+            // Cancel pending jobs for specific company
+            $stmt = $pdo->prepare("
+                SELECT id, job_type, created_at, company_id
+                FROM sync_jobs 
+                WHERE status = 'pending' AND company_id = ?
+                ORDER BY created_at ASC
+            ");
+            $stmt->execute([$companyId]);
+        } else {
+            // Cancel all pending jobs (global)
+            $stmt = $pdo->query("
+                SELECT id, job_type, created_at, company_id
+                FROM sync_jobs 
+                WHERE status = 'pending'
+                ORDER BY created_at ASC
+            ");
+        }
+        
+        $pendingJobs = $stmt->fetchAll();
+        
+        if (empty($pendingJobs)) {
+            $message = $companyId 
+                ? "No pending jobs found for company ID $companyId" 
+                : "No pending jobs found";
+            
+            $response->getBody()->write(json_encode([
+                'success' => true,
+                'message' => $message,
+                'cancelled_count' => 0
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
+        }
+        
+        // Cancel all pending jobs
+        if ($companyId) {
+            $updateStmt = $pdo->prepare("
+                UPDATE sync_jobs 
+                SET status = 'cancelled',
+                    error_message = 'Cancelled before execution by admin',
+                    completed_at = NOW()
+                WHERE status = 'pending' AND company_id = ?
+            ");
+            $updateStmt->execute([$companyId]);
+        } else {
+            $updateStmt = $pdo->query("
+                UPDATE sync_jobs 
+                SET status = 'cancelled',
+                    error_message = 'Cancelled before execution by admin',
+                    completed_at = NOW()
+                WHERE status = 'pending'
+            ");
+        }
+        
+        $cancelledCount = $updateStmt->rowCount();
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => "Cancelled {$cancelledCount} pending job(s)",
+            'cancelled_count' => $cancelledCount,
+            'company_id' => $companyId,
+            'jobs' => $pendingJobs
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+        
+    } catch (\Exception $e) {
+        $response->getBody()->write(json_encode([
+            'success' => false,
+            'message' => 'Failed to cancel pending jobs: ' . $e->getMessage()
+        ]));
+        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
+    }
+})->add($authMiddleware);
+
 // Cancel all running/stuck sync jobs (admin utility) - MUST be before pattern routes
 $app->post('/api/sync/jobs/cancel-stuck', function (Request $request, Response $response) use ($pdo) {
     try {
@@ -880,11 +973,11 @@ $app->post('/api/sync/jobs/cancel-stuck', function (Request $request, Response $
             return $response->withHeader('Content-Type', 'application/json');
         }
         
-        // Cancel them
+        // Cancel them with 'cancelled' status
         $stmt = $pdo->prepare("
             UPDATE sync_jobs 
-            SET status = 'failed',
-                error_message = CONCAT('Job timeout - exceeded ', ?, ' minutes'),
+            SET status = 'cancelled',
+                error_message = CONCAT('Job timeout - exceeded ', ?, ' minutes (automatic cancellation)'),
                 completed_at = NOW()
             WHERE status = 'running' 
             AND started_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
@@ -896,6 +989,7 @@ $app->post('/api/sync/jobs/cancel-stuck', function (Request $request, Response $
             'success' => true,
             'message' => "Cancelled {$cancelledCount} stuck job(s)",
             'cancelled_count' => $cancelledCount,
+            'threshold_minutes' => $minutesThreshold,
             'jobs' => $stuckJobs
         ]));
         return $response->withHeader('Content-Type', 'application/json');
@@ -1000,11 +1094,11 @@ $app->post('/api/sync/jobs/{jobId}/cancel', function (Request $request, Response
             return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
         }
         
-        // Cancel the job
+        // Cancel the job with proper 'cancelled' status
         $stmt = $pdo->prepare("
             UPDATE sync_jobs 
-            SET status = 'failed',
-                error_message = 'Manually cancelled by admin',
+            SET status = 'cancelled',
+                error_message = 'Manually cancelled by user',
                 completed_at = NOW()
             WHERE id = ?
         ");
@@ -1012,7 +1106,9 @@ $app->post('/api/sync/jobs/{jobId}/cancel', function (Request $request, Response
         
         $response->getBody()->write(json_encode([
             'success' => true,
-            'message' => 'Job cancelled successfully'
+            'message' => 'Job cancelled successfully',
+            'job_id' => $jobId,
+            'previous_status' => $job['status']
         ]));
         return $response->withHeader('Content-Type', 'application/json');
         
