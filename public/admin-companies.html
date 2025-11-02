@@ -476,6 +476,12 @@
                         <option value="all">All</option>
                     </select>
                     <span id="showingInfo" style="color: #666; margin-left: 15px;"></span>
+                    <!-- Filters: Company Name and NIPT -->
+                    <div style="display:flex; gap:8px; align-items:center; margin-left:10px;">
+                        <input id="filterName" type="search" placeholder="Filter by company name" style="padding:8px 10px; border:1px solid #ddd; border-radius:5px; font-size:14px;">
+                        <input id="filterNipt" type="search" placeholder="Filter by NIPT" style="padding:8px 10px; border:1px solid #ddd; border-radius:5px; font-size:14px; width:160px;">
+                        <button class="btn" id="clearFiltersBtn" title="Clear filters" style="padding:8px 10px;">Clear</button>
+                    </div>
                 </div>
             </div>
             
@@ -647,6 +653,10 @@
         let allCompanies = [];
         let currentPage = 1;
         let perPage = 10;
+    // Filters
+    let filterName = '';
+    let filterNipt = '';
+    let filterDebounceTimeout = null;
 
         async function loadCompanies() {
             const response = await fetch(`${API_BASE}/api/companies`, {
@@ -679,12 +689,21 @@
             const tbody = document.getElementById('companiesTable');
             tbody.innerHTML = '';
 
+            // Apply filters before pagination
+            const filteredCompanies = allCompanies.filter(c => {
+                const name = (c.company_name || '').toString().toLowerCase();
+                const nipt = (c.company_code || '').toString().toLowerCase();
+                const nameMatch = filterName === '' || name.includes(filterName.toLowerCase());
+                const niptMatch = filterNipt === '' || nipt.includes(filterNipt.toLowerCase());
+                return nameMatch && niptMatch;
+            });
+
             // Calculate pagination
-            const totalCompanies = allCompanies.length;
+            const totalCompanies = filteredCompanies.length;
             const startIndex = perPage === 'all' ? 0 : (currentPage - 1) * perPage;
             const endIndex = perPage === 'all' ? totalCompanies : startIndex + perPage;
-            const companiesToShow = allCompanies.slice(startIndex, endIndex);
-            const totalPages = perPage === 'all' ? 1 : Math.ceil(totalCompanies / perPage);
+            const companiesToShow = filteredCompanies.slice(startIndex, endIndex);
+            const totalPages = perPage === 'all' ? 1 : Math.max(1, Math.ceil(totalCompanies / perPage));
 
             // Update showing info
             const showingInfo = document.getElementById('showingInfo');
@@ -694,7 +713,7 @@
                 showingInfo.textContent = `Showing all ${totalCompanies} companies`;
             } else {
                 const showing = Math.min(endIndex, totalCompanies);
-                showingInfo.textContent = `Showing ${startIndex + 1}-${showing} of ${totalCompanies} companies`;
+                showingInfo.textContent = totalCompanies === 0 ? 'No companies found' : `Showing ${startIndex + 1}-${showing} of ${totalCompanies} companies`;
             }
 
             // Render companies
@@ -808,6 +827,41 @@
             currentPage = 1;
             renderCompanies();
         }
+
+        // Debounce helper
+        function debounceFilter(fn, delay = 300) {
+            return function(...args) {
+                clearTimeout(filterDebounceTimeout);
+                filterDebounceTimeout = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        // Filter input handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            const nameInput = document.getElementById('filterName');
+            const niptInput = document.getElementById('filterNipt');
+            const clearBtn = document.getElementById('clearFiltersBtn');
+
+            const applyFilters = debounceFilter(() => {
+                filterName = nameInput.value.trim();
+                filterNipt = niptInput.value.trim();
+                currentPage = 1;
+                renderCompanies();
+            }, 250);
+
+            nameInput.addEventListener('input', applyFilters);
+            niptInput.addEventListener('input', applyFilters);
+
+            clearBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                nameInput.value = '';
+                niptInput.value = '';
+                filterName = '';
+                filterNipt = '';
+                currentPage = 1;
+                renderCompanies();
+            });
+        });
 
         async function toggleCompanyStatus(companyId, isActive) {
             if (!confirm(`Are you sure you want to ${isActive ? 'activate' : 'deactivate'} this company?`)) {
