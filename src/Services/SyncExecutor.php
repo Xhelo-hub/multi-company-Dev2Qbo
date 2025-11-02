@@ -686,19 +686,55 @@ use GuzzleHttp\Client;
         /**
          * Fetch full invoice details from DevPos by EIC
          * This endpoint returns detailed invoice information including currency
-         * Uses POST with form data as per DevPos API documentation
+         * Try multiple API endpoints to find the working one
          */
         private function fetchDevPosInvoiceDetails(string $token, string $tenant, string $eic): ?array
         {
             $client = new Client();
             $apiBase = $_ENV['DEVPOS_API_BASE'] ?? 'https://online.devpos.al/api/v3';
             
+            // Try different endpoint variations since /EInvoice returns 405
+            $endpoints = [
+                '/EInvoice/Invoice',  // Try Invoice subpath
+                '/EInvoice/GetInvoice',  // Try Get method
+                '/Invoice',  // Try simplified path
+            ];
+            
+            foreach ($endpoints as $endpoint) {
+                try {
+                    error_log("Trying DevPos endpoint: POST $apiBase$endpoint with EIC=$eic");
+                    
+                    $response = $client->post($apiBase . $endpoint, [
+                        'form_params' => [
+                            'EIC' => $eic
+                        ],
+                        'headers' => [
+                            'Authorization' => 'Bearer ' . $token,
+                            'tenant' => $tenant,
+                            'Accept' => 'application/json'
+                        ]
+                    ]);
+                    
+                    $body = $response->getBody()->getContents();
+                    $details = json_decode($body, true);
+                    
+                    if ($details) {
+                        error_log("SUCCESS! Endpoint $endpoint returned data for EIC: $eic");
+                        return $details;
+                    }
+                } catch (\GuzzleHttp\Exception\ClientException $e) {
+                    error_log("DevPos endpoint $endpoint failed with: " . $e->getMessage());
+                    continue; // Try next endpoint
+                } catch (Exception $e) {
+                    error_log("DevPos endpoint $endpoint error: " . $e->getMessage());
+                    continue; // Try next endpoint
+                }
+            }
+            
+            // If all POST attempts failed, try GET as fallback
             try {
-                // API requires POST with form data, not GET with query params
-                $response = $client->post($apiBase . '/EInvoice', [
-                    'form_params' => [
-                        'EIC' => $eic
-                    ],
+                error_log("All POST endpoints failed, trying GET $apiBase/EInvoice/$eic");
+                $response = $client->get($apiBase . '/EInvoice/' . $eic, [
                     'headers' => [
                         'Authorization' => 'Bearer ' . $token,
                         'tenant' => $tenant,
