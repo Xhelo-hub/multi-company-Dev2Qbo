@@ -178,7 +178,47 @@ use GuzzleHttp\Client;
                 try {
                     error_log("[$progress] Syncing invoice $invoiceId to QuickBooks...");
                     
-                    // Sync to QuickBooks
+                    // Fetch detailed invoice info to get currency (list API doesn't include it)
+                    $eic = $invoice['eic'] ?? $invoice['EIC'] ?? null;
+                    $currentCurrency = 'ALL'; // Default
+                    $exchangeRate = null;
+                    
+                    if ($eic) {
+                        $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
+                        if ($detailedInvoice) {
+                            // Extract currency from detailed invoice
+                            $currentCurrency = $detailedInvoice['currencyCode'] 
+                                ?? $detailedInvoice['currency'] 
+                                ?? $detailedInvoice['Currency'] 
+                                ?? $detailedInvoice['CurrencyCode']
+                                ?? 'ALL';
+                            
+                            // Extract exchange rate
+                            $exchangeRate = $detailedInvoice['exchangeRate'] 
+                                ?? $detailedInvoice['ExchangeRate']
+                                ?? $detailedInvoice['rate']
+                                ?? null;
+                            
+                            error_log("[$progress] Fetched detailed invoice - Currency: $currentCurrency, ExchangeRate: " . ($exchangeRate ?? 'NULL'));
+                        } else {
+                            error_log("[$progress] Could not fetch detailed invoice for EIC: $eic, using default currency ALL");
+                        }
+                    }
+                    
+                    // Enrich invoice data with currency and exchange rate from detailed invoice
+                    if ($currentCurrency !== 'ALL') {
+                        $invoice['currencyCode'] = $currentCurrency;
+                        if ($exchangeRate) {
+                            $invoice['exchangeRate'] = $exchangeRate;
+                        }
+                    }
+                    
+                    // Log invoice currency summary
+                    $docNumber = $invoice['documentNumber'] ?? $invoiceId;
+                    $currentAmount = (float)($invoice['totalAmount'] ?? $invoice['amount'] ?? 0);
+                    error_log("[$progress] Invoice $docNumber - Currency: $currentCurrency, Amount: $currentAmount");
+                    
+                    // Sync to QuickBooks with enriched currency data
                     $this->syncInvoiceToQBO($invoice, $qboCreds, $companyId);
                     $synced++;
                     
