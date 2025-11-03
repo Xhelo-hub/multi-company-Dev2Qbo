@@ -212,11 +212,41 @@ use GuzzleHttp\Client;
                         error_log("[$progress] Currency not in list API, fetching detailed invoice for EIC: $eic");
                         $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
                         if ($detailedInvoice) {
-                            // Extract currency from detailed invoice
+                            // DEBUG: Log ALL fields from detailed invoice to identify currency field names
+                            error_log("[$progress] === DETAILED INVOICE FIELDS ===");
+                            error_log("[$progress] Available fields: " . implode(', ', array_keys($detailedInvoice)));
+                            
+                            // Log all potential currency-related fields
+                            $currencyFields = array_filter($detailedInvoice, function($key) {
+                                return stripos($key, 'currency') !== false || 
+                                       stripos($key, 'monedh') !== false || 
+                                       stripos($key, 'exchange') !== false ||
+                                       stripos($key, 'rate') !== false ||
+                                       stripos($key, 'tvsh') !== false ||
+                                       stripos($key, 'vat') !== false;
+                            }, ARRAY_FILTER_USE_KEY);
+                            
+                            if (!empty($currencyFields)) {
+                                error_log("[$progress] Currency-related fields found: " . json_encode($currencyFields, JSON_UNESCAPED_UNICODE));
+                            }
+                            error_log("[$progress] ================================");
+                            
+                            // Extract invoice currency (Monedha e faturës)
                             $currentCurrency = $detailedInvoice['currencyCode'] 
                                 ?? $detailedInvoice['currency'] 
                                 ?? $detailedInvoice['Currency'] 
                                 ?? $detailedInvoice['CurrencyCode']
+                                ?? $detailedInvoice['monedha']
+                                ?? $detailedInvoice['Monedha']
+                                ?? null;
+                            
+                            // Extract VAT calculation currency (Monedha e llogaritjes së TVSH-së)
+                            $vatCurrency = $detailedInvoice['vatCurrency']
+                                ?? $detailedInvoice['VATCurrency']
+                                ?? $detailedInvoice['baseCurrency']
+                                ?? $detailedInvoice['BaseCurrency']
+                                ?? $detailedInvoice['tvshCurrency']
+                                ?? $detailedInvoice['TVSHCurrency']
                                 ?? null;
                             
                             // Extract exchange rate
@@ -224,6 +254,7 @@ use GuzzleHttp\Client;
                                 $exchangeRate = $detailedInvoice['exchangeRate'] 
                                     ?? $detailedInvoice['ExchangeRate']
                                     ?? $detailedInvoice['rate']
+                                    ?? $detailedInvoice['Rate']
                                     ?? null;
                             }
                             
@@ -236,7 +267,12 @@ use GuzzleHttp\Client;
                                     ?? null;
                             }
                             
-                            error_log("[$progress] Fetched detailed invoice - Currency: " . ($currentCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL') . ", AmountInALL: " . ($amountInHomeCurrency ?? 'NULL'));
+                            error_log("[$progress] Fetched detailed invoice - InvoiceCurrency: " . ($currentCurrency ?? 'NOT FOUND') . ", VATCurrency: " . ($vatCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL') . ", AmountInALL: " . ($amountInHomeCurrency ?? 'NULL'));
+                            
+                            // Store VAT currency for later use
+                            if ($vatCurrency) {
+                                $invoice['vatCurrency'] = $vatCurrency;
+                            }
                         } else {
                             error_log("[$progress] Could not fetch detailed invoice for EIC: $eic");
                         }
@@ -460,11 +496,41 @@ use GuzzleHttp\Client;
                         error_log("[$progress] Currency not in list API, fetching detailed invoice for EIC: $eic");
                         $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
                         if ($detailedInvoice) {
-                            // Extract currency from detailed invoice
+                            // DEBUG: Log ALL fields from detailed invoice to identify currency field names
+                            error_log("[$progress] === DETAILED BILL FIELDS ===");
+                            error_log("[$progress] Available fields: " . implode(', ', array_keys($detailedInvoice)));
+                            
+                            // Log all potential currency-related fields
+                            $currencyFields = array_filter($detailedInvoice, function($key) {
+                                return stripos($key, 'currency') !== false || 
+                                       stripos($key, 'monedh') !== false || 
+                                       stripos($key, 'exchange') !== false ||
+                                       stripos($key, 'rate') !== false ||
+                                       stripos($key, 'tvsh') !== false ||
+                                       stripos($key, 'vat') !== false;
+                            }, ARRAY_FILTER_USE_KEY);
+                            
+                            if (!empty($currencyFields)) {
+                                error_log("[$progress] Currency-related fields found: " . json_encode($currencyFields, JSON_UNESCAPED_UNICODE));
+                            }
+                            error_log("[$progress] ================================");
+                            
+                            // Extract invoice currency (Monedha e faturës)
                             $currentCurrency = $detailedInvoice['currencyCode'] 
                                 ?? $detailedInvoice['currency'] 
                                 ?? $detailedInvoice['Currency'] 
                                 ?? $detailedInvoice['CurrencyCode']
+                                ?? $detailedInvoice['monedha']
+                                ?? $detailedInvoice['Monedha']
+                                ?? null;
+                            
+                            // Extract VAT calculation currency (Monedha e llogaritjes së TVSH-së)
+                            $vatCurrency = $detailedInvoice['vatCurrency']
+                                ?? $detailedInvoice['VATCurrency']
+                                ?? $detailedInvoice['baseCurrency']
+                                ?? $detailedInvoice['BaseCurrency']
+                                ?? $detailedInvoice['tvshCurrency']
+                                ?? $detailedInvoice['TVSHCurrency']
                                 ?? null;
                             
                             // Extract exchange rate if available
@@ -472,10 +538,16 @@ use GuzzleHttp\Client;
                                 $exchangeRate = $detailedInvoice['exchangeRate'] 
                                     ?? $detailedInvoice['ExchangeRate']
                                     ?? $detailedInvoice['rate']
+                                    ?? $detailedInvoice['Rate']
                                     ?? null;
                             }
                             
-                            error_log("[$progress] Fetched detailed invoice - Currency: " . ($currentCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL'));
+                            error_log("[$progress] Fetched detailed invoice - InvoiceCurrency: " . ($currentCurrency ?? 'NOT FOUND') . ", VATCurrency: " . ($vatCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL'));
+                            
+                            // Store VAT currency for later use
+                            if ($vatCurrency) {
+                                $bill['vatCurrency'] = $vatCurrency;
+                            }
                         } else {
                             error_log("[$progress] Could not fetch detailed invoice for EIC: $eic");
                         }
@@ -548,7 +620,8 @@ use GuzzleHttp\Client;
                                         $result['Bill']['DocNumber'] ?? '',
                                         $currentAmount,
                                         $bill['sellerName'] ?? '',
-                                        $currentCurrency
+                                        $currentCurrency,
+                                        $bill['vatCurrency'] ?? null
                                     );
                                 }
                                 
@@ -954,7 +1027,8 @@ use GuzzleHttp\Client;
                                 $result['Invoice']['DocNumber'] ?? '',
                                 $currentAmount,
                                 $invoice['buyerName'] ?? '',
-                                $currentCurrency
+                                $currentCurrency,
+                                $invoice['vatCurrency'] ?? null
                             );
                         }
                         
@@ -996,7 +1070,8 @@ use GuzzleHttp\Client;
                         $result['Invoice']['DocNumber'] ?? '',
                         $currentAmount,
                         $invoice['buyerName'] ?? '',
-                        $currentCurrency
+                        $currentCurrency,
+                        $invoice['vatCurrency'] ?? null
                     );
                     
                     // Attach PDF if available
@@ -1513,7 +1588,8 @@ use GuzzleHttp\Client;
                     $result['Bill']['DocNumber'] ?? '',
                     (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0),
                     $bill['sellerName'] ?? '',
-                    $finalCurrency
+                    $finalCurrency,
+                    $bill['vatCurrency'] ?? null
                 );
                 
                 // Attach PDF if available
@@ -1747,10 +1823,14 @@ use GuzzleHttp\Client;
             string $qboDocNumber = '',
             float $amount = 0,
             string $vendorName = '',
-            string $currency = 'ALL'
+            string $currency = 'ALL',
+            string $vatCurrency = null
         ): void {
+            // If VAT currency not provided, default to same as invoice currency
+            $vatCurrency = $vatCurrency ?? $currency;
+            
             $compositeKey = $docNumber . '|' . $vendorNuis;
-            error_log("Storing bill mapping - Company: $companyId, CompositeKey: $compositeKey, QBO_ID: $qboId, Amount: $amount, Currency: $currency");
+            error_log("Storing bill mapping - Company: $companyId, CompositeKey: $compositeKey, QBO_ID: $qboId, Amount: $amount, InvoiceCurrency: $currency, VATCurrency: $vatCurrency");
             
             $stmt = $this->pdo->prepare("
                 INSERT INTO invoice_mappings (
@@ -1762,16 +1842,18 @@ use GuzzleHttp\Client;
                     qbo_doc_number,
                     amount,
                     currency,
+                    vat_currency,
                     customer_name,
                     synced_at,
                     last_synced_at
                 )
-                VALUES (?, ?, ?, 'bill', ?, ?, ?, ?, ?, NOW(), NOW())
+                VALUES (?, ?, ?, 'bill', ?, ?, ?, ?, ?, ?, NOW(), NOW())
                 ON DUPLICATE KEY UPDATE 
                     qbo_invoice_id = ?, 
                     qbo_doc_number = ?,
                     amount = ?,
                     currency = ?,
+                    vat_currency = ?,
                     customer_name = ?,
                     last_synced_at = NOW()
             ");
@@ -1783,11 +1865,13 @@ use GuzzleHttp\Client;
                 $qboDocNumber,
                 $amount,
                 $currency,
+                $vatCurrency,
                 $vendorName,
                 $qboId,
                 $qboDocNumber,
                 $amount,
                 $currency,
+                $vatCurrency,
                 $vendorName
             ]);
         }
@@ -1985,8 +2069,12 @@ use GuzzleHttp\Client;
             string $qboDocNumber = '',
             float $amount = 0,
             string $customerName = '',
-            string $currency = 'ALL'
+            string $currency = 'ALL',
+            string $vatCurrency = null
         ): void {
+            // If VAT currency not provided, default to same as invoice currency
+            $vatCurrency = $vatCurrency ?? $currency;
+            
             $stmt = $this->pdo->prepare("
                 INSERT INTO invoice_mappings (
                     company_id, 
@@ -1997,16 +2085,18 @@ use GuzzleHttp\Client;
                     qbo_doc_number,
                     amount,
                     currency,
+                    vat_currency,
                     customer_name,
                     synced_at,
                     last_synced_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
                 ON DUPLICATE KEY UPDATE 
                     qbo_invoice_id = ?, 
                     qbo_doc_number = ?,
                     amount = ?,
                     currency = ?,
+                    vat_currency = ?,
                     customer_name = ?,
                     last_synced_at = NOW()
             ");
@@ -2019,6 +2109,7 @@ use GuzzleHttp\Client;
                 $qboDocNumber,
                 $amount,
                 $currency,
+                $vatCurrency,
                 $customerName,
                 $qboId,
                 $qboDocNumber,
