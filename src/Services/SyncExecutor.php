@@ -187,13 +187,29 @@ use GuzzleHttp\Client;
                         continue;
                     }
                     
-                    // Fetch detailed invoice info to get currency (list API doesn't include it)
+                    // Check if currency is already in the list API response
                     $eic = $invoice['eic'] ?? $invoice['EIC'] ?? null;
-                    $currentCurrency = 'ALL'; // Default
-                    $exchangeRate = null;
-                    $amountInHomeCurrency = null;
                     
-                    if ($eic) {
+                    $currentCurrency = $invoice['currencyCode'] 
+                        ?? $invoice['currency'] 
+                        ?? $invoice['Currency'] 
+                        ?? $invoice['CurrencyCode']
+                        ?? null;
+                    
+                    $exchangeRate = $invoice['exchangeRate'] 
+                        ?? $invoice['ExchangeRate']
+                        ?? $invoice['rate']
+                        ?? null;
+                    
+                    $amountInHomeCurrency = $invoice['amountInBaseCurrency']
+                        ?? $invoice['amountInHomeCurrency']
+                        ?? $invoice['convertedAmount']
+                        ?? $invoice['totalInBaseCurrency']
+                        ?? null;
+                    
+                    // If currency not in list response, fetch detailed invoice info
+                    if (!$currentCurrency && $eic) {
+                        error_log("[$progress] Currency not in list API, fetching detailed invoice for EIC: $eic");
                         $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
                         if ($detailedInvoice) {
                             // Extract currency from detailed invoice
@@ -201,25 +217,37 @@ use GuzzleHttp\Client;
                                 ?? $detailedInvoice['currency'] 
                                 ?? $detailedInvoice['Currency'] 
                                 ?? $detailedInvoice['CurrencyCode']
-                                ?? 'ALL';
+                                ?? null;
                             
                             // Extract exchange rate
-                            $exchangeRate = $detailedInvoice['exchangeRate'] 
-                                ?? $detailedInvoice['ExchangeRate']
-                                ?? $detailedInvoice['rate']
-                                ?? null;
+                            if (!$exchangeRate) {
+                                $exchangeRate = $detailedInvoice['exchangeRate'] 
+                                    ?? $detailedInvoice['ExchangeRate']
+                                    ?? $detailedInvoice['rate']
+                                    ?? null;
+                            }
                             
                             // Extract home currency amount (converted ALL amount)
-                            $amountInHomeCurrency = $detailedInvoice['amountInBaseCurrency']
-                                ?? $detailedInvoice['amountInHomeCurrency']
-                                ?? $detailedInvoice['convertedAmount']
-                                ?? $detailedInvoice['totalInBaseCurrency']
-                                ?? null;
+                            if (!$amountInHomeCurrency) {
+                                $amountInHomeCurrency = $detailedInvoice['amountInBaseCurrency']
+                                    ?? $detailedInvoice['amountInHomeCurrency']
+                                    ?? $detailedInvoice['convertedAmount']
+                                    ?? $detailedInvoice['totalInBaseCurrency']
+                                    ?? null;
+                            }
                             
-                            error_log("[$progress] Fetched detailed invoice - Currency: $currentCurrency, ExchangeRate: " . ($exchangeRate ?? 'NULL') . ", AmountInALL: " . ($amountInHomeCurrency ?? 'NULL'));
+                            error_log("[$progress] Fetched detailed invoice - Currency: " . ($currentCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL') . ", AmountInALL: " . ($amountInHomeCurrency ?? 'NULL'));
                         } else {
-                            error_log("[$progress] Could not fetch detailed invoice for EIC: $eic, using default currency ALL");
+                            error_log("[$progress] Could not fetch detailed invoice for EIC: $eic");
                         }
+                    } else if ($currentCurrency) {
+                        error_log("[$progress] Currency found in list API response: $currentCurrency");
+                    }
+                    
+                    // Default to ALL if still not found
+                    if (!$currentCurrency) {
+                        $currentCurrency = 'ALL';
+                        error_log("[$progress] No currency found, defaulting to ALL");
                     }
                     
                     // Enrich invoice data with currency and exchange rate from detailed invoice
@@ -415,11 +443,21 @@ use GuzzleHttp\Client;
                     // Get current bill data for comparison
                     $currentAmount = (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0);
                     
-                    // Fetch detailed invoice info to get currency (list API doesn't include it)
-                    $currentCurrency = 'ALL'; // Default
-                    $exchangeRate = null;
+                    // Check if currency is already in the list API response
+                    $currentCurrency = $bill['currencyCode'] 
+                        ?? $bill['currency'] 
+                        ?? $bill['Currency'] 
+                        ?? $bill['CurrencyCode']
+                        ?? null;
                     
-                    if ($eic) {
+                    $exchangeRate = $bill['exchangeRate'] 
+                        ?? $bill['ExchangeRate']
+                        ?? $bill['rate']
+                        ?? null;
+                    
+                    // If currency not in list response, fetch detailed invoice info
+                    if (!$currentCurrency && $eic) {
+                        error_log("[$progress] Currency not in list API, fetching detailed invoice for EIC: $eic");
                         $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
                         if ($detailedInvoice) {
                             // Extract currency from detailed invoice
@@ -427,18 +465,28 @@ use GuzzleHttp\Client;
                                 ?? $detailedInvoice['currency'] 
                                 ?? $detailedInvoice['Currency'] 
                                 ?? $detailedInvoice['CurrencyCode']
-                                ?? 'ALL';
-                            
-                            // Extract exchange rate if available
-                            $exchangeRate = $detailedInvoice['exchangeRate'] 
-                                ?? $detailedInvoice['ExchangeRate']
-                                ?? $detailedInvoice['rate']
                                 ?? null;
                             
-                            error_log("[$progress] Fetched detailed invoice - Currency: $currentCurrency, ExchangeRate: " . ($exchangeRate ?? 'NULL'));
+                            // Extract exchange rate if available
+                            if (!$exchangeRate) {
+                                $exchangeRate = $detailedInvoice['exchangeRate'] 
+                                    ?? $detailedInvoice['ExchangeRate']
+                                    ?? $detailedInvoice['rate']
+                                    ?? null;
+                            }
+                            
+                            error_log("[$progress] Fetched detailed invoice - Currency: " . ($currentCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL'));
                         } else {
-                            error_log("[$progress] Could not fetch detailed invoice for EIC: $eic, using default currency ALL");
+                            error_log("[$progress] Could not fetch detailed invoice for EIC: $eic");
                         }
+                    } else if ($currentCurrency) {
+                        error_log("[$progress] Currency found in list API response: $currentCurrency");
+                    }
+                    
+                    // Default to ALL if still not found
+                    if (!$currentCurrency) {
+                        $currentCurrency = 'ALL';
+                        error_log("[$progress] No currency found, defaulting to ALL");
                     }
                     
                     error_log("[$progress] Bill $docNumber - Currency: $currentCurrency, Amount: $currentAmount");
