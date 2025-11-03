@@ -1151,6 +1151,17 @@ use GuzzleHttp\Client;
                 } else {
                     error_log("  ⚠️  WARNING: Foreign currency but no exchange rate!");
                 }
+                // Add original and converted amounts to PrivateNote for traceability
+                try {
+                    if ($exchangeRate && $exchangeRate > 0) {
+                        $converted = round($totalWithVat * (float)$exchangeRate, 2);
+                        $payload['PrivateNote'] = "Original Amount: {$totalWithVat} {$finalCurrency}; Converted Amount: {$converted} ALL (Rate: {$exchangeRate})";
+                    } else {
+                        $payload['PrivateNote'] = "Original Amount: {$totalWithVat} {$finalCurrency}; ExchangeRate: not provided";
+                    }
+                } catch (Exception $e) {
+                    error_log("Warning: Failed to generate PrivateNote for invoice currency details: " . $e->getMessage());
+                }
             } else {
                 error_log("  Home currency (ALL) - no CurrencyRef needed");
             }
@@ -1606,6 +1617,18 @@ use GuzzleHttp\Client;
                     error_log("Bill exchange rate: 1 $currency = $exchangeRate ALL");
                 } else {
                     error_log("WARNING: Foreign currency bill ($currency) but no exchange rate provided!");
+                }
+                // Add original and converted amounts to a private note for traceability
+                try {
+                    if ($exchangeRate && $exchangeRate > 0) {
+                        $converted = round($amount * (float)$exchangeRate, 2);
+                        $payload['PrivateNote'] = "Original Amount: {$amount} {$currency}; Converted Amount: {$converted} ALL (Rate: {$exchangeRate})";
+                    } else {
+                        $payload['PrivateNote'] = "Original Amount: {$amount} {$currency}; ExchangeRate: not provided";
+                    }
+                } catch (Exception $e) {
+                    // Non-fatal - don't block bill creation
+                    error_log("Warning: Failed to generate PrivateNote for bill currency details: " . $e->getMessage());
                 }
             } else {
                 error_log("Home currency bill (ALL) - no CurrencyRef needed");
