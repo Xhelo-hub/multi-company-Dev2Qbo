@@ -35,66 +35,13 @@ class MultiCompanySyncService
     }
 
     /**
-     * Execute a sync job
+     * Execute a sync job using SyncExecutor
      */
     public function executeJob(int $jobId): array
     {
-        // Get job details
-        $stmt = $this->db->prepare("
-            SELECT * FROM sync_jobs WHERE id = ?
-        ");
-        $stmt->execute([$jobId]);
-        $job = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$job) {
-            throw new \Exception("Job not found: {$jobId}");
-        }
-
-        // Update status to running
-        $stmt = $this->db->prepare("
-            UPDATE sync_jobs 
-            SET status = 'running', started_at = NOW() 
-            WHERE id = ?
-        ");
-        $stmt->execute([$jobId]);
-
-        try {
-            // Get company with credentials
-            $company = $this->companyService->getCompanyWithCredentials((int)$job['company_id']);
-
-            // Set company-specific environment
-            $this->setCompanyEnvironment($company);
-
-            // Execute appropriate sync
-            $result = match ($job['job_type']) {
-                'sales' => $this->executeSalesSync($company, $job['from_date'], $job['to_date']),
-                'purchases' => $this->executePurchasesSync($company, $job['from_date'], $job['to_date']),
-                'bills' => $this->executeBillsSync($company, $job['from_date'], $job['to_date']),
-                'full' => $this->executeFullSync($company, $job['from_date'], $job['to_date']),
-                default => throw new \Exception("Unknown job type: {$job['job_type']}")
-            };
-
-            // Update job as completed
-            $stmt = $this->db->prepare("
-                UPDATE sync_jobs 
-                SET status = 'completed', completed_at = NOW(), results_json = ? 
-                WHERE id = ?
-            ");
-            $stmt->execute([json_encode($result), $jobId]);
-
-            return ['success' => true, 'job_id' => $jobId, 'results' => $result];
-
-        } catch (\Throwable $e) {
-            // Update job as failed
-            $stmt = $this->db->prepare("
-                UPDATE sync_jobs 
-                SET status = 'failed', completed_at = NOW(), error_message = ? 
-                WHERE id = ?
-            ");
-            $stmt->execute([$e->getMessage(), $jobId]);
-
-            return ['success' => false, 'job_id' => $jobId, 'error' => $e->getMessage()];
-        }
+        // Use SyncExecutor which has the real sync logic
+        $executor = new SyncExecutor($this->db);
+        return $executor->executeJob($jobId);
     }
 
     /**

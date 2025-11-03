@@ -182,6 +182,7 @@ use GuzzleHttp\Client;
                     $eic = $invoice['eic'] ?? $invoice['EIC'] ?? null;
                     $currentCurrency = 'ALL'; // Default
                     $exchangeRate = null;
+                    $amountInHomeCurrency = null;
                     
                     if ($eic) {
                         $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
@@ -199,7 +200,14 @@ use GuzzleHttp\Client;
                                 ?? $detailedInvoice['rate']
                                 ?? null;
                             
-                            error_log("[$progress] Fetched detailed invoice - Currency: $currentCurrency, ExchangeRate: " . ($exchangeRate ?? 'NULL'));
+                            // Extract home currency amount (converted ALL amount)
+                            $amountInHomeCurrency = $detailedInvoice['amountInBaseCurrency']
+                                ?? $detailedInvoice['amountInHomeCurrency']
+                                ?? $detailedInvoice['convertedAmount']
+                                ?? $detailedInvoice['totalInBaseCurrency']
+                                ?? null;
+                            
+                            error_log("[$progress] Fetched detailed invoice - Currency: $currentCurrency, ExchangeRate: " . ($exchangeRate ?? 'NULL') . ", AmountInALL: " . ($amountInHomeCurrency ?? 'NULL'));
                         } else {
                             error_log("[$progress] Could not fetch detailed invoice for EIC: $eic, using default currency ALL");
                         }
@@ -211,12 +219,16 @@ use GuzzleHttp\Client;
                         if ($exchangeRate) {
                             $invoice['exchangeRate'] = $exchangeRate;
                         }
+                        if ($amountInHomeCurrency) {
+                            $invoice['amountInBaseCurrency'] = $amountInHomeCurrency;
+                        }
                     }
                     
                     // Log invoice currency summary
                     $docNumber = $invoice['documentNumber'] ?? $invoiceId;
                     $currentAmount = (float)($invoice['totalAmount'] ?? $invoice['amount'] ?? 0);
-                    error_log("[$progress] Invoice $docNumber - Currency: $currentCurrency, Amount: $currentAmount");
+                    $homeCurrencyLog = $amountInHomeCurrency ? " (ALL: " . number_format($amountInHomeCurrency, 2) . ")" : "";
+                    error_log("[$progress] Invoice $docNumber - Currency: $currentCurrency, Amount: $currentAmount$homeCurrencyLog");
                     
                     // Sync to QuickBooks with enriched currency data
                     $this->syncInvoiceToQBO($invoice, $qboCreds, $companyId);
