@@ -163,6 +163,7 @@ use GuzzleHttp\Client;
             error_log("Starting sales sync for company $companyId: $totalInvoices invoices to process");
             
             $synced = 0;
+            $skipped = 0;
             $errors = [];
             
             foreach ($invoices as $index => $invoice) {
@@ -177,6 +178,14 @@ use GuzzleHttp\Client;
                 
                 try {
                     error_log("[$progress] Syncing invoice $invoiceId to QuickBooks...");
+                    
+                    // Check invoice status - skip rejected invoices
+                    $invoiceStatus = strtolower($invoice['status'] ?? $invoice['Status'] ?? $invoice['state'] ?? $invoice['State'] ?? '');
+                    if (in_array($invoiceStatus, ['rejected', 'refuzuar', 'refuse', 'refused'])) {
+                        error_log("[$progress] Skipping invoice $invoiceId: Invoice status is '$invoiceStatus' (rejected)");
+                        $skipped++;
+                        continue;
+                    }
                     
                     // Fetch detailed invoice info to get currency (list API doesn't include it)
                     $eic = $invoice['eic'] ?? $invoice['EIC'] ?? null;
@@ -244,11 +253,12 @@ use GuzzleHttp\Client;
                 }
             }
             
-            error_log("Sales sync completed for company $companyId: $synced/$totalInvoices synced, " . count($errors) . " errors");
+            error_log("Sales sync completed for company $companyId: $synced/$totalInvoices synced, $skipped skipped, " . count($errors) . " errors");
             
             return [
                 'total' => count($invoices),
                 'synced' => $synced,
+                'skipped' => $skipped,
                 'errors' => count($errors),
                 'error_details' => $errors
             ];
@@ -379,6 +389,14 @@ use GuzzleHttp\Client;
                     $amount = (float)($bill['amount'] ?? $bill['total'] ?? $bill['totalAmount'] ?? 0);
                     if ($amount <= 0) {
                         error_log("[$progress] Skipping bill $billId: Invalid amount");
+                        $skipped++;
+                        continue;
+                    }
+                    
+                    // Check bill status - skip rejected bills
+                    $billStatus = strtolower($bill['status'] ?? $bill['Status'] ?? $bill['state'] ?? $bill['State'] ?? '');
+                    if (in_array($billStatus, ['rejected', 'refuzuar', 'refuse', 'refused'])) {
+                        error_log("[$progress] Skipping bill $billId: Bill status is '$billStatus' (rejected)");
                         $skipped++;
                         continue;
                     }
