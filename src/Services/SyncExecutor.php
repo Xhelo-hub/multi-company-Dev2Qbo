@@ -434,10 +434,12 @@ use GuzzleHttp\Client;
                     }
                     
                     // Check if bill already exists in mapping
+                    error_log("[$progress] Checking for existing bill mapping - DocNumber: $docNumber, VendorNuis: $vendorNuis, CompositeKey: " . ($docNumber . '|' . $vendorNuis));
                     $existingMapping = $this->getBillMapping($companyId, $docNumber, $vendorNuis);
                     
                     if ($existingMapping) {
                         $existingBillId = $existingMapping['qbo_invoice_id'];
+                        error_log("[$progress] ✓ Found existing mapping - QBO Bill ID: $existingBillId, StoredAmount: {$existingMapping['amount']}, StoredCurrency: {$existingMapping['currency']}");
                         
                         // Verify it actually exists in QuickBooks
                         $billExistsInQBO = $this->verifyBillExistsInQBO($existingBillId, $qboCreds);
@@ -489,14 +491,16 @@ use GuzzleHttp\Client;
                                 continue;
                             } else {
                                 // No changes, skip
-                                error_log("[$progress] Bill $docNumber unchanged, skipping");
+                                error_log("[$progress] Bill $docNumber unchanged (Amount: $currentAmount, Currency: $currentCurrency), skipping");
                                 $skipped++;
                                 continue;
                             }
                         }
+                    } else {
+                        error_log("[$progress] No existing mapping found for bill $docNumber, will create new");
                     }
                     
-                    error_log("[$progress] Creating bill $billId in QuickBooks...");
+                    error_log("[$progress] Creating NEW bill $billId in QuickBooks...");
                     
                     // DEBUG: Log all bill fields to identify date field
                     error_log("[$progress] Bill fields: " . json_encode(array_keys($bill)));
@@ -1680,6 +1684,7 @@ use GuzzleHttp\Client;
             string $currency = 'ALL'
         ): void {
             $compositeKey = $docNumber . '|' . $vendorNuis;
+            error_log("Storing bill mapping - Company: $companyId, CompositeKey: $compositeKey, QBO_ID: $qboId, Amount: $amount, Currency: $currency");
             
             $stmt = $this->pdo->prepare("
                 INSERT INTO invoice_mappings (
