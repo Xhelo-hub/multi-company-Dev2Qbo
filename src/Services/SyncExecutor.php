@@ -180,7 +180,7 @@ use GuzzleHttp\Client;
                     error_log("[$progress] Syncing invoice $invoiceId to QuickBooks...");
                     
                     // Check invoice status - skip rejected invoices
-                    $invoiceStatus = strtolower($invoice['status'] ?? $invoice['Status'] ?? $invoice['state'] ?? $invoice['State'] ?? '');
+                    $invoiceStatus = strtolower($invoice['invoiceStatus'] ?? $invoice['InvoiceStatus'] ?? $invoice['status'] ?? $invoice['Status'] ?? $invoice['state'] ?? $invoice['State'] ?? '');
                     if (in_array($invoiceStatus, ['rejected', 'refuzuar', 'refuse', 'refused'])) {
                         error_log("[$progress] Skipping invoice $invoiceId: Invoice status is '$invoiceStatus' (rejected)");
                         $skipped++;
@@ -394,7 +394,7 @@ use GuzzleHttp\Client;
                     }
                     
                     // Check bill status - skip rejected bills
-                    $billStatus = strtolower($bill['status'] ?? $bill['Status'] ?? $bill['state'] ?? $bill['State'] ?? '');
+                    $billStatus = strtolower($bill['invoiceStatus'] ?? $bill['InvoiceStatus'] ?? $bill['status'] ?? $bill['Status'] ?? $bill['state'] ?? $bill['State'] ?? '');
                     if (in_array($billStatus, ['rejected', 'refuzuar', 'refuse', 'refused'])) {
                         error_log("[$progress] Skipping bill $billId: Bill status is '$billStatus' (rejected)");
                         $skipped++;
