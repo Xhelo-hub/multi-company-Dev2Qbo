@@ -1208,6 +1208,12 @@ use GuzzleHttp\Client;
             error_log("  ➜ Customer ID: $customerId");
             error_log("==================================");
 
+            // STEP 3: Get valid income item from QuickBooks
+            error_log("=== STEP 3: INCOME ITEM SELECTION ===");
+            $incomeItemId = $this->getCurrencyIncomeItem('ALL', $qboCreds, $companyId);
+            error_log("  ➜ Income Item ID: $incomeItemId");
+            error_log("====================================");
+            
             // Note: Income items are always in home currency (ALL)
             // QuickBooks handles multi-currency through CurrencyRef + ExchangeRate on the transaction
             
@@ -1224,7 +1230,7 @@ use GuzzleHttp\Client;
                             'DetailType' => 'SalesItemLineDetail',
                             'SalesItemLineDetail' => [
                                 'ItemRef' => [
-                                    'value' => '1', // Default item - always home currency
+                                    'value' => $incomeItemId, // Query from QuickBooks
                                     'name' => 'Services'
                                 ],
                                 'UnitPrice' => $totalWithVat,
@@ -1251,7 +1257,7 @@ use GuzzleHttp\Client;
                             'DetailType' => 'SalesItemLineDetail',
                             'SalesItemLineDetail' => [
                                 'ItemRef' => [
-                                    'value' => '1', // Default item - always home currency
+                                    'value' => $incomeItemId, // Query from QuickBooks
                                     'name' => 'Services'
                                 ],
                                 'UnitPrice' => $totalWithVat,
@@ -2517,11 +2523,6 @@ use GuzzleHttp\Client;
          */
         private function getCurrencyIncomeItem(string $currency, array $qboCreds, int $companyId): string
         {
-            // For home currency, use default item
-            if ($currency === 'ALL') {
-                return '1'; // Default item
-            }
-            
             // Check cache first (in-memory for this request)
             static $itemCache = [];
             $cacheKey = $companyId . '_' . $currency;
@@ -2564,16 +2565,30 @@ use GuzzleHttp\Client;
                             return $itemId;
                         }
                     }
+                    
+                    // Fallback: Use first available service item
+                    $firstItem = $data['QueryResponse']['Item'][0];
+                    $itemId = $firstItem['Id'];
+                    $itemCache[$cacheKey] = $itemId;
+                    error_log("Using first available service item: {$firstItem['Name']} (ID: $itemId) for $currency");
+                    return $itemId;
                 }
                 
-                // Fallback: Use default item and log warning
-                error_log("WARNING: No currency-specific item found for $currency, using default item ID 1");
-                $itemCache[$cacheKey] = '1';
-                return '1';
+                // Ultimate fallback: Use configured default and log warning
+                $defaultItem = $_ENV['QBO_DEFAULT_INCOME_ITEM'] ?? '1';
+                error_log("WARNING: No service items found in QuickBooks, using configured default item ID $defaultItem");
+                $itemCache[$cacheKey] = $defaultItem;
+                return $defaultItem;
                 
             } catch (Exception $e) {
                 error_log("Error querying QBO items for currency $currency: " . $e->getMessage());
-                return '1'; // Fallback to default
+                // Try to return first cached item if we have any
+                if (!empty($itemCache)) {
+                    $firstCached = reset($itemCache);
+                    error_log("Using cached item ID $firstCached as fallback");
+                    return $firstCached;
+                }
+                return $_ENV['QBO_DEFAULT_INCOME_ITEM'] ?? '1';
             }
         }
         
