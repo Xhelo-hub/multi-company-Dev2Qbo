@@ -152,27 +152,11 @@ $app->post('/api/companies/{id}/sync', function (Request $request, Response $res
         'api'
     );
     
-    // Execute job asynchronously in background to avoid timeouts
-    $scriptPath = __DIR__ . '/../execute-sync-job.php';
-    $phpBinary = PHP_BINARY;
-    $logFile = __DIR__ . '/../logs/sync-job-' . $jobId . '.log';
-    
-    // Ensure logs directory exists
-    @mkdir(dirname($logFile), 0755, true);
-    
-    // Execute in background
-    if (strncasecmp(PHP_OS, 'WIN', 3) == 0) {
-        // Windows
-        pclose(popen("start /B {$phpBinary} {$scriptPath} {$jobId} > {$logFile} 2>&1", "r"));
-    } else {
-        // Linux/Unix
-        exec("{$phpBinary} {$scriptPath} {$jobId} > {$logFile} 2>&1 &");
-    }
-    
+    // Job created with 'pending' status - will be picked up by background worker
     $response->getBody()->write(json_encode([
         'success' => true,
         'job_id' => $jobId,
-        'message' => 'Sync job started in background',
+        'message' => 'Sync job queued. A background worker will process it shortly.',
         'status' => 'Check job status via /api/companies/' . $args['id'] . '/jobs'
     ]));
     
@@ -1016,27 +1000,11 @@ $app->post('/api/sync/{companyId}/{type}', function (Request $request, Response 
     $stmt->execute([$companyId, $type, $fromDate, $toDate]);
     $jobId = $pdo->lastInsertId();
     
-    // Execute job asynchronously in background to avoid timeouts
-    $scriptPath = __DIR__ . '/../execute-sync-job.php';
-    $phpBinary = PHP_BINARY;
-    $logFile = __DIR__ . '/../logs/sync-job-' . $jobId . '.log';
-    
-    // Ensure logs directory exists
-    @mkdir(dirname($logFile), 0755, true);
-    
-    // Execute in background
-    if (strncasecmp(PHP_OS, 'WIN', 3) == 0) {
-        // Windows
-        pclose(popen("start /B {$phpBinary} {$scriptPath} {$jobId} > {$logFile} 2>&1", "r"));
-    } else {
-        // Linux/Unix
-        exec("{$phpBinary} {$scriptPath} {$jobId} > {$logFile} 2>&1 &");
-    }
-    
+    // Job created with 'pending' status - will be picked up by background worker
     $response->getBody()->write(json_encode([
         'success' => true,
         'job_id' => $jobId,
-        'message' => 'Sync job started in background. Check status in Recent Sync Jobs table.'
+        'message' => 'Sync job queued. A background worker will process it shortly. Check status in Recent Sync Jobs table.'
     ]));
     
     return $response->withHeader('Content-Type', 'application/json');
