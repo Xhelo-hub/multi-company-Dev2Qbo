@@ -1016,23 +1016,28 @@ $app->post('/api/sync/{companyId}/{type}', function (Request $request, Response 
     $stmt->execute([$companyId, $type, $fromDate, $toDate]);
     $jobId = $pdo->lastInsertId();
     
-    // Execute job immediately (for now - should be queued in production)
-    try {
-        $executor = new \App\Services\SyncExecutor($pdo);
-        $executor->executeJob((int)$jobId);
-        
-        $response->getBody()->write(json_encode([
-            'success' => true,
-            'job_id' => $jobId,
-            'message' => 'Sync job completed successfully!'
-        ]));
-    } catch (\Exception $e) {
-        $response->getBody()->write(json_encode([
-            'success' => false,
-            'job_id' => $jobId,
-            'message' => 'Sync job failed: ' . $e->getMessage()
-        ]));
+    // Execute job asynchronously in background to avoid timeouts
+    $scriptPath = __DIR__ . '/../execute-sync-job.php';
+    $phpBinary = PHP_BINARY;
+    $logFile = __DIR__ . '/../logs/sync-job-' . $jobId . '.log';
+    
+    // Ensure logs directory exists
+    @mkdir(dirname($logFile), 0755, true);
+    
+    // Execute in background
+    if (strncasecmp(PHP_OS, 'WIN', 3) == 0) {
+        // Windows
+        pclose(popen("start /B {$phpBinary} {$scriptPath} {$jobId} > {$logFile} 2>&1", "r"));
+    } else {
+        // Linux/Unix
+        exec("{$phpBinary} {$scriptPath} {$jobId} > {$logFile} 2>&1 &");
     }
+    
+    $response->getBody()->write(json_encode([
+        'success' => true,
+        'job_id' => $jobId,
+        'message' => 'Sync job started in background. Check status in Recent Sync Jobs table.'
+    ]));
     
     return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
