@@ -34,7 +34,6 @@ $stmt = $db->query("
         transaction_type,
         currency,
         vat_currency,
-        exchange_rate,
         amount,
         devpos_eic,
         qbo_id,
@@ -58,7 +57,6 @@ if (empty($bills)) {
         echo "   Transaction Type: {$bill['transaction_type']}\n";
         echo "   Currency: {$bill['currency']}\n";
         echo "   VAT Currency: {$bill['vat_currency']}\n";
-        echo "   Exchange Rate: " . ($bill['exchange_rate'] ?: 'NULL') . "\n";
         echo "   Amount: {$bill['amount']}\n";
         echo "   DevPos EIC: {$bill['devpos_eic']}\n";
         echo "   QBO ID: {$bill['qbo_id']}\n";
@@ -88,7 +86,6 @@ if ($eurCount['count'] > 0) {
             transaction_type,
             currency,
             vat_currency,
-            exchange_rate,
             amount
         FROM invoice_mappings 
         WHERE (currency = 'EUR' OR vat_currency = 'EUR')
@@ -97,7 +94,7 @@ if ($eurCount['count'] > 0) {
     ");
     $eurRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($eurRecords as $record) {
-        echo "   - {$record['devpos_document_number']}: {$record['currency']}/{$record['vat_currency']}, Rate: {$record['exchange_rate']}, Amount: {$record['amount']}\n";
+        echo "   - {$record['devpos_document_number']}: {$record['currency']}/{$record['vat_currency']}, Amount: {$record['amount']}\n";
     }
 }
 
@@ -137,7 +134,6 @@ if (!empty($bills)) {
         echo "✅ Bill 1308/2025 IS stored with EUR currency!\n";
         echo "   Currency: {$bill['currency']}\n";
         echo "   VAT Currency: {$bill['vat_currency']}\n";
-        echo "   Exchange Rate: " . ($bill['exchange_rate'] ?: 'NOT SET') . "\n";
     } else {
         echo "❌ Bill 1308/2025 is stored as: {$bill['currency']} / {$bill['vat_currency']}\n";
         echo "   This should be EUR according to DevPos!\n";
