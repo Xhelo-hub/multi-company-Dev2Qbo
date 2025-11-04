@@ -2583,11 +2583,6 @@ use GuzzleHttp\Client;
          */
         private function getCurrencyExpenseAccount(string $currency, array $qboCreds, int $companyId): string
         {
-            // For home currency, use default account
-            if ($currency === 'ALL') {
-                return $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1';
-            }
-            
             // Check cache first
             static $accountCache = [];
             $cacheKey = $companyId . '_' . $currency;
