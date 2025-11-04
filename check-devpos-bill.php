@@ -38,14 +38,29 @@ $billDocNumber = $argv[2];
 echo "🔍 Checking DevPos data for Bill: $billDocNumber (Company $companyId)\n\n";
 
 // Get DevPos credentials
-$stmt = $pdo->prepare("SELECT * FROM company_credentials_devpos WHERE company_id = ? LIMIT 1");
+$stmt = $pdo->prepare("SELECT tenant, username, password_encrypted FROM company_credentials_devpos WHERE company_id = ? LIMIT 1");
 $stmt->execute([$companyId]);
-$devposCreds = $stmt->fetch();
+$creds = $stmt->fetch();
 
-if (!$devposCreds) {
+if (!$creds) {
     echo "❌ No DevPos credentials found for company $companyId\n";
     exit(1);
 }
+
+// Decrypt password
+$password = openssl_decrypt(
+    $creds['password_encrypted'],
+    'AES-256-CBC',
+    $_ENV['ENCRYPTION_KEY'] ?? 'default-key',
+    0,
+    substr(hash('sha256', $_ENV['ENCRYPTION_KEY'] ?? 'default-key'), 0, 16)
+);
+
+$devposCreds = [
+    'tenant' => $creds['tenant'],
+    'username' => $creds['username'],
+    'password' => $password
+];
 
 try {
     $client = new Client(['timeout' => 30]);
