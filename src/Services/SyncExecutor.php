@@ -1182,19 +1182,22 @@ use GuzzleHttp\Client;
             
             $currencyCode = $devposInvoice['currencyCode'] ?? null;
             $currency = $devposInvoice['currency'] ?? null;
+            $vatCurrency = $devposInvoice['vatCurrency'] ?? null;  // VAT calculation currency - often the actual transaction currency
             $baseCurrency = $devposInvoice['baseCurrency'] ?? null;
             $exchangeRate = $devposInvoice['exchangeRate'] ?? null;
             $amountInBaseCurrency = $devposInvoice['amountInBaseCurrency'] ?? null;
             
             error_log("  currencyCode field: " . ($currencyCode ?? 'NOT SET'));
             error_log("  currency field: " . ($currency ?? 'NOT SET'));
+            error_log("  vatCurrency field: " . ($vatCurrency ?? 'NOT SET'));
             error_log("  baseCurrency field: " . ($baseCurrency ?? 'NOT SET'));
             error_log("  exchangeRate field: " . ($exchangeRate ?? 'NOT SET'));
             error_log("  totalAmount: $totalAmount");
             error_log("  amountInBaseCurrency: " . ($amountInBaseCurrency ?? 'NOT SET'));
             
-            $finalCurrency = $currencyCode ?? $currency ?? 'ALL';
-            error_log("  ➜ FINAL CURRENCY: $finalCurrency");
+            // Prioritize vatCurrency as it's the actual transaction currency in DevPos
+            $finalCurrency = $vatCurrency ?? $currencyCode ?? $currency ?? 'ALL';
+            error_log("  ➜ FINAL CURRENCY: $finalCurrency (source: " . ($vatCurrency ? 'vatCurrency' : ($currencyCode ? 'currencyCode' : ($currency ? 'currency' : 'default ALL'))) . ")");
             error_log("==========================================");
             
             // STEP 2: Get or create customer with currency
@@ -1512,6 +1515,7 @@ use GuzzleHttp\Client;
             // Check all possible currency fields
             $currencyCode = $bill['currencyCode'] ?? null;
             $currency = $bill['currency'] ?? null;
+            $vatCurrency = $bill['vatCurrency'] ?? null;  // VAT calculation currency - often the actual transaction currency
             $baseCurrency = $bill['baseCurrency'] ?? null;
             $exchangeRate = $bill['exchangeRate'] ?? null;
             $totalAmount = $bill['totalAmount'] ?? $bill['total'] ?? $bill['amount'] ?? null;
@@ -1519,14 +1523,15 @@ use GuzzleHttp\Client;
             
             error_log("  currencyCode field: " . ($currencyCode ?? 'NOT SET'));
             error_log("  currency field: " . ($currency ?? 'NOT SET'));
+            error_log("  vatCurrency field: " . ($vatCurrency ?? 'NOT SET'));
             error_log("  baseCurrency field: " . ($baseCurrency ?? 'NOT SET'));
             error_log("  exchangeRate field: " . ($exchangeRate ?? 'NOT SET'));
             error_log("  totalAmount: " . ($totalAmount ?? 'NOT SET'));
             error_log("  amountInBaseCurrency: " . ($amountInBaseCurrency ?? 'NOT SET'));
             
-            // Determine final currency
-            $finalCurrency = $currencyCode ?? $currency ?? 'ALL';
-            error_log("  ➜ FINAL CURRENCY: $finalCurrency");
+            // Determine final currency - prioritize vatCurrency as it's the actual transaction currency in DevPos
+            $finalCurrency = $vatCurrency ?? $currencyCode ?? $currency ?? 'ALL';
+            error_log("  ➜ FINAL CURRENCY: $finalCurrency (source: " . ($vatCurrency ? 'vatCurrency' : ($currencyCode ? 'currencyCode' : ($currency ? 'currency' : 'default ALL'))) . ")");
             error_log("=================================");
             
             // STEP 2: Get or create vendor with currency
@@ -1727,8 +1732,9 @@ use GuzzleHttp\Client;
             $txnDate = date('Y-m-d', strtotime($billDate));
             error_log("Bill date: " . $txnDate . " (from field value: " . ($billDate === 'now' ? 'MISSING' : $billDate) . ")");
             
-            // Get currency from bill - try all possible field names
-            $currency = $devposBill['currencyCode'] 
+            // Get currency from bill - try all possible field names, prioritizing vatCurrency
+            $currency = $devposBill['vatCurrency']        // PRIMARY - VAT calculation currency (actual transaction currency)
+                ?? $devposBill['currencyCode'] 
                 ?? $devposBill['currency'] 
                 ?? $devposBill['Currency']
                 ?? $devposBill['CurrencyCode']
@@ -1741,7 +1747,7 @@ use GuzzleHttp\Client;
                 ?? $devposBill['rate']
                 ?? null;
             
-            error_log("convertDevPosToQBOBill: Currency='$currency', ExchangeRate='" . ($exchangeRate ?? 'NULL') . "', Amount=$amount");
+            error_log("convertDevPosToQBOBill: Currency='$currency' (vatCurrency=" . ($devposBill['vatCurrency'] ?? 'not set') . "), ExchangeRate='" . ($exchangeRate ?? 'NULL') . "', Amount=$amount");
             
             // Note: Expense accounts are always in home currency (ALL)
             // QuickBooks handles multi-currency through CurrencyRef + ExchangeRate on the transaction
