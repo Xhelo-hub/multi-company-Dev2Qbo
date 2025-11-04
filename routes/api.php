@@ -23,32 +23,9 @@ $authMiddleware = new \App\Middleware\AuthMiddleware($pdo);
 $authRoutes = require __DIR__ . '/auth.php';
 $authRoutes($app);
 
-// Load email management routes (admin-only) - WITHOUT middleware for now to test
-error_log("About to load email routes...");
-try {
-    $emailRoutes = require __DIR__ . '/email.php';
-    if (!is_callable($emailRoutes)) {
-        error_log("ERROR: email.php did not return a callable function!");
-    } else {
-        error_log("Email routes loaded, calling with app and container...");
-        $emailRoutes($app, $container);
-        error_log("Email routes registered successfully!");
-        
-        // Debug: List all registered routes
-        $routeCollector = $app->getRouteCollector();
-        $routes = $routeCollector->getRoutes();
-        error_log("Total routes registered: " . count($routes));
-        foreach ($routes as $route) {
-            error_log("Route: " . $route->getPattern() . " [" . implode(',', $route->getMethods()) . "]");
-        }
-    }
-} catch (\Exception $e) {
-    error_log("EXCEPTION loading email routes: " . $e->getMessage());
-    error_log("Stack: " . $e->getTraceAsString());
-} catch (\Error $e) {
-    error_log("ERROR loading email routes: " . $e->getMessage());
-    error_log("Stack: " . $e->getTraceAsString());
-}
+// Load email management routes (admin-only)
+$emailRoutes = require __DIR__ . '/email.php';
+$emailRoutes($app, $container);
 
 // API Authentication Middleware (legacy API key auth)
 $apiKeyMiddleware = function (Request $request, $handler) {
