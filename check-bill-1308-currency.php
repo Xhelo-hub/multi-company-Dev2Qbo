@@ -36,10 +36,9 @@ $stmt = $db->query("
         vat_currency,
         amount,
         devpos_eic,
-        qbo_id,
-        sync_status,
-        created_at,
-        last_sync_at
+        qbo_invoice_id,
+        synced_at,
+        last_synced_at
     FROM invoice_mappings 
     WHERE devpos_document_number LIKE '%1308%' 
     AND company_id = 28
@@ -59,10 +58,9 @@ if (empty($bills)) {
         echo "   VAT Currency: {$bill['vat_currency']}\n";
         echo "   Amount: {$bill['amount']}\n";
         echo "   DevPos EIC: {$bill['devpos_eic']}\n";
-        echo "   QBO ID: {$bill['qbo_id']}\n";
-        echo "   Sync Status: {$bill['sync_status']}\n";
-        echo "   Created: {$bill['created_at']}\n";
-        echo "   Last Sync: " . ($bill['last_sync_at'] ?: 'Never') . "\n";
+        echo "   QBO Invoice ID: {$bill['qbo_invoice_id']}\n";
+        echo "   First Synced: {$bill['synced_at']}\n";
+        echo "   Last Synced: {$bill['last_synced_at']}\n";
         echo "   " . str_repeat('-', 60) . "\n";
     }
 }
@@ -101,9 +99,9 @@ if ($eurCount['count'] > 0) {
 // Check QuickBooks bill details
 echo "\n3. Checking if bill exists in QuickBooks:\n";
 $billMapping = $bills[0] ?? null;
-if ($billMapping && $billMapping['qbo_id']) {
-    echo "   QBO Bill ID: {$billMapping['qbo_id']}\n";
-    echo "   You can verify the currency in QuickBooks by checking bill #{$billMapping['qbo_id']}\n";
+if ($billMapping && $billMapping['qbo_invoice_id']) {
+    echo "   QBO Bill ID: {$billMapping['qbo_invoice_id']}\n";
+    echo "   You can verify the currency in QuickBooks by checking bill #{$billMapping['qbo_invoice_id']}\n";
 } else {
     echo "   ❌ No QuickBooks ID found - bill may not be synced yet\n";
 }
