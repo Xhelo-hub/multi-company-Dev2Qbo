@@ -1,7 +1,12 @@
 <?php
 /**
  * Execute sync job directly
+ * This script runs in background to avoid HTTP timeout issues
  */
+
+// Set unlimited execution time for long-running syncs
+set_time_limit(0);
+ini_set('memory_limit', '512M');
 
 require __DIR__ . '/vendor/autoload.php';
 
