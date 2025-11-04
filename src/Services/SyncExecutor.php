@@ -207,9 +207,10 @@ use GuzzleHttp\Client;
                         ?? $invoice['totalInBaseCurrency']
                         ?? null;
                     
-                    // If currency not in list response, fetch detailed invoice info
-                    if (!$currentCurrency && $eic) {
-                        error_log("[$progress] Currency not in list API, fetching detailed invoice for EIC: $eic");
+                    // ALWAYS fetch detailed invoice for accurate vatCurrency
+                    // The list API often returns "ALL" as default even for foreign currency invoices
+                    if ($eic) {
+                        error_log("[$progress] Fetching detailed invoice for accurate currency (EIC: $eic)");
                         $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
                         if ($detailedInvoice) {
                             // DEBUG: Log ALL fields from detailed invoice to identify currency field names
@@ -269,9 +270,16 @@ use GuzzleHttp\Client;
                             
                             error_log("[$progress] Fetched detailed invoice - InvoiceCurrency: " . ($currentCurrency ?? 'NOT FOUND') . ", VATCurrency: " . ($vatCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL') . ", AmountInALL: " . ($amountInHomeCurrency ?? 'NULL'));
                             
-                            // Store VAT currency for later use
+                            // Store VAT currency for later use and override list API currency if accurate vatCurrency available
                             if ($vatCurrency) {
                                 $invoice['vatCurrency'] = $vatCurrency;
+                                
+                                // Override the list API currency with accurate vatCurrency from detailed invoice
+                                // This fixes the issue where list API returns "ALL" for foreign currency invoices
+                                if ($currentCurrency !== $vatCurrency) {
+                                    error_log("[$progress] Overriding list API currency '$currentCurrency' with accurate vatCurrency: $vatCurrency");
+                                    $currentCurrency = $vatCurrency;
+                                }
                             }
                         } else {
                             error_log("[$progress] Could not fetch detailed invoice for EIC: $eic");
@@ -491,9 +499,10 @@ use GuzzleHttp\Client;
                         ?? $bill['rate']
                         ?? null;
                     
-                    // If currency not in list response, fetch detailed invoice info
-                    if (!$currentCurrency && $eic) {
-                        error_log("[$progress] Currency not in list API, fetching detailed invoice for EIC: $eic");
+                    // ALWAYS fetch detailed invoice for bills to get accurate vatCurrency
+                    // The list API often returns "ALL" as default even for foreign currency bills
+                    if ($eic) {
+                        error_log("[$progress] Fetching detailed invoice for accurate currency (EIC: $eic)");
                         $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
                         if ($detailedInvoice) {
                             // DEBUG: Log ALL fields from detailed invoice to identify currency field names
@@ -544,15 +553,24 @@ use GuzzleHttp\Client;
                             
                             error_log("[$progress] Fetched detailed invoice - InvoiceCurrency: " . ($currentCurrency ?? 'NOT FOUND') . ", VATCurrency: " . ($vatCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL'));
                             
-                            // Store VAT currency for later use
+                            // Store VAT currency for later use - this is the authoritative source
                             if ($vatCurrency) {
                                 $bill['vatCurrency'] = $vatCurrency;
+                                // Override list API currency with vatCurrency from detailed invoice
+                                $currentCurrency = $vatCurrency;
+                                error_log("[$progress] Using vatCurrency from detailed invoice: $vatCurrency");
+                            }
+                            
+                            // Update exchange rate from detailed invoice if not in list
+                            if (!$exchangeRate && isset($detailedInvoice['exchangeRate'])) {
+                                $exchangeRate = $detailedInvoice['exchangeRate'];
+                                $bill['exchangeRate'] = $exchangeRate;
                             }
                         } else {
                             error_log("[$progress] Could not fetch detailed invoice for EIC: $eic");
                         }
-                    } else if ($currentCurrency) {
-                        error_log("[$progress] Currency found in list API response: $currentCurrency");
+                    } else {
+                        error_log("[$progress] No EIC found, cannot fetch detailed currency");
                     }
                     
                     // Default to ALL if still not found
