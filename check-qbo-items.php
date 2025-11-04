@@ -35,7 +35,7 @@ if (!isset($argv[1])) {
 $companyId = (int)$argv[1];
 
 // Get QBO credentials
-$stmt = $pdo->prepare("SELECT * FROM qbo_tokens WHERE company_id = ? ORDER BY created_at DESC LIMIT 1");
+$stmt = $pdo->prepare("SELECT * FROM company_credentials_qbo WHERE company_id = ? LIMIT 1");
 $stmt->execute([$companyId]);
 $qboCreds = $stmt->fetch();
 
