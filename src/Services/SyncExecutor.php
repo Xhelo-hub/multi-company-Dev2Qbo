@@ -1739,7 +1739,8 @@ use GuzzleHttp\Client;
             
             // Note: Expense accounts are always in home currency (ALL)
             // QuickBooks handles multi-currency through CurrencyRef + ExchangeRate on the transaction
-            $expenseAccountId = $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1';
+            // Get a valid expense account (query QBO if default not set)
+            $expenseAccountId = $this->getCurrencyExpenseAccount('ALL', $qboCreds, $companyId);
             
             $payload = [
                 'VendorRef' => [
@@ -2642,14 +2643,40 @@ use GuzzleHttp\Client;
                 }
             }
             
-            // Fallback: Use default and log warning
+            // Fallback: Use any available expense account
+            if (isset($data['QueryResponse']['Account']) && count($data['QueryResponse']['Account']) > 0) {
+                // Find first Cost of Goods Sold account
+                foreach ($data['QueryResponse']['Account'] as $account) {
+                    if (($account['AccountType'] ?? '') === 'Cost of Goods Sold') {
+                        $accountId = $account['Id'];
+                        $accountCache[$cacheKey] = $accountId;
+                        error_log("Using first available Cost of Goods Sold account: {$account['Name']} (ID: $accountId) for $currency");
+                        return $accountId;
+                    }
+                }
+                
+                // Use first expense account as last resort
+                $firstAccount = $data['QueryResponse']['Account'][0];
+                $accountId = $firstAccount['Id'];
+                $accountCache[$cacheKey] = $accountId;
+                error_log("Using first available expense account: {$firstAccount['Name']} (ID: $accountId) for $currency");
+                return $accountId;
+            }
+            
+            // Ultimate fallback: Use configured default and log warning
             $defaultAccount = $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1';
-            error_log("WARNING: No currency-specific expense account found for $currency, using default account ID $defaultAccount");
+            error_log("WARNING: No expense accounts found in QuickBooks, using configured default account ID $defaultAccount");
             $accountCache[$cacheKey] = $defaultAccount;
             return $defaultAccount;
             
         } catch (Exception $e) {
             error_log("Error querying QBO accounts for currency $currency: " . $e->getMessage());
+            // Try to return first available account if we have any cached
+            if (!empty($accountCache)) {
+                $firstCached = reset($accountCache);
+                error_log("Using cached account ID $firstCached as fallback");
+                return $firstCached;
+            }
             return $_ENV['QBO_DEFAULT_EXPENSE_ACCOUNT'] ?? '1';
         }
     }
