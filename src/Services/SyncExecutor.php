@@ -605,7 +605,7 @@ use GuzzleHttp\Client;
                                     $currentCurrency
                                 );
                                 
-                                $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId);
+                                $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId, $qboCreds, $companyId);
                                 
                                 // Update the bill in QuickBooks
                                 $result = $this->updateQBOBill($existingBillId, $qboBill, $qboCreds);
@@ -1542,7 +1542,7 @@ use GuzzleHttp\Client;
             
             // STEP 3: Convert bill to QBO format
             error_log("=== STEP 3: BILL PAYLOAD CREATION ===");
-            $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId);
+            $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId, $qboCreds, $companyId);
             
             error_log("  ➜ Generated QBO Payload:");
             error_log(json_encode($qboBill, JSON_PRETTY_PRINT));
@@ -1701,7 +1701,7 @@ use GuzzleHttp\Client;
         /**
          * Convert DevPos bill to QuickBooks format
          */
-        private function convertDevPosToQBOBill(array $devposBill, string $vendorId): array
+        private function convertDevPosToQBOBill(array $devposBill, string $vendorId, array $qboCreds, int $companyId): array
         {
             $amount = (float)($devposBill['amount'] ?? $devposBill['total'] ?? $devposBill['totalAmount'] ?? 0);
             
