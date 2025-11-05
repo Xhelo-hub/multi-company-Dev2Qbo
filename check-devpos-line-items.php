@@ -79,8 +79,8 @@ if (!$token) {
 
 echo "✓ Got token\n\n";
 
-// Fetch SALES invoices (shorter date range to avoid timeout)
-$fromDate = '2025-11-01';
+// Fetch SALES invoices (try October to November)
+$fromDate = '2025-10-01';
 $toDate = '2025-11-05';
 
 echo "Fetching SALES invoices from $fromDate to $toDate...\n";
