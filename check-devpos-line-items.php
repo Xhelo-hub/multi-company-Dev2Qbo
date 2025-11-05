@@ -79,13 +79,13 @@ if (!$token) {
 
 echo "✓ Got token\n\n";
 
-// Fetch SALES invoices (try October to November)
-$fromDate = '2025-10-01';
+// Fetch PURCHASE invoices (bills) instead since sales aren't available
+$fromDate = '2025-01-01';
 $toDate = '2025-11-05';
 
-echo "Fetching SALES invoices from $fromDate to $toDate...\n";
+echo "Fetching PURCHASE invoices (BILLS) from $fromDate to $toDate...\n";
 
-$response = $client->get($apiBase . '/EInvoice/GetSalesInvoice', [
+$response = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
     'query' => [
         'fromDate' => $fromDate,
         'toDate' => $toDate,
@@ -98,16 +98,17 @@ $response = $client->get($apiBase . '/EInvoice/GetSalesInvoice', [
 ]);
 
 if ($response->getStatusCode() !== 200) {
-    die("❌ GetSalesInvoice API error (HTTP {$response->getStatusCode()}): " . $response->getBody()->getContents() . "\n");
+    die("❌ GetPurchaseInvoice API error (HTTP {$response->getStatusCode()}): " . $response->getBody()->getContents() . "\n");
 }
 
 $invoices = json_decode($response->getBody()->getContents(), true);
 
 if (empty($invoices)) {
-    die("❌ No sales invoices returned\n");
+    die("❌ No purchase invoices returned\n");
 }
 
-echo "✓ Got " . count($invoices) . " sales invoices\n\n";
+echo "✓ Got " . count($invoices) . " purchase invoices\n\n";
+echo "NOTE: This company appears to only have purchase invoices (bills), not sales invoices.\n\n";
 
 // Examine first invoice in detail
 $firstInvoice = $invoices[0];
