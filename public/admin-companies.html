@@ -950,14 +950,20 @@
         }
 
         async function editDevPosCredentials(companyId, companyName, companyCode) {
+            console.log('editDevPosCredentials called with:', companyId, companyName, companyCode);
+            
             editingDevPosCompanyId = companyId;
             document.getElementById('devposCompanyName').value = `${companyName} (${companyCode})`;
             document.getElementById('devposStatus').style.display = 'none';
+            
+            console.log('Fetching user info...');
             
             // Check if user is admin to show scope selector
             const userResponse = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
             const user = await userResponse.json();
             currentUserRole = user.role;
+            
+            console.log('User role:', user.role);
             
             if (user.role === 'admin') {
                 document.getElementById('credentialScopeSelector').style.display = 'block';
@@ -967,12 +973,17 @@
             
             // Load existing credentials if they exist
             try {
+                console.log('Fetching existing credentials...');
                 const response = await fetch(`${API_BASE}/api/companies/${companyId}/credentials/devpos`, {
                     credentials: 'include'
                 });
                 
+                console.log('Credentials response status:', response.status);
+                
                 if (response.ok) {
                     const creds = await response.json();
+                    console.log('Existing credentials:', creds);
+                    
                     if (creds.tenant) {
                         document.getElementById('devposTenant').value = creds.tenant || '';
                         document.getElementById('devposUsername').value = creds.username || '';
@@ -990,6 +1001,7 @@
                         document.getElementById('credentialTypeLabel').innerHTML = typeInfo;
                     } else {
                         // No credentials exist yet
+                        console.log('No credentials found, using defaults');
                         document.getElementById('devposTenant').value = companyCode; // Default to company code
                         document.getElementById('devposUsername').value = '';
                         document.getElementById('devposPassword').value = '';
@@ -1004,7 +1016,10 @@
             }
             
             updateCredentialScopeInfo();
+            
+            console.log('Opening modal...');
             document.getElementById('devposModal').classList.add('active');
+            console.log('Modal opened');
         }
 
         function closeDevPosModal() {
