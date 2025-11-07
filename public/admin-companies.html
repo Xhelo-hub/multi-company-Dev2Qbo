@@ -727,7 +727,11 @@
                         <button class="btn btn-primary" onclick="editCompanyName(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')">
                             <i class="fas fa-edit"></i> Edit Name
                         </button>
-                        <button class="btn btn-primary" onclick="editDevPosCredentials(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')">
+                        <button class="btn btn-primary" 
+                                ${!company.is_active ? 'disabled' : ''} 
+                                onclick="${!company.is_active ? 'return false;' : `editDevPosCredentials(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')`}" 
+                                title="${!company.is_active ? 'Activate company first to configure DevPos' : 'Configure DevPos credentials'}"
+                                style="${!company.is_active ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;'}">
                             <i class="fas fa-key"></i> DevPos
                         </button>
                         <button class="btn btn-primary" onclick="viewCompany(${company.company_id})">
