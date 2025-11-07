@@ -724,12 +724,12 @@
                     <td><i class="fas fa-users" style="color: #666;"></i> ${company.userCount} users</td>
                     <td>${company.created_at ? new Date(company.created_at).toLocaleDateString() : '-'}</td>
                     <td class="actions">
-                        <button class="btn btn-primary" onclick="editCompanyName(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')">
+                        <button class="btn btn-primary" onclick="editCompanyName(${company.company_id}, '${company.company_name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${company.company_code}')">
                             <i class="fas fa-edit"></i> Edit Name
                         </button>
                         <button class="btn btn-primary" 
                                 ${!company.is_active ? 'disabled' : ''} 
-                                onclick="${!company.is_active ? 'return false;' : `editDevPosCredentials(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}', '${company.company_code}')`}" 
+                                onclick="${!company.is_active ? 'return false;' : `editDevPosCredentials(${company.company_id}, '${company.company_name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', '${company.company_code}')`}" 
                                 title="${!company.is_active ? 'Activate company first to configure DevPos' : 'Configure DevPos credentials'}"
                                 style="${!company.is_active ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;'}">
                             <i class="fas fa-key"></i> DevPos
@@ -737,7 +737,7 @@
                         <button class="btn btn-primary" onclick="viewCompany(${company.company_id})">
                             <i class="fas fa-eye"></i> View
                         </button>
-                        <button class="btn btn-warning" onclick="cancelRunningJobs(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}')">
+                        <button class="btn btn-warning" onclick="cancelRunningJobs(${company.company_id}, '${company.company_name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">
                             <i class="fas fa-stop-circle"></i> Cancel Jobs
                         </button>
                         <button class="btn ${company.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleCompanyStatus(${company.company_id}, ${company.is_active ? 0 : 1})">
@@ -745,7 +745,7 @@
                         </button>
                         <button class="btn btn-danger" 
                                 ${company.is_active ? 'disabled' : ''} 
-                                onclick="${company.is_active ? 'return false;' : `deleteCompany(${company.company_id}, '${company.company_name.replace(/'/g, "\\'")}')`}" 
+                                onclick="${company.is_active ? 'return false;' : `deleteCompany(${company.company_id}, '${company.company_name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')`}" 
                                 title="${company.is_active ? 'Only inactive companies can be deleted' : 'Delete this company'}"
                                 style="${company.is_active ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;'}">
                             <i class="fas fa-trash"></i> Delete
