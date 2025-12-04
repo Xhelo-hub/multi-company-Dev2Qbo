@@ -8,6 +8,8 @@ $container = $app->getContainer();
 
 // Load routes
 require __DIR__ . '/../routes/api.php';
+$authRoutes = require __DIR__ . '/../routes/auth.php';
+$authRoutes($app);
 $fieldMappingRoutes = require __DIR__ . '/../routes/field-mappings.php';
 $fieldMappingRoutes($app, $container);
 
