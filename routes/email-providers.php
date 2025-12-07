@@ -18,17 +18,19 @@ return function ($app) {
             
             $providers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            return $response->withJson([
+            $response->getBody()->write(json_encode([
                 'success' => true,
                 'providers' => $providers
-            ]);
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
             
         } catch (Exception $e) {
             error_log("Get email providers error: " . $e->getMessage());
-            return $response->withJson([
+            $response->getBody()->write(json_encode([
                 'success' => false,
                 'message' => 'Failed to load email providers'
-            ], 500);
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     });
     
@@ -49,23 +51,26 @@ return function ($app) {
             $provider = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$provider) {
-                return $response->withJson([
+                $response->getBody()->write(json_encode([
                     'success' => false,
                     'message' => 'Provider not found'
-                ], 404);
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
             }
             
-            return $response->withJson([
+            $response->getBody()->write(json_encode([
                 'success' => true,
                 'provider' => $provider
-            ]);
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
             
         } catch (Exception $e) {
             error_log("Get email provider error: " . $e->getMessage());
-            return $response->withJson([
+            $response->getBody()->write(json_encode([
                 'success' => false,
                 'message' => 'Failed to load email provider'
-            ], 500);
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     });
     
@@ -80,10 +85,11 @@ return function ($app) {
             $fromName = $data['from_name'] ?? 'DEV-QBO Sync';
             
             if (!$providerKey) {
-                return $response->withJson([
+                $response->getBody()->write(json_encode([
                     'success' => false,
                     'message' => 'Provider key is required'
-                ], 400);
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
             }
             
             $db = $this->get('db');
@@ -98,10 +104,11 @@ return function ($app) {
             $preset = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$preset) {
-                return $response->withJson([
+                $response->getBody()->write(json_encode([
                     'success' => false,
                     'message' => 'Invalid provider preset'
-                ], 404);
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
             }
             
             // For custom provider, allow host override
@@ -115,10 +122,11 @@ return function ($app) {
                 $mailEncryption = $data['custom_encryption'] ?? 'tls';
                 
                 if (!$mailHost) {
-                    return $response->withJson([
+                    $response->getBody()->write(json_encode([
                         'success' => false,
                         'message' => 'SMTP host is required for custom provider'
-                    ], 400);
+                    ]));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
                 }
             }
             
@@ -164,18 +172,20 @@ return function ($app) {
                 $fromName
             ]);
             
-            return $response->withJson([
+            $response->getBody()->write(json_encode([
                 'success' => true,
                 'message' => 'Email configuration updated successfully',
                 'provider' => $preset['provider_name']
-            ]);
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
             
         } catch (Exception $e) {
             error_log("Apply email preset error: " . $e->getMessage());
-            return $response->withJson([
+            $response->getBody()->write(json_encode([
                 'success' => false,
                 'message' => 'Failed to apply email configuration: ' . $e->getMessage()
-            ], 500);
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     });
 };
