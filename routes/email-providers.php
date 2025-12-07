@@ -2,11 +2,14 @@
 // API routes for email provider presets
 
 return function ($app) {
+    // Get PDO from container
+    $pdo = $app->getContainer()->get(PDO::class);
+    $encryptionKey = $_ENV['ENCRYPTION_KEY'] ?? '';
     
     // Get all available email provider presets
-    $app->get('/api/email/providers', function ($request, $response) {
+    $app->get('/api/email/providers', function ($request, $response) use ($pdo) {
         try {
-            $db = $this->get('db');
+            $db = $pdo;
             
             $stmt = $db->query("
                 SELECT id, provider_key, provider_name, mail_host, mail_port, 
@@ -35,10 +38,10 @@ return function ($app) {
     });
     
     // Get specific provider preset by key
-    $app->get('/api/email/providers/{key}', function ($request, $response, $args) {
+    $app->get('/api/email/providers/{key}', function ($request, $response, $args) use ($pdo) {
         try {
             $providerKey = $args['key'];
-            $db = $this->get('db');
+            $db = $pdo;
             
             $stmt = $db->prepare("
                 SELECT id, provider_key, provider_name, mail_host, mail_port, 
@@ -75,7 +78,7 @@ return function ($app) {
     });
     
     // Apply provider preset to email configuration
-    $app->post('/api/email/apply-preset', function ($request, $response) {
+    $app->post('/api/email/apply-preset', function ($request, $response) use ($pdo, $encryptionKey) {
         try {
             $data = $request->getParsedBody();
             $providerKey = $data['provider_key'] ?? null;
@@ -92,8 +95,7 @@ return function ($app) {
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
             }
             
-            $db = $this->get('db');
-            $encryptionKey = $_ENV['ENCRYPTION_KEY'];
+            $db = $pdo;
             
             // Get provider preset
             $stmt = $db->prepare("
