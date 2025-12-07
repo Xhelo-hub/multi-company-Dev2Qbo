@@ -47,13 +47,13 @@ echo "✅ Permissions fixed"
 
 ```bash
 # Import email database schema (if not already done)
-mysql -u root -p qbo_multicompany < /var/www/qbo-devpos-sync/sql/email-system-schema.sql 2>/dev/null || echo "Email schema already exists"
+mysql -u root -p Xhelo_qbo_devpos < /var/www/qbo-devpos-sync/sql/email-system-schema.sql 2>/dev/null || echo "Email schema already exists"
 echo "✅ Email schema checked"
 ```
 
 ```bash
 # Import email provider presets (NEW)
-mysql -u root -p qbo_multicompany < /var/www/qbo-devpos-sync/sql/add-email-provider-presets.sql
+mysql -u root -p Xhelo_qbo_devpos < /var/www/qbo-devpos-sync/sql/add-email-provider-presets.sql
 echo "✅ Email provider presets added"
 ```
 
