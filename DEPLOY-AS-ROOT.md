@@ -46,9 +46,15 @@ echo "✅ Permissions fixed"
 ```
 
 ```bash
-# Import email database schema
-mysql -u root -p qbo_multicompany < /var/www/qbo-devpos-sync/sql/email-system-schema.sql
-echo "✅ Database schema imported (enter MySQL root password when prompted)"
+# Import email database schema (if not already done)
+mysql -u root -p qbo_multicompany < /var/www/qbo-devpos-sync/sql/email-system-schema.sql 2>/dev/null || echo "Email schema already exists"
+echo "✅ Email schema checked"
+```
+
+```bash
+# Import email provider presets (NEW)
+mysql -u root -p qbo_multicompany < /var/www/qbo-devpos-sync/sql/add-email-provider-presets.sql
+echo "✅ Email provider presets added"
 ```
 
 ```bash
@@ -56,7 +62,7 @@ echo "✅ Database schema imported (enter MySQL root password when prompted)"
 cd /var/www/qbo-devpos-sync
 git status
 git log --oneline -5
-ls -lh public/admin-email-settings.html public/admin-create-company.html
+ls -lh public/admin-email-settings.html public/admin-email-config.html
 echo "✅ Deployment complete!"
 ```
 
@@ -67,17 +73,32 @@ Test these URLs:
 - https://devsync.konsulence.al/public/login.html (login page)
 - https://devsync.konsulence.al/public/admin-companies.html (companies admin)
 - https://devsync.konsulence.al/public/admin-create-company.html (create company)
-- https://devsync.konsulence.al/public/admin-email-settings.html ← **NEW EMAIL ADMIN**
+- https://devsync.konsulence.al/public/admin-email-config.html ← **NEW EMAIL CONFIGURATION**
+- https://devsync.konsulence.al/public/admin-email-settings.html (email templates & logs)
 
 ## Configure Email After Deployment
 
-1. Login to admin panel
-2. Click "Email Settings" button
-3. Configure SMTP:
-   - Host: smtp.office365.com
-   - Port: 587
-   - Username: devsync@konsulence.al
-   - Password: [Your Microsoft 365 password]
-   - Enable TLS
-4. Test connection
-5. Send test email
+### Option 1: Gmail (Recommended - 5 minutes)
+
+1. **Generate app password**: https://myaccount.google.com/apppasswords
+2. **Go to**: https://devsync.konsulence.al/public/admin-email-config.html
+3. **Click**: Gmail / Google Workspace card
+4. **Enter**:
+   - Email: your-email@gmail.com
+   - Password: 16-character app password (no spaces)
+   - From Address: your-email@gmail.com
+   - From Name: DEV-QBO Sync
+5. **Save & Test**
+
+### Option 2: Microsoft 365
+
+1. **Go to**: https://devsync.konsulence.al/public/admin-email-config.html
+2. **Click**: Microsoft 365 / Outlook.com card
+3. **Enter**:
+   - Email: devsync@konsulence.al
+   - Password: Your Microsoft 365 password
+   - From Address: devsync@konsulence.al
+   - From Name: DEV-QBO Sync
+4. **Save & Test**
+
+**Note**: 6 email providers available (Gmail, Microsoft 365, SendGrid, Mailgun, Amazon SES, Custom SMTP)
