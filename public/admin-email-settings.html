@@ -641,6 +641,119 @@
         .empty-state-text {
             font-size: 1rem;
             color: #718096;
+        }
+
+        /* Email Provider Selection Styles */
+        .provider-selection {
+            margin-bottom: 30px;
+        }
+
+        .provider-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .provider-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            background: white;
+        }
+
+        .provider-card:hover {
+            border-color: #33cc66;
+            box-shadow: 0 4px 12px rgba(51, 204, 102, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .provider-card.selected {
+            border-color: #33cc66;
+            background: #f0fdf4;
+        }
+
+        .provider-card .icon {
+            font-size: 42px;
+            margin-bottom: 10px;
+        }
+
+        .provider-card .name {
+            font-weight: 600;
+            color: #333366;
+            margin-bottom: 5px;
+            font-size: 15px;
+        }
+
+        .provider-card .description {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .provider-instructions {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .provider-instructions h4 {
+            color: #1e40af;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .provider-instructions ol {
+            margin-left: 20px;
+            color: #374151;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .provider-instructions li {
+            margin-bottom: 5px;
+        }
+
+        .current-config-display {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .config-details {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .config-detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .config-detail-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .config-detail-value {
+            color: #6b7280;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -686,70 +799,74 @@
             <div class="config-section">
                 <div class="section-header">
                     <h2 class="section-title">
-                        📮 SMTP Configuration
+                        📮 Email Provider Configuration
                     </h2>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="enableEmail" class="checkbox-input">
-                        <label for="enableEmail" class="form-label" style="margin: 0;">Enable Email Service</label>
+                </div>
+
+                <!-- Provider Selection -->
+                <div class="provider-selection">
+                    <h3 style="margin-bottom: 15px; color: #374151; font-size: 16px;">Select Email Provider</h3>
+                    <div class="provider-grid" id="providerGrid">
+                        <!-- Providers will be loaded here -->
+                        <div class="loading-state">Loading email providers...</div>
                     </div>
                 </div>
 
-                <form id="configForm">
+                <!-- Configuration Form -->
+                <form id="configForm" style="display: none;">
+                    <div id="providerInstructions" class="provider-instructions"></div>
+                    
                     <div class="form-grid">
                         <div class="form-group">
-                            <label class="form-label">Mail Driver</label>
-                            <select id="mailDriver" class="form-select">
-                                <option value="smtp">SMTP</option>
-                                <option value="sendmail">Sendmail</option>
-                                <option value="mail">PHP Mail</option>
-                            </select>
-                            <span class="help-text">Select email sending method</span>
+                            <label class="form-label">Email Address / Username</label>
+                            <input type="email" id="mailUsername" class="form-input" placeholder="your-email@example.com" required>
+                            <span class="help-text">Your email address for sending emails</span>
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">SMTP Host</label>
-                            <input type="text" id="mailHost" class="form-input" placeholder="smtp.office365.com">
-                            <span class="help-text">SMTP server hostname</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">SMTP Port</label>
-                            <input type="number" id="mailPort" class="form-input" placeholder="587">
-                            <span class="help-text">Common ports: 587 (TLS), 465 (SSL), 25</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Encryption</label>
-                            <select id="mailEncryption" class="form-select">
-                                <option value="tls">TLS (Recommended)</option>
-                                <option value="ssl">SSL</option>
-                                <option value="">None</option>
-                            </select>
-                            <span class="help-text">Encryption method</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">SMTP Username</label>
-                            <input type="email" id="mailUsername" class="form-input" placeholder="devsync@konsulence.al">
-                            <span class="help-text">Your email address</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">SMTP Password</label>
-                            <input type="password" id="mailPassword" class="form-input" placeholder="Enter password to change">
-                            <span class="help-text">Leave blank to keep current password</span>
+                            <label class="form-label">Password</label>
+                            <input type="password" id="mailPassword" class="form-input" placeholder="Enter your password or app password" required>
+                            <span class="help-text">For Gmail, use App Password. For others, use your email password.</span>
                         </div>
 
                         <div class="form-group">
                             <label class="form-label">From Email Address</label>
-                            <input type="email" id="mailFromAddress" class="form-input" placeholder="devsync@konsulence.al">
-                            <span class="help-text">Email address shown in "From" field</span>
+                            <input type="email" id="mailFromAddress" class="form-input" placeholder="your-email@example.com">
+                            <span class="help-text">Email address shown in "From" field (usually same as username)</span>
                         </div>
 
                         <div class="form-group">
                             <label class="form-label">From Name</label>
-                            <input type="text" id="mailFromName" class="form-input" placeholder="DEV-QBO Sync">
+                            <input type="text" id="mailFromName" class="form-input" placeholder="DEV-QBO Sync" value="DEV-QBO Sync">
                             <span class="help-text">Name shown in "From" field</span>
+                        </div>
+                    </div>
+
+                    <!-- Custom SMTP Fields (shown only for custom provider) -->
+                    <div id="customSmtpFields" style="display: none;">
+                        <h3 style="margin: 20px 0 15px; color: #374151; font-size: 16px;">Custom SMTP Settings</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">SMTP Host</label>
+                                <input type="text" id="customHost" class="form-input" placeholder="smtp.yourserver.com">
+                                <span class="help-text">SMTP server hostname</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">SMTP Port</label>
+                                <input type="number" id="customPort" class="form-input" placeholder="587" value="587">
+                                <span class="help-text">Common: 587 (TLS), 465 (SSL), 25 (Plain)</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Encryption</label>
+                                <select id="customEncryption" class="form-select">
+                                    <option value="tls">TLS (Recommended)</option>
+                                    <option value="ssl">SSL</option>
+                                    <option value="">None</option>
+                                </select>
+                                <span class="help-text">Encryption method</span>
+                            </div>
                         </div>
                     </div>
 
@@ -760,11 +877,20 @@
                         <button type="button" class="btn btn-success" onclick="testConnection()">
                             🧪 Test Connection
                         </button>
-                        <button type="button" class="btn btn-secondary" onclick="loadConfiguration()">
-                            🔄 Reload
+                        <button type="button" class="btn btn-secondary" onclick="cancelConfiguration()">
+                            ✕ Cancel
                         </button>
                     </div>
                 </form>
+
+                <!-- Current Configuration Display -->
+                <div id="currentConfigDisplay" class="current-config-display" style="display: none;">
+                    <h3 style="margin-bottom: 15px; color: #374151; font-size: 16px;">✅ Current Configuration</h3>
+                    <div id="currentConfigDetails" class="config-details"></div>
+                    <button class="btn btn-secondary" onclick="editConfiguration()" style="margin-top: 15px;">
+                        ✏️ Edit Configuration
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -989,71 +1115,194 @@
             }, 5000);
         }
 
-        // Load configuration
+        let selectedProvider = null;
+        let providers = [];
+
+        // Load email providers
         async function loadConfiguration() {
+            try {
+                // Load available providers
+                const providersResponse = await fetch('/api/email/providers');
+                const providersData = await providersResponse.json();
+
+                if (providersData.success && providersData.providers) {
+                    providers = providersData.providers;
+                    renderProviders();
+                }
+
+                // Check if configuration already exists
+                await loadCurrentConfiguration();
+            } catch (error) {
+                console.error('Error loading providers:', error);
+                showAlert('Failed to load email providers: ' + error.message, 'error');
+            }
+        }
+
+        // Render provider cards
+        function renderProviders() {
+            const grid = document.getElementById('providerGrid');
+            
+            const providerIcons = {
+                'gmail': '📧',
+                'microsoft365': '🔷',
+                'sendgrid': '📨',
+                'mailgun': '✉️',
+                'amazon_ses': '📮',
+                'custom': '⚙️'
+            };
+
+            grid.innerHTML = providers.map(provider => `
+                <div class="provider-card" onclick="selectProvider('${provider.provider_key}')">
+                    <div class="icon">${providerIcons[provider.provider_key] || '📧'}</div>
+                    <div class="name">${provider.provider_name}</div>
+                    <div class="description">${provider.description || ''}</div>
+                </div>
+            `).join('');
+        }
+
+        // Select a provider
+        function selectProvider(providerKey) {
+            selectedProvider = providers.find(p => p.provider_key === providerKey);
+            
+            // Highlight selected card
+            document.querySelectorAll('.provider-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.target.closest('.provider-card').classList.add('selected');
+
+            // Show configuration form
+            document.getElementById('configForm').style.display = 'block';
+            document.getElementById('currentConfigDisplay').style.display = 'none';
+
+            // Show instructions
+            const instructionsDiv = document.getElementById('providerInstructions');
+            if (selectedProvider.setup_instructions) {
+                instructionsDiv.innerHTML = `
+                    <h4>📝 Setup Instructions for ${selectedProvider.provider_name}</h4>
+                    <ol>${selectedProvider.setup_instructions.split('\n').map(line => 
+                        line.trim() ? `<li>${line.replace(/^\d+\.\s*/, '')}</li>` : ''
+                    ).join('')}</ol>
+                `;
+                instructionsDiv.style.display = 'block';
+            } else {
+                instructionsDiv.style.display = 'none';
+            }
+
+            // Show/hide custom SMTP fields
+            const customFields = document.getElementById('customSmtpFields');
+            customFields.style.display = providerKey === 'custom' ? 'block' : 'none';
+
+            // Auto-fill from address with username if empty
+            document.getElementById('mailUsername').addEventListener('input', function() {
+                if (!document.getElementById('mailFromAddress').value) {
+                    document.getElementById('mailFromAddress').value = this.value;
+                }
+            });
+        }
+
+        // Load current configuration
+        async function loadCurrentConfiguration() {
             try {
                 const response = await fetch(apiUrl('/api/admin/email/config'));
                 const data = await response.json();
 
-                if (data.success && data.config) {
+                if (data.success && data.config && data.config.provider_key) {
                     const config = data.config;
-                    document.getElementById('mailDriver').value = config.mail_driver || 'smtp';
-                    document.getElementById('mailHost').value = config.mail_host || '';
-                    document.getElementById('mailPort').value = config.mail_port || '587';
-                    document.getElementById('mailEncryption').value = config.mail_encryption || 'tls';
-                    document.getElementById('mailUsername').value = config.mail_username || '';
-                    document.getElementById('mailFromAddress').value = config.mail_from_address || '';
-                    document.getElementById('mailFromName').value = config.mail_from_name || '';
-                    document.getElementById('enableEmail').checked = config.is_enabled == 1;
-                } else {
-                    showAlert('No configuration found. Please set up email settings.', 'info');
+                    
+                    // Display current configuration
+                    document.getElementById('currentConfigDisplay').style.display = 'block';
+                    document.getElementById('currentConfigDetails').innerHTML = `
+                        <div class="config-detail-row">
+                            <span class="config-detail-label">Provider:</span>
+                            <span class="config-detail-value">${config.provider_name || config.provider_key}</span>
+                        </div>
+                        <div class="config-detail-row">
+                            <span class="config-detail-label">Email:</span>
+                            <span class="config-detail-value">${config.mail_username}</span>
+                        </div>
+                        <div class="config-detail-row">
+                            <span class="config-detail-label">From Address:</span>
+                            <span class="config-detail-value">${config.mail_from_address}</span>
+                        </div>
+                        <div class="config-detail-row">
+                            <span class="config-detail-label">From Name:</span>
+                            <span class="config-detail-value">${config.mail_from_name}</span>
+                        </div>
+                        <div class="config-detail-row">
+                            <span class="config-detail-label">Status:</span>
+                            <span class="config-detail-value">✅ Configured</span>
+                        </div>
+                    `;
                 }
             } catch (error) {
-                console.error('Error loading configuration:', error);
-                showAlert('Failed to load configuration: ' + error.message, 'error');
+                console.error('Error loading current configuration:', error);
             }
+        }
+
+        // Cancel configuration
+        function cancelConfiguration() {
+            document.getElementById('configForm').reset();
+            document.getElementById('configForm').style.display = 'none';
+            document.querySelectorAll('.provider-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            selectedProvider = null;
+            loadCurrentConfiguration();
+        }
+
+        // Edit configuration
+        function editConfiguration() {
+            document.getElementById('currentConfigDisplay').style.display = 'none';
+            document.getElementById('configForm').style.display = 'block';
         }
 
         // Save configuration
         async function saveConfiguration(e) {
             e.preventDefault();
 
-            const config = {
-                mail_driver: document.getElementById('mailDriver').value,
-                mail_host: document.getElementById('mailHost').value,
-                mail_port: parseInt(document.getElementById('mailPort').value),
-                mail_username: document.getElementById('mailUsername').value,
-                mail_encryption: document.getElementById('mailEncryption').value,
-                mail_from_address: document.getElementById('mailFromAddress').value,
-                mail_from_name: document.getElementById('mailFromName').value,
-                is_enabled: document.getElementById('enableEmail').checked ? 1 : 0
+            if (!selectedProvider) {
+                showAlert('Please select an email provider', 'error');
+                return;
+            }
+
+            const configData = {
+                provider_key: selectedProvider.provider_key,
+                username: document.getElementById('mailUsername').value,
+                password: document.getElementById('mailPassword').value,
+                from_address: document.getElementById('mailFromAddress').value,
+                from_name: document.getElementById('mailFromName').value
             };
 
-            const password = document.getElementById('mailPassword').value;
-            if (password) {
-                config.mail_password = password;
+            // Add custom SMTP fields if custom provider
+            if (selectedProvider.provider_key === 'custom') {
+                configData.custom_host = document.getElementById('customHost').value;
+                configData.custom_port = document.getElementById('customPort').value;
+                configData.custom_encryption = document.getElementById('customEncryption').value;
             }
 
             try {
-                const response = await fetch(apiUrl('/api/admin/email/config'), {
-                    method: 'PUT',
+                const response = await fetch('/api/email/apply-preset', {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(config)
+                    body: JSON.stringify(configData)
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    showAlert('Configuration saved successfully!', 'success');
-                    document.getElementById('mailPassword').value = '';
+                    showAlert('✅ Email configuration saved successfully!', 'success');
+                    document.getElementById('configForm').reset();
+                    document.getElementById('configForm').style.display = 'none';
+                    selectedProvider = null;
+                    await loadCurrentConfiguration();
                 } else {
-                    showAlert('Failed to save configuration: ' + data.message, 'error');
+                    showAlert('❌ Failed to save configuration: ' + data.message, 'error');
                 }
             } catch (error) {
                 console.error('Error saving configuration:', error);
-                showAlert('Failed to save configuration: ' + error.message, 'error');
+                showAlert('❌ Failed to save configuration: ' + error.message, 'error');
             }
         }
 
