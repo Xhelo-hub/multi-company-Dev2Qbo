@@ -1,0 +1,51 @@
+# MySQL/MariaDB Fix Commands
+# Copy these commands and run them in your SSH terminal on the production server
+
+# === STEP 1: Check what went wrong ===
+journalctl -xeu mariadb.service | tail -50
+
+# === STEP 2: Check MySQL error log ===
+tail -50 /var/log/mysql/error.log
+
+# === STEP 3: Check disk space (MySQL won't start if disk is full) ===
+df -h
+
+# === STEP 4: Check MySQL configuration ===
+cat /etc/mysql/mariadb.conf.d/50-server.cnf | grep -E "bind-address|port|datadir"
+
+# === STEP 5: Check if MySQL process is stuck ===
+ps aux | grep mysql
+
+# === STEP 6: Force kill if stuck (ONLY if process exists) ===
+# pkill -9 mysql
+
+# === STEP 7: Check MySQL data directory permissions ===
+ls -la /var/lib/mysql | head -10
+
+# === STEP 8: Try to start MySQL in safe mode ===
+# mysqld_safe --skip-grant-tables &
+
+# === STEP 9: Restart MySQL properly ===
+systemctl start mariadb
+
+# === STEP 10: Check status ===
+systemctl status mariadb
+
+# === COMMON FIXES ===
+
+# If disk is full:
+# - Clear old log files: find /var/log -name "*.log.*" -type f -delete
+# - Clear MySQL binary logs: mysql -e "PURGE BINARY LOGS BEFORE NOW();"
+
+# If permissions are wrong:
+# chown -R mysql:mysql /var/lib/mysql
+# chmod 755 /var/lib/mysql
+
+# If configuration is corrupted:
+# mysql_upgrade --force
+
+# If InnoDB recovery is needed:
+# Add to /etc/mysql/mariadb.conf.d/50-server.cnf under [mysqld]:
+# innodb_force_recovery = 1
+# Then restart: systemctl restart mariadb
+# Then remove the line and restart again

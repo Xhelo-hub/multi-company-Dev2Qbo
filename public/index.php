@@ -12,6 +12,8 @@ $authRoutes = require __DIR__ . '/../routes/auth.php';
 $authRoutes($app);
 $fieldMappingRoutes = require __DIR__ . '/../routes/field-mappings.php';
 $fieldMappingRoutes($app, $container);
+$emailProviderRoutes = require __DIR__ . '/../routes/email-providers.php';
+$emailProviderRoutes($app);
 
 // Run application
 $app->run();

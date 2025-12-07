@@ -1,0 +1,64 @@
+# Commands to Deploy Login Fix After MySQL is Running
+# Run these in your SSH terminal on the production server (root@78.46.201.151)
+
+# === STEP 1: Navigate to web directory ===
+cd /var/www/html
+
+# === STEP 2: Check if .git exists ===
+ls -la .git
+
+# === IF .git EXISTS: ===
+# Pull the latest changes
+git pull origin main
+
+# === IF .git DOES NOT EXIST: ===
+# The directory is not a git repository, we need to reinitialize it
+# WARNING: This will download fresh files from GitHub
+
+# Option A: Clone to a new directory and move files
+cd /var/www
+mv html html.backup
+git clone https://github.com/Xhelo-hub/multi-company-Dev2Qbo.git html
+cd html
+
+# Restore .env file (it's not in git)
+cp /var/www/html.backup/.env .env
+
+# Set proper permissions
+chown -R www-data:www-data /var/www/html
+chmod -R 755 /var/www/html
+chmod 644 .env
+
+# Install composer dependencies if needed
+composer install --no-dev --optimize-autoloader
+
+# Option B: Initialize git in current directory
+# cd /var/www/html
+# git init
+# git remote add origin https://github.com/Xhelo-hub/multi-company-Dev2Qbo.git
+# git fetch origin
+# git reset --hard origin/main
+
+# === STEP 3: Verify the fix is applied ===
+grep "auth.php" public/index.php
+
+# Should see these lines:
+# $authRoutes = require __DIR__ . '/../routes/auth.php';
+# $authRoutes($app);
+
+# === STEP 4: Clear any PHP opcode cache ===
+systemctl restart apache2
+
+# === STEP 5: Test the login ===
+curl -I https://devsync.konsulence.al/public/login.html
+
+# === STEP 6: Test the API endpoint ===
+curl -X POST https://devsync.konsulence.al/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","password":"test"}'
+
+# Should get a proper JSON error response, not 500
+
+# === FINAL VERIFICATION ===
+echo "=== Login fix deployment complete ==="
+echo "Test at: https://devsync.konsulence.al/public/login.html"
