@@ -1017,6 +1017,14 @@
             ? '/multi-company-Dev2Qbo/public' 
             : '/public';
         
+        const API_BASE = window.location.pathname.includes('/multi-company-Dev2Qbo/') 
+            ? '/multi-company-Dev2Qbo' 
+            : '';
+        
+        const PAGE_BASE = window.location.pathname.includes('/multi-company-Dev2Qbo/') 
+            ? '/multi-company-Dev2Qbo/public' 
+            : '/public';
+        
         // Helper function to build API URLs
         function apiUrl(path) {
             return `${BASE_PATH}${path}`;
@@ -1122,7 +1130,7 @@
         async function loadConfiguration() {
             try {
                 // Load available providers
-                const providersResponse = await fetch('/api/email/providers');
+                const providersResponse = await fetch(`${API_BASE}/api/email/providers`);
                 const providersData = await providersResponse.json();
 
                 if (providersData.success && providersData.providers) {
@@ -1281,7 +1289,7 @@
             }
 
             try {
-                const response = await fetch('/api/email/apply-preset', {
+                const response = await fetch(`${API_BASE}/api/email/apply-preset`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
