@@ -1316,8 +1316,24 @@
 
         // Test connection
         async function testConnection() {
-            const testEmail = prompt('Enter email address to send test email:', document.getElementById('mailUsername').value);
+            // Check if configuration is saved first
+            try {
+                const configCheck = await fetch(apiUrl('/api/admin/email/config'));
+                const configData = await configCheck.json();
+                
+                if (!configData.success || !configData.config || !configData.config.provider_key) {
+                    showAlert('⚠️ Please save your email configuration first before testing', 'error');
+                    return;
+                }
+            } catch (error) {
+                showAlert('⚠️ Unable to verify email configuration. Please save your settings first.', 'error');
+                return;
+            }
+
+            const testEmail = prompt('Enter email address to send test email:', document.getElementById('mailUsername').value || 'test@example.com');
             if (!testEmail) return;
+
+            showAlert('📤 Sending test email...', 'info');
 
             try {
                 const response = await fetch(apiUrl('/api/admin/email/config/test'), {
@@ -1331,13 +1347,13 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    showAlert('Test email sent successfully to ' + testEmail + '!', 'success');
+                    showAlert('✅ Test email sent successfully to ' + testEmail + '!', 'success');
                 } else {
-                    showAlert('Test email failed: ' + data.message, 'error');
+                    showAlert('❌ Test email failed: ' + data.message, 'error');
                 }
             } catch (error) {
                 console.error('Error testing connection:', error);
-                showAlert('Failed to test connection: ' + error.message, 'error');
+                showAlert('❌ Failed to test connection. Error: ' + error.message, 'error');
             }
         }
 
