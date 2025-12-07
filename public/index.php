@@ -6,7 +6,7 @@ declare(strict_types=1);
 $app = require __DIR__ . '/../bootstrap/app.php';
 $container = $app->getContainer();
 
-// Load routes (api.php already loads auth.php internally)
+// Load routes (api.php already loads auth.php and email.php internally)
 require __DIR__ . '/../routes/api.php';
 
 // Load additional route modules
@@ -15,9 +15,6 @@ $fieldMappingRoutes($app, $container);
 
 $emailProviderRoutes = require __DIR__ . '/../routes/email-providers.php';
 $emailProviderRoutes($app);
-
-$emailRoutes = require __DIR__ . '/../routes/email.php';
-$emailRoutes($app, $container);
 
 // Run application
 $app->run();
