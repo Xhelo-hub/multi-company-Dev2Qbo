@@ -829,7 +829,6 @@ use GuzzleHttp\Client;
                     'query' => [
                         'fromDate' => $fromDate,
                         'toDate' => $toDate,
-                        'includePdf' => true  // Request PDF field in response
                     ],
                     'headers' => [
                         'Authorization' => 'Bearer ' . $token,
@@ -870,81 +869,54 @@ use GuzzleHttp\Client;
         }
         
         /**
-         * Fetch purchase invoices from DevPos, splitting into weekly chunks to work around
-         * DevPos 500 NullReferenceException bug triggered by certain invoices in a date range.
+         * Fetch purchase invoices from DevPos for a date range.
+         * Note: DevPos 500s when the range has NO invoices (NullRef on empty result).
+         * Chunking makes this worse — most empty weeks all fail. Use full range directly.
          */
         private function fetchDevPosPurchaseInvoices(string $token, string $tenant, string $fromDate, string $toDate): array
         {
             $client = new Client();
             $apiBase = $_ENV['DEVPOS_API_BASE'] ?? 'https://online.devpos.al/api/v3';
 
-            // Build weekly chunks to avoid DevPos server crash on large ranges
-            $chunks = [];
-            $cursor = new \DateTime($fromDate);
-            $end    = new \DateTime($toDate);
-            while ($cursor <= $end) {
-                $chunkFrom = $cursor->format('Y-m-d');
-                $cursor->modify('+6 days');
-                $chunkTo = (clone $cursor <= $end ? clone $cursor : clone $end)->format('Y-m-d');
-                $chunks[] = [$chunkFrom, $chunkTo];
-                $cursor->modify('+1 day');
-            }
+            error_log("Fetching DevPos purchase invoices: fromDate=$fromDate, toDate=$toDate, tenant=$tenant");
 
-            error_log("Fetching DevPos purchase invoices in " . count($chunks) . " weekly chunks: $fromDate to $toDate");
+            try {
+                $response = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
+                    'query' => [
+                        'fromDate' => $fromDate,
+                        'toDate'   => $toDate,
+                    ],
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'tenant'        => $tenant,
+                        'Accept'        => 'application/json'
+                    ]
+                ]);
 
-            $allInvoices  = [];
-            $failedChunks = [];
+                $invoices = json_decode($response->getBody()->getContents(), true);
 
-            foreach ($chunks as [$chunkFrom, $chunkTo]) {
-                try {
-                    $response = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
-                        'query' => [
-                            'fromDate' => $chunkFrom,
-                            'toDate'   => $chunkTo
-                        ],
-                        'headers' => [
-                            'Authorization' => 'Bearer ' . $token,
-                            'tenant'        => $tenant,
-                            'Accept'        => 'application/json'
-                        ]
-                    ]);
-
-                    $invoices = json_decode($response->getBody()->getContents(), true);
-
-                    if (!is_array($invoices)) {
-                        error_log("DevPos Purchase chunk $chunkFrom-$chunkTo: non-array response, skipping");
-                        continue;
-                    }
-
-                    error_log("DevPos Purchase chunk $chunkFrom-$chunkTo: " . count($invoices) . " invoices");
-                    $allInvoices = array_merge($allInvoices, $invoices);
-
-                } catch (\GuzzleHttp\Exception\ServerException $e) {
-                    // DevPos 500 NullReferenceException bug — skip this week, continue with others
-                    error_log("DevPos Purchase chunk $chunkFrom-$chunkTo: 500 Server Error (DevPos bug), skipping.");
-                    $failedChunks[] = "$chunkFrom to $chunkTo";
-                } catch (\GuzzleHttp\Exception\ClientException $e) {
-                    error_log("DevPos Purchase chunk $chunkFrom-$chunkTo: Client Error: " . $e->getMessage());
-                    throw $e;
-                } catch (Exception $e) {
-                    error_log("DevPos Purchase chunk $chunkFrom-$chunkTo: Error: " . $e->getMessage());
-                    throw $e;
+                if (!is_array($invoices)) {
+                    error_log("DevPos Purchase: non-array response, returning empty");
+                    return [];
                 }
+
+                error_log("DevPos returned " . count($invoices) . " purchase invoices");
+
+                if (count($invoices) > 0) {
+                    error_log("=== FIRST PURCHASE INVOICE FROM DEVPOS API ===");
+                    error_log(json_encode($invoices[0], JSON_PRETTY_PRINT));
+                    error_log("=== AVAILABLE FIELDS: " . implode(', ', array_keys($invoices[0])) . " ===");
+                }
+
+                return $invoices;
+
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+                error_log("DevPos Purchase Client Error: " . $e->getMessage());
+                throw $e;
+            } catch (Exception $e) {
+                error_log("DevPos Purchase Error: " . $e->getMessage());
+                throw $e;
             }
-
-            if (!empty($failedChunks)) {
-                error_log("WARNING: " . count($failedChunks) . " chunk(s) skipped due to DevPos 500 bug: " . implode(', ', $failedChunks));
-            }
-
-            error_log("DevPos purchase invoices total: " . count($allInvoices) . " from " . count($chunks) . " chunks, " . count($failedChunks) . " failed");
-
-            if (count($allInvoices) > 0) {
-                error_log("=== FIRST PURCHASE INVOICE FROM DEVPOS API ===");
-                error_log(json_encode($allInvoices[0], JSON_PRETTY_PRINT));
-                error_log("=== AVAILABLE FIELDS: " . implode(', ', array_keys($allInvoices[0])) . " ===");
-            }
-
-            return $allInvoices;
         }
         
         /**
