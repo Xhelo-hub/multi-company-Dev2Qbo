@@ -23,9 +23,7 @@ $authMiddleware = new \App\Middleware\AuthMiddleware($pdo);
 $authRoutes = require __DIR__ . '/auth.php';
 $authRoutes($app);
 
-// Load email management routes (admin-only)
-$emailRoutes = require __DIR__ . '/email.php';
-$emailRoutes($app, $container);
+// Email routes are loaded in index.php via email-providers.php
 
 // API Authentication Middleware (legacy API key auth)
 $apiKeyMiddleware = function (Request $request, $handler) {
@@ -582,7 +580,7 @@ $app->post('/api/companies/{companyId}/credentials/devpos', function (Request $r
             'AES-256-CBC',
             $_ENV['ENCRYPTION_KEY'] ?? 'default-key',
             0,
-            substr(hash('sha256', $_ENV['ENCRYPTION_KEY'] ?? 'default-key'), 0, 16)
+            substr(md5($_ENV['ENCRYPTION_KEY'] ?? 'default-key'), 0, 16)
         );
     }
     

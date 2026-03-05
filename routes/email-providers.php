@@ -77,6 +77,49 @@ return function ($app) {
         }
     });
     
+    // Get current email configuration
+    $app->get('/api/admin/email/config', function ($request, $response) use ($pdo, $encryptionKey) {
+        try {
+            $db = $pdo;
+            
+            $stmt = $db->query("
+                SELECT 
+                    ec.*,
+                    ep.provider_name
+                FROM email_config ec
+                LEFT JOIN email_provider_presets ep ON ec.provider_preset_id = ep.id
+                WHERE ec.id = 1
+            ");
+            
+            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$config) {
+                $response->getBody()->write(json_encode([
+                    'success' => false,
+                    'message' => 'No email configuration found'
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            }
+            
+            // Decrypt password for display (show masked)
+            $config['mail_password'] = '••••••••';
+            
+            $response->getBody()->write(json_encode([
+                'success' => true,
+                'config' => $config
+            ]));
+            return $response->withHeader('Content-Type', 'application/json');
+            
+        } catch (Exception $e) {
+            error_log("Get email config error: " . $e->getMessage());
+            $response->getBody()->write(json_encode([
+                'success' => false,
+                'message' => 'Failed to load email configuration: ' . $e->getMessage()
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    });
+    
     // Apply provider preset to email configuration
     $app->post('/api/email/apply-preset', function ($request, $response) use ($pdo, $encryptionKey) {
         try {

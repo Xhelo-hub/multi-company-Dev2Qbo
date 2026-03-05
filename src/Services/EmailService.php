@@ -247,7 +247,7 @@ class EmailService
     }
 
     /**
-     * Send password reset email with token
+     * Send password reset email with 6-digit code
      */
     public function sendPasswordResetEmail(string $toEmail, string $toName, string $resetToken): bool
     {
@@ -265,10 +265,11 @@ class EmailService
                 return false;
             }
             
-            $resetUrl = ($_ENV['APP_URL'] ?? 'http://localhost') . '/reset-password.html?token=' . urlencode($resetToken);
+            // Use reset code directly (no URL needed for 6-digit code)
             $variables = [
                 'name' => $toName,
-                'reset_url' => $resetUrl
+                'reset_code' => $resetToken,
+                'reset_url' => $resetToken  // Backward compatibility with old templates
             ];
             
             $this->mailer->clearAddresses();

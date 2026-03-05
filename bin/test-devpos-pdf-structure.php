@@ -234,7 +234,7 @@ try {
     
 } catch (Exception $e) {
     echo "\n✗ ERROR: " . $e->getMessage() . "\n";
-    if (method_exists($e, 'getResponse')) {
+    if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
         $response = $e->getResponse();
         if ($response) {
             echo "HTTP Status: " . $response->getStatusCode() . "\n";

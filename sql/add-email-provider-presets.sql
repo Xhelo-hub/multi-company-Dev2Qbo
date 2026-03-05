@@ -1,7 +1,7 @@
 -- Add email provider presets table
 CREATE TABLE IF NOT EXISTS email_provider_presets (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    provider_key VARCHAR(50) UNIQUE NOT NULL,
+    provider_key VARCHAR(50) 
     provider_name VARCHAR(100) NOT NULL,
     mail_host VARCHAR(255) NOT NULL,
     mail_port INT NOT NULL,

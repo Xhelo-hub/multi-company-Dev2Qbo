@@ -347,24 +347,24 @@ $authRoutes = function ($app) use ($pdo, $container) {
         $user = $stmt->fetch();
         
         if ($user) {
-            // Generate reset token
-            $token = bin2hex(random_bytes(32));
+            // Generate 6-digit reset code
+            $code = str_pad((string)random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
             
             // Store password reset request
             $stmt = $pdo->prepare("
                 INSERT INTO password_reset_requests (user_id, token, expires_at, ip_address)
-                VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR), ?)
+                VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE), ?)
             ");
-            $stmt->execute([$user['id'], $token, $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1']);
+            $stmt->execute([$user['id'], $code, $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1']);
             
-            // Update user with reset token
+            // Update user with reset code
             $stmt = $pdo->prepare("
                 UPDATE users 
                 SET password_reset_token = ?,
-                    password_reset_expires = DATE_ADD(NOW(), INTERVAL 1 HOUR)
+                    password_reset_expires = DATE_ADD(NOW(), INTERVAL 15 MINUTE)
                 WHERE id = ?
             ");
-            $stmt->execute([$token, $user['id']]);
+            $stmt->execute([$code, $user['id']]);
             
             // Log audit
             $stmt = $pdo->prepare("
@@ -378,14 +378,104 @@ $authRoutes = function ($app) use ($pdo, $container) {
                 $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
             ]);
             
-            // Send password reset email
-            $emailService->sendPasswordResetEmail($email, $user['full_name'], $token);
+            // Send password reset email with code
+            $emailService->sendPasswordResetEmail($email, $user['full_name'], $code);
         }
         
         // Always return success to avoid email enumeration
         $response->getBody()->write(json_encode([
             'success' => true,
-            'message' => 'If an account exists, a password reset link has been sent to your email'
+            'message' => 'If an account exists, a 6-digit reset code has been sent to your email'
+        ]));
+        return $response->withHeader('Content-Type', 'application/json');
+    });
+
+    // Verify code and reset password
+    $app->post('/api/auth/reset-password', function (Request $request, Response $response) use ($pdo) {
+        $data = json_decode($request->getBody()->getContents(), true);
+        $email = trim($data['email'] ?? '');
+        $code = trim($data['code'] ?? '');
+        $newPassword = $data['password'] ?? '';
+        
+        if (empty($email) || empty($code) || empty($newPassword)) {
+            $response->getBody()->write(json_encode([
+                'error' => 'validation_error',
+                'message' => 'Email, code, and new password are required'
+            ]));
+            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+        }
+        
+        // Validate password strength
+        if (strlen($newPassword) < 6) {
+            $response->getBody()->write(json_encode([
+                'error' => 'validation_error',
+                'message' => 'Password must be at least 6 characters long'
+            ]));
+            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+        }
+        
+        // Check if user exists and code is valid
+        $stmt = $pdo->prepare("
+            SELECT id, email, full_name, password_reset_token, password_reset_expires 
+            FROM users 
+            WHERE email = ? AND password_reset_token = ?
+        ");
+        $stmt->execute([$email, $code]);
+        $user = $stmt->fetch();
+        
+        if (!$user) {
+            $response->getBody()->write(json_encode([
+                'error' => 'invalid_code',
+                'message' => 'Invalid or expired reset code'
+            ]));
+            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+        }
+        
+        // Check if code has expired
+        $expiresAt = new DateTime($user['password_reset_expires']);
+        $now = new DateTime();
+        
+        if ($now > $expiresAt) {
+            $response->getBody()->write(json_encode([
+                'error' => 'code_expired',
+                'message' => 'Reset code has expired. Please request a new one.'
+            ]));
+            return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+        }
+        
+        // Hash the new password
+        $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
+        
+        // Update password and clear reset token
+        $stmt = $pdo->prepare("
+            UPDATE users 
+            SET password_hash = ?,
+                password_reset_token = NULL,
+                password_reset_expires = NULL,
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        $stmt->execute([$hashedPassword, $user['id']]);
+        
+        // Delete all password reset requests for this user
+        $stmt = $pdo->prepare("DELETE FROM password_reset_requests WHERE user_id = ?");
+        $stmt->execute([$user['id']]);
+        
+        // Log audit
+        $stmt = $pdo->prepare("
+            INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address, created_at)
+            VALUES (?, 'user.password_reset_success', 'user', ?, ?, ?, NOW())
+        ");
+        $stmt->execute([
+            $user['id'],
+            $user['id'],
+            json_encode(['email' => $email]),
+            $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'
+        ]);
+        
+        $response->getBody()->write(json_encode([
+            'success' => true,
+            'message' => 'Password has been reset successfully. You can now log in with your new password.'
         ]));
         return $response->withHeader('Content-Type', 'application/json');
     });

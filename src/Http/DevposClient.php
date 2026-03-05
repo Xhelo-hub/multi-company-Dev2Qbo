@@ -68,9 +68,9 @@ class DevposClient
         $password = openssl_decrypt(
             $creds['password_encrypted'],
             'AES-256-CBC',
-            base64_decode($encryptionKey),
+            $encryptionKey,
             0,
-            substr(hash('sha256', $encryptionKey, true), 0, 16)
+            substr(md5($encryptionKey), 0, 16)
         );
 
         if ($password === false) {
@@ -253,17 +253,37 @@ class DevposClient
     }
 
     /**
-     * Get single E-Invoice by EIC (often includes PDF)
+     * Get single E-Invoice by EIC (often includes PDF and currency data)
+     *
+     * Per DevPos API documentation section 7.2, the EIC must be sent as form data:
+     * GET api/v3/EInvoice --form 'EIC="<eic-value>"'
      */
     public function getEInvoiceByEIC(string $eic): array
     {
-        // Try GET with query parameter
+        // Per documentation: GET with multipart form data (--form in curl)
         $response = $this->request('GET', 'EInvoice', [
-            'query' => ['EIC' => $eic]
+            'multipart' => [
+                [
+                    'name' => 'EIC',
+                    'contents' => $eic
+                ]
+            ]
         ]);
 
-        // If 405/415, fallback to POST with form params
-        if (in_array($response->getStatusCode(), [405, 415])) {
+        // If GET with multipart fails, try POST with multipart form data
+        if ($response->getStatusCode() >= 400) {
+            $response = $this->request('POST', 'EInvoice', [
+                'multipart' => [
+                    [
+                        'name' => 'EIC',
+                        'contents' => $eic
+                    ]
+                ]
+            ]);
+        }
+
+        // If still failing, try POST with form_params (application/x-www-form-urlencoded)
+        if ($response->getStatusCode() >= 400) {
             $response = $this->request('POST', 'EInvoice', [
                 'form_params' => ['EIC' => $eic]
             ]);

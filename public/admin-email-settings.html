@@ -1130,7 +1130,9 @@
         async function loadConfiguration() {
             try {
                 // Load available providers
-                const providersResponse = await fetch(`${API_BASE}/api/email/providers`);
+                const providersResponse = await fetch(`${API_BASE}/api/email/providers`, {
+                    credentials: 'include'
+                });
                 const providersData = await providersResponse.json();
 
                 if (providersData.success && providersData.providers) {
@@ -1211,7 +1213,9 @@
         // Load current configuration
         async function loadCurrentConfiguration() {
             try {
-                const response = await fetch(apiUrl('/api/admin/email/config'));
+                const response = await fetch(`${API_BASE}/api/admin/email/config`, {
+                    credentials: 'include'
+                });
                 const data = await response.json();
 
                 if (data.success && data.config && data.config.provider_key) {
@@ -1294,6 +1298,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify(configData)
                 });
 
