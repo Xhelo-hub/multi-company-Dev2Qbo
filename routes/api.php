@@ -580,7 +580,7 @@ $app->post('/api/companies/{companyId}/credentials/devpos', function (Request $r
             'AES-256-CBC',
             $_ENV['ENCRYPTION_KEY'] ?? 'default-key',
             0,
-            substr(md5($_ENV['ENCRYPTION_KEY'] ?? 'default-key'), 0, 16)
+            substr(hash('sha256', $_ENV['ENCRYPTION_KEY'] ?? 'default-key'), 0, 16)
         );
     }
     

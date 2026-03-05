@@ -70,7 +70,7 @@ class DevposClient
             'AES-256-CBC',
             $encryptionKey,
             0,
-            substr(md5($encryptionKey), 0, 16)
+            substr(hash('sha256', $encryptionKey), 0, 16)
         );
 
         if ($password === false) {
