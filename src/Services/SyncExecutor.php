@@ -855,8 +855,7 @@ use GuzzleHttp\Client;
                 $response = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
                     'query' => [
                         'fromDate' => $fromDate,
-                        'toDate' => $toDate,
-                        'includePdf' => true  // Request PDF field in response
+                        'toDate' => $toDate
                     ],
                     'headers' => [
                         'Authorization' => 'Bearer ' . $token,
