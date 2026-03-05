@@ -179,6 +179,13 @@ use GuzzleHttp\Client;
                 try {
                     error_log("[$progress] Syncing invoice $invoiceId to QuickBooks...");
                     
+                    // Skip self-issued invoices (vetëfaturimet) — handled by syncBills instead
+                    if (isset($invoice['selfIssuingType']) && $invoice['selfIssuingType'] !== null) {
+                        error_log("[$progress] Skipping invoice $invoiceId: self-issued (selfIssuingType={$invoice['selfIssuingType']}), handled by bills sync");
+                        $skipped++;
+                        continue;
+                    }
+
                     // Check invoice status - skip rejected invoices
                     $invoiceStatus = strtolower($invoice['invoiceStatus'] ?? $invoice['InvoiceStatus'] ?? $invoice['status'] ?? $invoice['Status'] ?? $invoice['state'] ?? $invoice['State'] ?? '');
                     if (in_array($invoiceStatus, ['rejected', 'refuzuar', 'refuse', 'refused'])) {
@@ -241,24 +248,22 @@ use GuzzleHttp\Client;
                                 ?? $detailedInvoice['Monedha']
                                 ?? null;
                             
-                            // Extract VAT calculation currency (Monedha e llogaritjes së TVSH-së)
+                            // Extract VAT calculation currency — NOTE: baseCurrency is home currency (ALL), never use it here
                             $vatCurrency = $detailedInvoice['vatCurrency']
                                 ?? $detailedInvoice['VATCurrency']
-                                ?? $detailedInvoice['baseCurrency']
-                                ?? $detailedInvoice['BaseCurrency']
                                 ?? $detailedInvoice['tvshCurrency']
                                 ?? $detailedInvoice['TVSHCurrency']
                                 ?? null;
-                            
+
                             // Extract exchange rate
                             if (!$exchangeRate) {
-                                $exchangeRate = $detailedInvoice['exchangeRate'] 
+                                $exchangeRate = $detailedInvoice['exchangeRate']
                                     ?? $detailedInvoice['ExchangeRate']
                                     ?? $detailedInvoice['rate']
                                     ?? $detailedInvoice['Rate']
                                     ?? null;
                             }
-                            
+
                             // Extract home currency amount (converted ALL amount)
                             if (!$amountInHomeCurrency) {
                                 $amountInHomeCurrency = $detailedInvoice['amountInBaseCurrency']
@@ -267,17 +272,14 @@ use GuzzleHttp\Client;
                                     ?? $detailedInvoice['totalInBaseCurrency']
                                     ?? null;
                             }
-                            
+
                             error_log("[$progress] Fetched detailed invoice - InvoiceCurrency: " . ($currentCurrency ?? 'NOT FOUND') . ", VATCurrency: " . ($vatCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL') . ", AmountInALL: " . ($amountInHomeCurrency ?? 'NULL'));
-                            
-                            // Store VAT currency for later use and override list API currency if accurate vatCurrency available
+
+                            // Use vatCurrency only if DevPos explicitly returned it (not home currency fallback)
                             if ($vatCurrency) {
                                 $invoice['vatCurrency'] = $vatCurrency;
-                                
-                                // Override the list API currency with accurate vatCurrency from detailed invoice
-                                // This fixes the issue where list API returns "ALL" for foreign currency invoices
                                 if ($currentCurrency !== $vatCurrency) {
-                                    error_log("[$progress] Overriding list API currency '$currentCurrency' with accurate vatCurrency: $vatCurrency");
+                                    error_log("[$progress] Overriding invoice currency '$currentCurrency' with vatCurrency: $vatCurrency");
                                     $currentCurrency = $vatCurrency;
                                 }
                             }
@@ -428,9 +430,38 @@ use GuzzleHttp\Client;
                 $job['from_date'],
                 $job['to_date']
             );
-            
+
+            // Also fetch self-issued invoices (vetëfaturimet) from the sales endpoint
+            // These are invoices your company issues on behalf of vendors (e.g. farm purchases)
+            // They appear in GetSalesInvoice with selfIssuingType != null but are expenses (bills) not revenue
+            try {
+                $salesInvoices = $this->fetchDevPosSalesInvoices(
+                    $devposToken,
+                    $devposCreds['tenant'],
+                    $job['from_date'],
+                    $job['to_date']
+                );
+                $selfIssued = array_filter($salesInvoices, function($inv) {
+                    return isset($inv['selfIssuingType']) && $inv['selfIssuingType'] !== null;
+                });
+                if (count($selfIssued) > 0) {
+                    // Remap fields: in vetëfaturimet the counterparty (who you bought from) is in customer/buyer fields
+                    foreach ($selfIssued as &$si) {
+                        $si['_isSelfIssued'] = true;
+                        // Vendor = the party you bought from (customer in DevPos's vetëfaturim)
+                        $si['sellerName'] = $si['customer']['name'] ?? $si['buyerName'] ?? $si['sellerName'] ?? 'Unknown';
+                        $si['sellerNuis'] = $si['customer']['idNumber'] ?? $si['buyerNuis'] ?? $si['sellerNuis'] ?? '';
+                    }
+                    unset($si);
+                    error_log("Found " . count($selfIssued) . " self-issued invoices (vetëfaturimet) to sync as bills");
+                    $bills = array_merge($bills, array_values($selfIssued));
+                }
+            } catch (Exception $e) {
+                error_log("Warning: Could not fetch self-issued invoices: " . $e->getMessage());
+            }
+
             $totalBills = count($bills);
-            error_log("Starting bills sync for company $companyId: $totalBills bills to process");
+            error_log("Starting bills sync for company $companyId: $totalBills bills to process (includes vetëfaturimet)");
             
             $synced = 0;
             $skipped = 0;
@@ -533,30 +564,27 @@ use GuzzleHttp\Client;
                                 ?? $detailedInvoice['Monedha']
                                 ?? null;
                             
-                            // Extract VAT calculation currency (Monedha e llogaritjes së TVSH-së)
+                            // Extract VAT calculation currency — NOTE: baseCurrency is home currency (ALL), never use it here
                             $vatCurrency = $detailedInvoice['vatCurrency']
                                 ?? $detailedInvoice['VATCurrency']
-                                ?? $detailedInvoice['baseCurrency']
-                                ?? $detailedInvoice['BaseCurrency']
                                 ?? $detailedInvoice['tvshCurrency']
                                 ?? $detailedInvoice['TVSHCurrency']
                                 ?? null;
-                            
+
                             // Extract exchange rate if available
                             if (!$exchangeRate) {
-                                $exchangeRate = $detailedInvoice['exchangeRate'] 
+                                $exchangeRate = $detailedInvoice['exchangeRate']
                                     ?? $detailedInvoice['ExchangeRate']
                                     ?? $detailedInvoice['rate']
                                     ?? $detailedInvoice['Rate']
                                     ?? null;
                             }
-                            
+
                             error_log("[$progress] Fetched detailed invoice - InvoiceCurrency: " . ($currentCurrency ?? 'NOT FOUND') . ", VATCurrency: " . ($vatCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL'));
-                            
-                            // Store VAT currency for later use - this is the authoritative source
+
+                            // Use vatCurrency only if DevPos explicitly returned it (not home currency fallback)
                             if ($vatCurrency) {
                                 $bill['vatCurrency'] = $vatCurrency;
-                                // Override list API currency with vatCurrency from detailed invoice
                                 $currentCurrency = $vatCurrency;
                                 error_log("[$progress] Using vatCurrency from detailed invoice: $vatCurrency");
                             }
