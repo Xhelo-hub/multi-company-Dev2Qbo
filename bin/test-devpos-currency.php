@@ -87,9 +87,28 @@ $listResp = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
     'headers' => $authHeaders,
     'query'   => ['fromDate' => '2024-01-01', 'toDate' => date('Y-m-d')],
 ]);
-$list = json_decode($listResp->getBody()->getContents(), true);
+$listStatus = $listResp->getStatusCode();
+$listBody = $listResp->getBody()->getContents();
+echo "GetPurchaseInvoice HTTP $listStatus\n";
+$list = json_decode($listBody, true);
 if (!is_array($list) || count($list) === 0) {
-    die("No purchase invoices returned from list API.\n");
+    echo "Response (first 500 chars): " . substr($listBody, 0, 500) . "\n";
+    // Try sales instead
+    echo "\nTrying GetSalesInvoice...\n";
+    $salesResp = $client->get($apiBase . '/EInvoice/GetSalesInvoice', [
+        'headers' => $authHeaders,
+        'query'   => ['fromDate' => '2024-01-01', 'toDate' => date('Y-m-d')],
+    ]);
+    echo "GetSalesInvoice HTTP " . $salesResp->getStatusCode() . "\n";
+    $salesBody = $salesResp->getBody()->getContents();
+    $salesList = json_decode($salesBody, true);
+    if (is_array($salesList) && count($salesList) > 0) {
+        echo "Sales fields: " . implode(', ', array_keys($salesList[0])) . "\n";
+        echo json_encode($salesList[0], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+    } else {
+        echo "Sales response: " . substr($salesBody, 0, 500) . "\n";
+    }
+    die();
 }
 
 $first = $list[0];
