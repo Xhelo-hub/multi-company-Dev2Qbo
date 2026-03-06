@@ -28,13 +28,13 @@ $iv  = substr(hash('sha256', $key), 0, 16);
 
 $stmt = $pdo->prepare("
     SELECT
-        AES_DECRYPT(devpos_username, ?) AS username,
-        AES_DECRYPT(devpos_password, ?) AS password,
-        AES_DECRYPT(devpos_tenant, ?)   AS tenant
+        tenant,
+        username,
+        AES_DECRYPT(password_encrypted, ?) AS password
     FROM company_credentials_devpos
     WHERE company_id = ?
 ");
-$stmt->execute([$key, $key, $key, $companyId]);
+$stmt->execute([$key, $companyId]);
 $creds = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$creds || !$creds['tenant']) {
