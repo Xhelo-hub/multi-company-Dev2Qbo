@@ -214,80 +214,10 @@ use GuzzleHttp\Client;
                         ?? $invoice['totalInBaseCurrency']
                         ?? null;
                     
-                    // ALWAYS fetch detailed invoice for accurate vatCurrency
-                    // The list API often returns "ALL" as default even for foreign currency invoices
-                    if ($eic) {
-                        error_log("[$progress] Fetching detailed invoice for accurate currency (EIC: $eic)");
-                        $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
-                        if ($detailedInvoice) {
-                            // DEBUG: Log ALL fields from detailed invoice to identify currency field names
-                            error_log("[$progress] === DETAILED INVOICE FIELDS ===");
-                            error_log("[$progress] Available fields: " . implode(', ', array_keys($detailedInvoice)));
-                            
-                            // Log all potential currency-related fields
-                            $currencyFields = array_filter($detailedInvoice, function($key) {
-                                return stripos($key, 'currency') !== false || 
-                                       stripos($key, 'monedh') !== false || 
-                                       stripos($key, 'exchange') !== false ||
-                                       stripos($key, 'rate') !== false ||
-                                       stripos($key, 'tvsh') !== false ||
-                                       stripos($key, 'vat') !== false;
-                            }, ARRAY_FILTER_USE_KEY);
-                            
-                            if (!empty($currencyFields)) {
-                                error_log("[$progress] Currency-related fields found: " . json_encode($currencyFields, JSON_UNESCAPED_UNICODE));
-                            }
-                            error_log("[$progress] ================================");
-                            
-                            // Extract invoice currency (Monedha e faturës)
-                            $currentCurrency = $detailedInvoice['currencyCode'] 
-                                ?? $detailedInvoice['currency'] 
-                                ?? $detailedInvoice['Currency'] 
-                                ?? $detailedInvoice['CurrencyCode']
-                                ?? $detailedInvoice['monedha']
-                                ?? $detailedInvoice['Monedha']
-                                ?? null;
-                            
-                            // Extract VAT calculation currency — NOTE: baseCurrency is home currency (ALL), never use it here
-                            $vatCurrency = $detailedInvoice['vatCurrency']
-                                ?? $detailedInvoice['VATCurrency']
-                                ?? $detailedInvoice['tvshCurrency']
-                                ?? $detailedInvoice['TVSHCurrency']
-                                ?? null;
-
-                            // Extract exchange rate
-                            if (!$exchangeRate) {
-                                $exchangeRate = $detailedInvoice['exchangeRate']
-                                    ?? $detailedInvoice['ExchangeRate']
-                                    ?? $detailedInvoice['rate']
-                                    ?? $detailedInvoice['Rate']
-                                    ?? null;
-                            }
-
-                            // Extract home currency amount (converted ALL amount)
-                            if (!$amountInHomeCurrency) {
-                                $amountInHomeCurrency = $detailedInvoice['amountInBaseCurrency']
-                                    ?? $detailedInvoice['amountInHomeCurrency']
-                                    ?? $detailedInvoice['convertedAmount']
-                                    ?? $detailedInvoice['totalInBaseCurrency']
-                                    ?? null;
-                            }
-
-                            error_log("[$progress] Fetched detailed invoice - InvoiceCurrency: " . ($currentCurrency ?? 'NOT FOUND') . ", VATCurrency: " . ($vatCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL') . ", AmountInALL: " . ($amountInHomeCurrency ?? 'NULL'));
-
-                            // Use vatCurrency only if DevPos explicitly returned it (not home currency fallback)
-                            if ($vatCurrency) {
-                                $invoice['vatCurrency'] = $vatCurrency;
-                                if ($currentCurrency !== $vatCurrency) {
-                                    error_log("[$progress] Overriding invoice currency '$currentCurrency' with vatCurrency: $vatCurrency");
-                                    $currentCurrency = $vatCurrency;
-                                }
-                            }
-                        } else {
-                            error_log("[$progress] Could not fetch detailed invoice for EIC: $eic");
-                        }
-                    } else if ($currentCurrency) {
-                        error_log("[$progress] Currency found in list API response: $currentCurrency");
+                    // Use currency directly from the list API response.
+                    // DevPos has no single-invoice-by-EIC endpoint, so we trust the list fields.
+                    if ($currentCurrency) {
+                        error_log("[$progress] Currency from list API: $currentCurrency");
                     }
                     
                     // Default to ALL if still not found
@@ -530,75 +460,10 @@ use GuzzleHttp\Client;
                         ?? $bill['rate']
                         ?? null;
                     
-                    // ALWAYS fetch detailed invoice for bills to get accurate vatCurrency
-                    // The list API often returns "ALL" as default even for foreign currency bills
-                    if ($eic) {
-                        error_log("[$progress] Fetching detailed invoice for accurate currency (EIC: $eic)");
-                        $detailedInvoice = $this->fetchDevPosInvoiceDetails($devposToken, $devposCreds['tenant'], $eic);
-                        if ($detailedInvoice) {
-                            // DEBUG: Log ALL fields from detailed invoice to identify currency field names
-                            error_log("[$progress] === DETAILED BILL FIELDS ===");
-                            error_log("[$progress] Available fields: " . implode(', ', array_keys($detailedInvoice)));
-                            
-                            // Log all potential currency-related fields
-                            $currencyFields = array_filter($detailedInvoice, function($key) {
-                                return stripos($key, 'currency') !== false || 
-                                       stripos($key, 'monedh') !== false || 
-                                       stripos($key, 'exchange') !== false ||
-                                       stripos($key, 'rate') !== false ||
-                                       stripos($key, 'tvsh') !== false ||
-                                       stripos($key, 'vat') !== false;
-                            }, ARRAY_FILTER_USE_KEY);
-                            
-                            if (!empty($currencyFields)) {
-                                error_log("[$progress] Currency-related fields found: " . json_encode($currencyFields, JSON_UNESCAPED_UNICODE));
-                            }
-                            error_log("[$progress] ================================");
-                            
-                            // Extract invoice currency (Monedha e faturës)
-                            $currentCurrency = $detailedInvoice['currencyCode'] 
-                                ?? $detailedInvoice['currency'] 
-                                ?? $detailedInvoice['Currency'] 
-                                ?? $detailedInvoice['CurrencyCode']
-                                ?? $detailedInvoice['monedha']
-                                ?? $detailedInvoice['Monedha']
-                                ?? null;
-                            
-                            // Extract VAT calculation currency — NOTE: baseCurrency is home currency (ALL), never use it here
-                            $vatCurrency = $detailedInvoice['vatCurrency']
-                                ?? $detailedInvoice['VATCurrency']
-                                ?? $detailedInvoice['tvshCurrency']
-                                ?? $detailedInvoice['TVSHCurrency']
-                                ?? null;
-
-                            // Extract exchange rate if available
-                            if (!$exchangeRate) {
-                                $exchangeRate = $detailedInvoice['exchangeRate']
-                                    ?? $detailedInvoice['ExchangeRate']
-                                    ?? $detailedInvoice['rate']
-                                    ?? $detailedInvoice['Rate']
-                                    ?? null;
-                            }
-
-                            error_log("[$progress] Fetched detailed invoice - InvoiceCurrency: " . ($currentCurrency ?? 'NOT FOUND') . ", VATCurrency: " . ($vatCurrency ?? 'NOT FOUND') . ", ExchangeRate: " . ($exchangeRate ?? 'NULL'));
-
-                            // Use vatCurrency only if DevPos explicitly returned it (not home currency fallback)
-                            if ($vatCurrency) {
-                                $bill['vatCurrency'] = $vatCurrency;
-                                $currentCurrency = $vatCurrency;
-                                error_log("[$progress] Using vatCurrency from detailed invoice: $vatCurrency");
-                            }
-                            
-                            // Update exchange rate from detailed invoice if not in list
-                            if (!$exchangeRate && isset($detailedInvoice['exchangeRate'])) {
-                                $exchangeRate = $detailedInvoice['exchangeRate'];
-                                $bill['exchangeRate'] = $exchangeRate;
-                            }
-                        } else {
-                            error_log("[$progress] Could not fetch detailed invoice for EIC: $eic");
-                        }
-                    } else {
-                        error_log("[$progress] No EIC found, cannot fetch detailed currency");
+                    // Use currency directly from the list API response.
+                    // DevPos has no single-invoice-by-EIC endpoint, so we trust the list fields.
+                    if ($currentCurrency) {
+                        error_log("[$progress] Currency from list API: $currentCurrency");
                     }
                     
                     // Default to ALL if still not found
@@ -1086,18 +951,32 @@ use GuzzleHttp\Client;
             // Create new invoice in QuickBooks
             $qboInvoice = $this->convertDevPosToQBOInvoice($invoice, $companyId, $qboCreds);
             
-            try {
-                $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/invoice', [
+            $postInvoice = function(array $creds) use ($client, $baseUrl, $qboInvoice): array {
+                $response = $client->post($baseUrl . '/v3/company/' . $creds['realm_id'] . '/invoice', [
                     'headers' => [
-                        'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                        'Authorization' => 'Bearer ' . $creds['access_token'],
                         'Accept' => 'application/json',
                         'Content-Type' => 'application/json'
                     ],
                     'json' => $qboInvoice
                 ]);
-                
-                $result = json_decode($response->getBody()->getContents(), true);
-                
+                return json_decode($response->getBody()->getContents(), true);
+            };
+
+            try {
+                try {
+                    $result = $postInvoice($qboCreds);
+                } catch (\GuzzleHttp\Exception\ClientException $e401) {
+                    if ($e401->getResponse()->getStatusCode() === 401) {
+                        error_log("QBO 401 on invoice POST — refreshing token and retrying");
+                        $qboCreds = $this->ensureFreshToken(['token_expires_at' => '2000-01-01', 'refresh_token' => $qboCreds['refresh_token'], 'realm_id' => $qboCreds['realm_id']], $companyId);
+                        $result = $postInvoice($qboCreds);
+                    } else {
+                        throw $e401;
+                    }
+                }
+                $result = $result ?? [];
+
                 // Store mapping
                 if (isset($result['Invoice']['Id'])) {
                     $qboInvoiceId = (string)$result['Invoice']['Id'];
@@ -1600,18 +1479,33 @@ use GuzzleHttp\Client;
             error_log(json_encode($qboBill, JSON_PRETTY_PRINT));
             error_log("========================================");
             
-            // STEP 4: Send to QuickBooks
+            // STEP 4: Send to QuickBooks (with one auth-retry on 401)
             error_log("=== STEP 4: SENDING TO QUICKBOOKS ===");
-            $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/bill', [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $qboCreds['access_token'],
-                    'Accept' => 'application/json',
-                    'Content-Type' => 'application/json'
-                ],
-                'json' => $qboBill
-            ]);
-            
-            $result = json_decode($response->getBody()->getContents(), true);
+            $postBill = function(array $creds) use ($client, $baseUrl, $qboBill): array {
+                $response = $client->post($baseUrl . '/v3/company/' . $creds['realm_id'] . '/bill', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $creds['access_token'],
+                        'Accept' => 'application/json',
+                        'Content-Type' => 'application/json'
+                    ],
+                    'json' => $qboBill
+                ]);
+                return json_decode($response->getBody()->getContents(), true);
+            };
+
+            try {
+                $result = $postBill($qboCreds);
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+                if ($e->getResponse()->getStatusCode() === 401) {
+                    error_log("QBO 401 on bill POST — refreshing token and retrying");
+                    $qboCreds = $this->ensureFreshToken(['token_expires_at' => '2000-01-01', 'refresh_token' => $qboCreds['refresh_token'], 'realm_id' => $qboCreds['realm_id']], $companyId);
+                    $result = $postBill($qboCreds);
+                } else {
+                    throw $e;
+                }
+            }
+
+            $result = $result ?? [];
             
             error_log("  ➜ QuickBooks Response:");
             error_log(json_encode($result, JSON_PRETTY_PRINT));
@@ -2034,15 +1928,15 @@ use GuzzleHttp\Client;
                     ],
                     'json' => $updatePayload
                 ]);
-                
+
                 $result = json_decode($response->getBody()->getContents(), true);
                 error_log("Invoice $invoiceId updated successfully");
-                
+
                 return $result;
             } catch (\GuzzleHttp\Exception\ClientException $e) {
                 $errorBody = $e->getResponse()->getBody()->getContents();
                 $errorData = json_decode($errorBody, true);
-                
+
                 $errorDetail = 'QuickBooks API Error';
                 if (isset($errorData['Fault']['Error'][0])) {
                     $error = $errorData['Fault']['Error'][0];
@@ -2051,7 +1945,7 @@ use GuzzleHttp\Client;
                         $errorDetail .= ': ' . $error['Detail'];
                     }
                 }
-                
+
                 error_log("QuickBooks Invoice Update Failed: " . $errorDetail);
                 throw new Exception($errorDetail);
             }
