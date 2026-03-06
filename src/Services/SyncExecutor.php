@@ -1566,81 +1566,120 @@ use GuzzleHttp\Client;
         {
             // Normalize currency code
             $currency = strtoupper($currency);
-            
-            // For multi-currency, append currency to name for lookup
-            $lookupKey = $nuis;
-            if ($currency !== 'ALL') {
-                $lookupKey = $nuis . '_' . $currency;
+
+            // Always use a currency-specific lookup key so each currency gets its own vendor
+            $lookupKey = $nuis . '_' . $currency;
+
+            // Build the display name — always include currency suffix so vendors are distinguishable
+            $displayName = $currency !== 'ALL' ? $name . ' - ' . $currency : $name;
+            if ($nuis) {
+                $displayName .= " ({$nuis})";
             }
-            
-            // Check if vendor already exists in mappings
+
+            // 1. Check local mappings (fast path)
             $stmt = $this->pdo->prepare("
-                SELECT qbo_vendor_id 
-                FROM vendor_mappings 
+                SELECT qbo_vendor_id
+                FROM vendor_mappings
                 WHERE company_id = ? AND devpos_nuis = ?
             ");
             $stmt->execute([$companyId, $lookupKey]);
             $existingId = $stmt->fetchColumn();
-            
+
             if ($existingId) {
-                error_log("Found existing vendor: $name ($currency) => QBO ID: $existingId");
+                error_log("Found existing vendor mapping: $displayName => QBO ID: $existingId");
                 return (string)$existingId;
             }
-            
-            // Create new vendor in QuickBooks
+
+            // 2. Backward-compat: check old key format (nuis without currency suffix) for ALL
+            if ($currency === 'ALL' && $nuis) {
+                $stmt->execute([$companyId, $nuis]);
+                $legacyId = $stmt->fetchColumn();
+                if ($legacyId) {
+                    // Migrate the legacy key to the new format
+                    $migrateStmt = $this->pdo->prepare("
+                        UPDATE vendor_mappings SET devpos_nuis = ? WHERE company_id = ? AND devpos_nuis = ?
+                    ");
+                    $migrateStmt->execute([$lookupKey, $companyId, $nuis]);
+                    error_log("Migrated vendor mapping key: $nuis → $lookupKey => QBO ID: $legacyId");
+                    return (string)$legacyId;
+                }
+            }
+
+            // 3. Search QBO by display name in case vendor exists there but not in local mappings
             $client = new Client();
             $isSandbox = (($_ENV['QBO_ENV'] ?? 'production') === 'sandbox');
-            $baseUrl = $isSandbox 
+            $baseUrl = $isSandbox
                 ? 'https://sandbox-quickbooks.api.intuit.com'
                 : 'https://quickbooks.api.intuit.com';
-            
-            // Append currency to display name if not home currency
-            $displayName = $name;
-            if ($currency !== 'ALL') {
-                $displayName = $name . ' - ' . $currency;
+
+            try {
+                $searchResponse = $client->get($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/query', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                        'Accept' => 'application/json'
+                    ],
+                    'query' => ['query' => "SELECT * FROM Vendor WHERE DisplayName = '" . addslashes($displayName) . "'"]
+                ]);
+                $searchResult = json_decode($searchResponse->getBody()->getContents(), true);
+                $found = $searchResult['QueryResponse']['Vendor'][0] ?? null;
+                if ($found) {
+                    $vendorId = (string)$found['Id'];
+                    // Cache it locally
+                    $cacheStmt = $this->pdo->prepare("
+                        INSERT INTO vendor_mappings (company_id, devpos_nuis, vendor_name, qbo_vendor_id, created_at)
+                        VALUES (?, ?, ?, ?, NOW())
+                        ON DUPLICATE KEY UPDATE qbo_vendor_id = VALUES(qbo_vendor_id)
+                    ");
+                    $cacheStmt->execute([$companyId, $lookupKey, $name, $vendorId]);
+                    error_log("Found vendor in QBO by display name: $displayName => QBO ID: $vendorId (cached locally)");
+                    return $vendorId;
+                }
+            } catch (\Exception $e) {
+                error_log("Warning: QBO vendor search failed: " . $e->getMessage());
             }
-            if ($nuis) {
-                $displayName .= " ({$nuis})";
-            }
-            
+
+            // 4. Create new vendor in QuickBooks
             $vendorData = [
                 'DisplayName' => $displayName,
                 'CompanyName' => $name,
                 'Vendor1099' => false
             ];
-            
-            // Set currency if not home currency (ALL)
+
             if ($currency !== 'ALL') {
                 $vendorData['CurrencyRef'] = ['value' => $currency];
-                error_log("Creating vendor with currency: $currency");
             }
-            
+
             if ($nuis) {
                 $vendorData['TaxIdentifier'] = $nuis;
             }
-            
-            $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/vendor', [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $qboCreds['access_token'],
-                    'Accept' => 'application/json',
-                    'Content-Type' => 'application/json'
-                ],
-                'json' => $vendorData
-            ]);
-            
-            $result = json_decode($response->getBody()->getContents(), true);
+
+            try {
+                $response = $client->post($baseUrl . '/v3/company/' . $qboCreds['realm_id'] . '/vendor', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $qboCreds['access_token'],
+                        'Accept' => 'application/json',
+                        'Content-Type' => 'application/json'
+                    ],
+                    'json' => $vendorData
+                ]);
+                $result = json_decode($response->getBody()->getContents(), true);
+            } catch (\GuzzleHttp\Exception\ClientException $e) {
+                $errorBody = $e->getResponse()->getBody()->getContents();
+                error_log("QBO vendor creation failed for '$displayName': $errorBody");
+                throw new Exception("Failed to create vendor '$displayName' in QuickBooks: " . $e->getMessage());
+            }
+
             $vendorId = (string)($result['Vendor']['Id'] ?? '');
-            
+
             if ($vendorId) {
-                // Store vendor mapping with currency-specific key
                 $stmt = $this->pdo->prepare("
                     INSERT INTO vendor_mappings (company_id, devpos_nuis, vendor_name, qbo_vendor_id, created_at)
                     VALUES (?, ?, ?, ?, NOW())
                 ");
                 $stmt->execute([$companyId, $lookupKey, $name, $vendorId]);
-                error_log("Created vendor: $displayName => QBO ID: $vendorId");
+                error_log("Created vendor: $displayName (currency: $currency) => QBO ID: $vendorId");
             }
-            
+
             return $vendorId;
         }
         
