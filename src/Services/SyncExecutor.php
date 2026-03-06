@@ -1102,7 +1102,7 @@ use GuzzleHttp\Client;
             
             $currencyCode = $devposInvoice['currencyCode'] ?? null;
             $currency = $devposInvoice['currency'] ?? null;
-            $vatCurrency = $devposInvoice['vatCurrency'] ?? null;  // VAT calculation currency - often the actual transaction currency
+            $vatCurrency = $devposInvoice['vatCurrency'] ?? null;  // VAT calculation currency — always ALL in Albania, do NOT use as transaction currency
             $baseCurrency = $devposInvoice['baseCurrency'] ?? null;
             $exchangeRate = $devposInvoice['exchangeRate'] ?? null;
             $amountInBaseCurrency = $devposInvoice['amountInBaseCurrency'] ?? null;
@@ -1115,9 +1115,9 @@ use GuzzleHttp\Client;
             error_log("  totalAmount: $totalAmount");
             error_log("  amountInBaseCurrency: " . ($amountInBaseCurrency ?? 'NOT SET'));
             
-            // Prioritize vatCurrency as it's the actual transaction currency in DevPos
-            $finalCurrency = $vatCurrency ?? $currencyCode ?? $currency ?? 'ALL';
-            error_log("  ➜ FINAL CURRENCY: $finalCurrency (source: " . ($vatCurrency ? 'vatCurrency' : ($currencyCode ? 'currencyCode' : ($currency ? 'currency' : 'default ALL'))) . ")");
+            // Use currencyCode as the transaction currency. vatCurrency is the VAT calc currency (always ALL in Albania).
+            $finalCurrency = $currencyCode ?? $currency ?? 'ALL';
+            error_log("  ➜ FINAL CURRENCY: $finalCurrency (source: " . ($currencyCode ? 'currencyCode' : ($currency ? 'currency' : 'default ALL')) . ")");
             error_log("==========================================");
             
             // STEP 2: Get or create customer with currency
@@ -1668,9 +1668,9 @@ use GuzzleHttp\Client;
             error_log("Bill date: " . $txnDate . " (from field value: " . ($billDate === 'now' ? 'MISSING' : $billDate) . ")");
             
             // Get currency from bill - try all possible field names, prioritizing vatCurrency
-            $currency = $devposBill['vatCurrency']        // PRIMARY - VAT calculation currency (actual transaction currency)
-                ?? $devposBill['currencyCode'] 
-                ?? $devposBill['currency'] 
+            // Use currencyCode as the transaction currency. vatCurrency is VAT calc currency (always ALL in Albania).
+            $currency = $devposBill['currencyCode']
+                ?? $devposBill['currency']
                 ?? $devposBill['Currency']
                 ?? $devposBill['CurrencyCode']
                 ?? $devposBill['currencyType']
