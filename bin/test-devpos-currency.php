@@ -85,7 +85,7 @@ $authHeaders = [
 // Fetch first purchase invoice from list
 $listResp = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
     'headers' => $authHeaders,
-    'query'   => ['fromDate' => '2025-01-01', 'toDate' => '2025-12-31'],
+    'query'   => ['fromDate' => '2024-01-01', 'toDate' => date('Y-m-d')],
 ]);
 $list = json_decode($listResp->getBody()->getContents(), true);
 if (!is_array($list) || count($list) === 0) {
@@ -102,7 +102,7 @@ echo "List API fields: " . implode(', ', array_keys($first)) . "\n\n";
 echo "=== Probe 1: GetPurchaseInvoice?includeDetails=true ===\n";
 $r = $client->get($apiBase . '/EInvoice/GetPurchaseInvoice', [
     'headers' => $authHeaders,
-    'query'   => ['fromDate' => '2025-01-01', 'toDate' => '2025-12-31', 'includeDetails' => 'true'],
+    'query'   => ['fromDate' => '2024-01-01', 'toDate' => date('Y-m-d'), 'includeDetails' => 'true'],
 ]);
 $data = json_decode($r->getBody()->getContents(), true);
 if (is_array($data) && count($data) > 0) {
