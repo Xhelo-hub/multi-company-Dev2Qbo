@@ -1435,7 +1435,7 @@ use GuzzleHttp\Client;
             // Check all possible currency fields
             $currencyCode = $bill['currencyCode'] ?? null;
             $currency = $bill['currency'] ?? null;
-            $vatCurrency = $bill['vatCurrency'] ?? null;  // VAT calculation currency - often the actual transaction currency
+            $vatCurrency = $bill['vatCurrency'] ?? null;  // VAT calculation currency — always ALL in Albania, do NOT use as transaction currency
             $baseCurrency = $bill['baseCurrency'] ?? null;
             $exchangeRate = $bill['exchangeRate'] ?? null;
             $totalAmount = $bill['totalAmount'] ?? $bill['total'] ?? $bill['amount'] ?? null;
@@ -1449,9 +1449,9 @@ use GuzzleHttp\Client;
             error_log("  totalAmount: " . ($totalAmount ?? 'NOT SET'));
             error_log("  amountInBaseCurrency: " . ($amountInBaseCurrency ?? 'NOT SET'));
             
-            // Determine final currency - prioritize vatCurrency as it's the actual transaction currency in DevPos
-            $finalCurrency = $vatCurrency ?? $currencyCode ?? $currency ?? 'ALL';
-            error_log("  ➜ FINAL CURRENCY: $finalCurrency (source: " . ($vatCurrency ? 'vatCurrency' : ($currencyCode ? 'currencyCode' : ($currency ? 'currency' : 'default ALL'))) . ")");
+            // Use currencyCode as transaction currency. vatCurrency is VAT calc currency (always ALL in Albania).
+            $finalCurrency = $currencyCode ?? $currency ?? 'ALL';
+            error_log("  ➜ FINAL CURRENCY: $finalCurrency (source: " . ($currencyCode ? 'currencyCode' : ($currency ? 'currency' : 'default ALL')) . ")");
             error_log("=================================");
             
             // STEP 2: Get or create vendor with currency
