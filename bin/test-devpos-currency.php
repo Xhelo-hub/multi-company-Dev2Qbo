@@ -27,23 +27,24 @@ $key = $_ENV['ENCRYPTION_KEY'];
 $iv  = substr(hash('sha256', $key), 0, 16);
 
 $stmt = $pdo->prepare("
-    SELECT
-        tenant,
-        username,
-        AES_DECRYPT(password_encrypted, ?) AS password
+    SELECT tenant, username, password_encrypted
     FROM company_credentials_devpos
     WHERE company_id = ?
 ");
-$stmt->execute([$key, $companyId]);
+$stmt->execute([$companyId]);
 $creds = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$creds || !$creds['tenant']) {
     die("No DevPos credentials found for company $companyId\n");
 }
 
+$iv = substr(hash('sha256', $key), 0, 16);
 $tenant   = $creds['tenant'];
 $username = $creds['username'];
-$password = $creds['password'];
+$password = openssl_decrypt($creds['password_encrypted'], 'AES-256-CBC', $key, 0, $iv);
+if (!$password) {
+    die("Failed to decrypt DevPos password for company $companyId\n");
+}
 
 $tokenUrl = $_ENV['DEVPOS_TOKEN_URL'] ?? 'https://online.devpos.al/connect/token';
 $apiBase  = $_ENV['DEVPOS_API_BASE']  ?? 'https://online.devpos.al/api/v3';
