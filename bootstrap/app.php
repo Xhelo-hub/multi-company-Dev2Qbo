@@ -84,6 +84,11 @@ $container->set(\App\Services\MultiCompanySyncService::class, function ($c) {
     );
 });
 
+// VerificationService
+$container->set(\App\Services\VerificationService::class, function ($c) {
+    return new \App\Services\VerificationService($c->get(PDO::class));
+});
+
 // EmailService
 $container->set(\App\Services\EmailService::class, function ($c) {
     return new \App\Services\EmailService(

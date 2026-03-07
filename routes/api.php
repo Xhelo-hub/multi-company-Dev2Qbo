@@ -2410,6 +2410,19 @@ $app->delete('/api/companies/{companyId}/schedules/{scheduleId}', function (Requ
     return $response->withHeader('Content-Type', 'application/json');
 })->add($authMiddleware);
 
+// Audit report — re-validate synced records for a company in a date range
+$app->get('/api/companies/{id}/audit', function (Request $request, Response $response, array $args) use ($container) {
+    $params   = $request->getQueryParams();
+    $verifier = $container->get(\App\Services\VerificationService::class);
+    $report   = $verifier->generateAuditReport(
+        (int)$args['id'],
+        $params['fromDate'] ?? date('Y-m-01'),
+        $params['toDate']   ?? date('Y-m-d')
+    );
+    $response->getBody()->write(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    return $response->withHeader('Content-Type', 'application/json');
+})->add($authMiddleware);
+
 // Health check
 $app->get('/health', function (Request $request, Response $response) {
     $response->getBody()->write(json_encode([

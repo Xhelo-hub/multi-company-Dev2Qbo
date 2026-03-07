@@ -22,7 +22,7 @@ $pdo = new PDO(
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
 );
 
-$syncExecutor = new SyncExecutor($pdo);
+$syncExecutor = new SyncExecutor($pdo, new \App\Services\VerificationService($pdo));
 
 echo "[" . date('Y-m-d H:i:s') . "] Starting scheduled sync check...\n";
 

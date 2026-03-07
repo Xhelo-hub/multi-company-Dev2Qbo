@@ -74,7 +74,7 @@ echo "Job created with ID: $jobId\n";
 echo "\nExecuting sync job...\n";
 
 try {
-    $executor = new \App\Services\SyncExecutor($pdo);
+    $executor = new \App\Services\SyncExecutor($pdo, new \App\Services\VerificationService($pdo));
     $result = $executor->executeJob($jobId);
     
     echo "\n=== SYNC RESULTS ===\n";

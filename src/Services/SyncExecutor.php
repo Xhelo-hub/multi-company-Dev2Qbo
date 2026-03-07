@@ -11,10 +11,12 @@ use GuzzleHttp\Client;
     class SyncExecutor
     {
         private PDO $pdo;
-        
-        public function __construct(PDO $pdo)
+        private VerificationService $verifier;
+
+        public function __construct(PDO $pdo, VerificationService $verifier)
         {
-            $this->pdo = $pdo;
+            $this->pdo      = $pdo;
+            $this->verifier = $verifier;
         }
         
         /**
@@ -243,6 +245,15 @@ use GuzzleHttp\Client;
                     $homeCurrencyLog = $amountInHomeCurrency ? " (ALL: " . number_format($amountInHomeCurrency, 2) . ")" : "";
                     error_log("[$progress] Invoice $docNumber - Currency: $currentCurrency, Amount: $currentAmount$homeCurrencyLog");
                     
+                    // Validate DevPos invoice before sending
+                    $vResult = $this->verifier->validateDevPosInvoice($invoice);
+                    foreach ($vResult->warnings as $w) error_log("[$progress] WARN: $w");
+                    if (!$vResult->isValid) {
+                        error_log("[$progress] ✗ Invoice $invoiceId validation failed: " . implode('; ', $vResult->errors));
+                        $errors[] = ['invoice' => $invoiceId, 'error' => 'Validation: ' . implode('; ', $vResult->errors)];
+                        continue;
+                    }
+
                     // Sync to QuickBooks with enriched currency data
                     $this->syncInvoiceToQBO($invoice, $qboCreds, $companyId);
                     $synced++;
@@ -556,6 +567,15 @@ use GuzzleHttp\Client;
                     error_log("[$progress] Bill fields: " . json_encode(array_keys($bill)));
                     error_log("[$progress] Bill data sample: " . json_encode(array_slice($bill, 0, 15)));
                     
+                    // Validate DevPos bill before sending
+                    $vResult = $this->verifier->validateDevPosBill($bill);
+                    foreach ($vResult->warnings as $w) error_log("[$progress] WARN: $w");
+                    if (!$vResult->isValid) {
+                        error_log("[$progress] ✗ Bill $billId validation failed: " . implode('; ', $vResult->errors));
+                        $errors[] = ['bill' => $billId, 'error' => 'Validation: ' . implode('; ', $vResult->errors)];
+                        continue;
+                    }
+
                     // Create bill in QuickBooks
                     $this->syncBillToQBO($bill, $qboCreds, $companyId);
                     $synced++;
@@ -950,7 +970,13 @@ use GuzzleHttp\Client;
             
             // Create new invoice in QuickBooks
             $qboInvoice = $this->convertDevPosToQBOInvoice($invoice, $companyId, $qboCreds);
-            
+
+            $qboValResult = $this->verifier->validateQBOInvoicePayload($qboInvoice);
+            foreach ($qboValResult->warnings as $w) error_log("QBO invoice validation WARN: $w");
+            if (!$qboValResult->isValid) {
+                throw new Exception('QBO invoice payload invalid: ' . implode('; ', $qboValResult->errors));
+            }
+
             $postInvoice = function(array $creds) use ($client, $baseUrl, $qboInvoice): array {
                 $response = $client->post($baseUrl . '/v3/company/' . $creds['realm_id'] . '/invoice', [
                     'headers' => [
@@ -1474,11 +1500,17 @@ use GuzzleHttp\Client;
             // STEP 3: Convert bill to QBO format
             error_log("=== STEP 3: BILL PAYLOAD CREATION ===");
             $qboBill = $this->convertDevPosToQBOBill($bill, $vendorId, $qboCreds, $companyId);
-            
+
             error_log("  ➜ Generated QBO Payload:");
             error_log(json_encode($qboBill, JSON_PRETTY_PRINT));
             error_log("========================================");
-            
+
+            $qboValResult = $this->verifier->validateQBOBillPayload($qboBill);
+            foreach ($qboValResult->warnings as $w) error_log("QBO bill validation WARN: $w");
+            if (!$qboValResult->isValid) {
+                throw new Exception('QBO bill payload invalid: ' . implode('; ', $qboValResult->errors));
+            }
+
             // STEP 4: Send to QuickBooks (with one auth-retry on 401)
             error_log("=== STEP 4: SENDING TO QUICKBOOKS ===");
             $postBill = function(array $creds) use ($client, $baseUrl, $qboBill): array {

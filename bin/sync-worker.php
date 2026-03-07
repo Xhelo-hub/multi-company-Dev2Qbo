@@ -76,7 +76,7 @@ while (true) {
             echo "   Date Range: {$job['from_date']} to {$job['to_date']}\n";
             
             // Execute the job with fresh connection
-            $executor = new App\Services\SyncExecutor($pdo);
+            $executor = new App\Services\SyncExecutor($pdo, new App\Services\VerificationService($pdo));
             
             try {
                 $result = $executor->executeJob($jobId);
